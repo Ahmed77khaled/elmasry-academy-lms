@@ -163,8 +163,8 @@ export function PaymentForm({ open, onClose, onSaved, preselectedEnrollmentId }:
             ]}
           />
           <Input
-            label="رقم الإيصال / المرجع"
-            placeholder="اختياري"
+            label="مرجع التحويل الخارجي (اختياري)"
+            placeholder="رقم عملية البنك أو المحفظة"
             value={receiptRef}
             onChange={(e) => setReceiptRef(e.target.value)}
           />

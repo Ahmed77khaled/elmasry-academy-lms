@@ -13,10 +13,6 @@ import {
   Search,
   Shield,
   X,
-  ChevronLeft,
-  User,
-  ArrowRight,
-  ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -123,7 +119,7 @@ const PAGE_TITLES: Record<Page, string> = {
 interface SearchResults {
   students: { student_id: string; name: string; phone: string | null }[];
   courses: { course_id: string; course_name: string; default_cost: number }[];
-  payments: { payment_id: string; receipt_ref: string | null; amount: number; payment_date: string }[];
+  payments: { payment_id: string; receipt_number: number; receipt_ref: string | null; amount: number; payment_date: string }[];
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -166,10 +162,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
+        const receiptSearch = q.replace(/^rec-/i, '');
+        const hasNumericReceiptSearch = /^\d+$/.test(receiptSearch)
+          && Number.isSafeInteger(Number(receiptSearch));
         const [studentsRes, coursesRes, paymentsRes] = await Promise.all([
           supabase.from('students').select('student_id, name, phone').ilike('name', `%${q}%`).limit(5),
           supabase.from('courses').select('course_id, course_name, default_cost').ilike('course_name', `%${q}%`).limit(5),
-          supabase.from('payments').select('payment_id, receipt_ref, amount, payment_date').ilike('receipt_ref', `%${q}%`).limit(5),
+          (hasNumericReceiptSearch
+            ? supabase.from('payments').select('payment_id, receipt_number, receipt_ref, amount, payment_date')
+                .or(`receipt_ref.ilike.%${q}%,receipt_number.eq.${Number(receiptSearch)}`).limit(5)
+            : supabase.from('payments').select('payment_id, receipt_number, receipt_ref, amount, payment_date')
+                .ilike('receipt_ref', `%${q}%`).limit(5)),
         ]);
 
         setSearchResults({
@@ -400,7 +403,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             }}
                             className="w-full text-right p-2 rounded-lg hover:bg-obsidian-700 flex items-center justify-between transition-colors"
                           >
-                            <span className="text-sm font-medium text-white">إيصال: {p.receipt_ref ?? p.payment_id.slice(0, 8)}</span>
+                            <span className="text-sm font-medium text-white">إيصال: REC-{String(p.receipt_number).padStart(8, '0')}</span>
                             <span className="text-xs text-emerald-light font-num font-bold">
                               {formatEGP(p.amount)}
                             </span>

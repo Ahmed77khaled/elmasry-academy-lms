@@ -58,7 +58,7 @@ export function ExpenseForm({ open, onClose, onSaved }: ExpenseFormProps) {
     setSaving(true);
     setError(null);
 
-    const { data, error: rpcError } = await supabase.rpc('record_expense', {
+    const { error: rpcError } = await supabase.rpc('record_expense', {
       p_cash_box_id: cashBoxId,
       p_amount: enteredAmount,
       p_expense_date: expenseDate,

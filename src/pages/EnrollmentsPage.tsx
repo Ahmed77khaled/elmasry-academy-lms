@@ -3,11 +3,12 @@ import { Search, Plus, CreditCard, Eye } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from '@/components/AppShell';
-import { Badge, paymentStatusBadge, enrollmentStatusBadge } from '@/components/ui/Badge';
+import { Badge, paymentStatusBadge } from '@/components/ui/Badge';
 import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { QuickEnrollModal } from '@/components/forms/QuickEnrollModal';
 import { PaymentForm } from '@/components/forms/PaymentForm';
 import { formatEGP, formatDate } from '@/lib/format';
+import { Alert } from '@/components/ui/Alert';
 import type { EnrollmentBalance } from '@/types/database';
 
 export function EnrollmentsPage() {
@@ -18,6 +19,7 @@ export function EnrollmentsPage() {
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
   const [paymentFormOpen, setPaymentFormOpen] = useState(false);
   const [selectedEnrForPay, setSelectedEnrForPay] = useState<string | undefined>();
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   const { data: enrollments, loading, refetch } = useQuery<EnrollmentBalance[]>(async () => {
     let query = supabase.from('enrollment_balances').select('*').order('enrolled_at', { ascending: false });
@@ -31,8 +33,13 @@ export function EnrollmentsPage() {
   });
 
   const handleUpdateStatus = async (enrId: string, newStatus: string) => {
-    await supabase.from('enrollments').update({ status: newStatus }).eq('enrollment_id', enrId);
-    refetch();
+    setStatusError(null);
+    const { error } = await supabase.rpc('set_enrollment_status', {
+      p_enrollment_id: enrId,
+      p_status: newStatus,
+    });
+    if (error) setStatusError(error.message);
+    else refetch();
   };
 
   const handleRecordPayment = (enrId: string) => {
@@ -41,7 +48,7 @@ export function EnrollmentsPage() {
   };
 
   return (
-    <div className="space-y-5">
+      <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-white font-bold text-xl">جدول الاشتراكات المركزي</h2>
@@ -52,6 +59,8 @@ export function EnrollmentsPage() {
           تسجيل طالب في كورس
         </button>
       </div>
+
+      {statusError && <Alert variant="error">{statusError}</Alert>}
 
       <div className="card-surface p-4 flex flex-wrap gap-3">
         <div className="flex items-center gap-2 bg-obsidian-700 rounded-lg px-3 py-2 border border-obsidian-500/40 flex-1 min-w-[200px]">

@@ -1,12 +1,13 @@
 import { Modal } from '@/components/ui/Modal';
 import { formatEGP, formatDate } from '@/lib/format';
-import { Printer, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Printer, CheckCircle2 } from 'lucide-react';
 
 interface ReceiptModalProps {
   open: boolean;
   onClose: () => void;
   payment: {
     payment_id: string;
+    receipt_number?: number | null;
     student_name: string;
     student_phone?: string | null;
     course_name: string;
@@ -58,12 +59,19 @@ export function ReceiptModal({ open, onClose, payment }: ReceiptModalProps) {
                 <CheckCircle2 size={13} /> إيصال تحصيل رسمي
               </span>
               <p className="text-xs text-gray-500 mt-1 font-mono">
-                رقم: {payment.receipt_ref || `REC-${payment.payment_id.slice(0, 8).toUpperCase()}`}
+                رقم: {payment.receipt_number != null
+                  ? `REC-${String(payment.receipt_number).padStart(8, '0')}`
+                  : `REC-${payment.payment_id.slice(0, 8).toUpperCase()}`}
               </p>
             </div>
           </div>
 
           {/* Main Details Table */}
+          {payment.receipt_ref && (
+            <p className="text-xs text-gray-500 mb-3">
+              مرجع التحويل الخارجي: <span className="font-mono">{payment.receipt_ref}</span>
+            </p>
+          )}
           <div className="space-y-3 text-sm">
             <div className="flex justify-between py-1.5 border-b border-gray-100">
               <span className="text-gray-500 font-medium">اسم الطالب:</span>

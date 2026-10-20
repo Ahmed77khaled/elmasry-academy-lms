@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Ban } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { ExpenseForm } from '@/components/forms/ExpenseForm';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Textarea } from '@/components/ui/Form';
+import { Alert } from '@/components/ui/Alert';
 import { formatEGP, formatDate } from '@/lib/format';
 import type { Expense } from '@/types/database';
 
@@ -26,8 +28,10 @@ interface ExpenseTableRow extends Expense {
 
 export function ExpensesPage() {
   const [formOpen, setFormOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<ExpenseTableRow | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [voidTarget, setVoidTarget] = useState<ExpenseTableRow | null>(null);
+  const [voiding, setVoiding] = useState(false);
+  const [voidReason, setVoidReason] = useState('');
+  const [voidError, setVoidError] = useState<string | null>(null);
 
   const { data: expenses, loading, refetch } = useQuery<ExpenseTableRow[]>(async () => {
     const { data, error } = await supabase
@@ -41,6 +45,9 @@ export function ExpensesPage() {
         description,
         expense_date,
         notes,
+        voided_at,
+        voided_by,
+        void_reason,
         created_at,
         cash_boxes ( name ),
         courses ( course_name )
@@ -51,13 +58,25 @@ export function ExpensesPage() {
     return { data: (data ?? []) as unknown as ExpenseTableRow[], error: error?.message ?? null };
   });
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    const { error } = await supabase.from('expenses').delete().eq('expense_id', deleteTarget.expense_id);
-    setDeleting(false);
-    if (!error) {
-      setDeleteTarget(null);
+  const handleVoid = async () => {
+    if (!voidTarget) return;
+    const reason = voidReason.trim();
+    if (reason.length < 5) {
+      setVoidError('اكتب سبب الإلغاء (5 أحرف على الأقل).');
+      return;
+    }
+    setVoiding(true);
+    setVoidError(null);
+    const { error } = await supabase.rpc('void_expense', {
+      p_expense_id: voidTarget.expense_id,
+      p_void_reason: reason,
+    });
+    setVoiding(false);
+    if (error) {
+      setVoidError(error.message);
+    } else {
+      setVoidTarget(null);
+      setVoidReason('');
       refetch();
     }
   };
@@ -98,8 +117,10 @@ export function ExpensesPage() {
                 </tr>
               </thead>
               <tbody>
-                {expenses.map((exp) => (
-                  <tr key={exp.expense_id} className="border-b border-obsidian-500/20 hover:bg-obsidian-700/30 transition-colors">
+                {expenses.map((exp) => {
+                  const isVoided = Boolean(exp.voided_at);
+                  return (
+                  <tr key={exp.expense_id} className={`border-b border-obsidian-500/20 hover:bg-obsidian-700/30 transition-colors ${isVoided ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-3 text-obsidian-300 font-num">{formatDate(exp.expense_date)}</td>
                     <td className="px-4 py-3">
                       <Badge variant={CATEGORY_VARIANTS[exp.category] ?? 'gray'}>
@@ -109,14 +130,23 @@ export function ExpensesPage() {
                     <td className="px-4 py-3 text-obsidian-100">{exp.description ?? '—'}</td>
                     <td className="px-4 py-3 text-obsidian-200 hidden md:table-cell">{exp.cash_boxes?.name ?? '—'}</td>
                     <td className="px-4 py-3 text-obsidian-200 hidden lg:table-cell">{exp.courses?.course_name ?? 'عام للسنتر'}</td>
-                    <td className="px-4 py-3 font-num font-bold text-rose-400">{formatEGP(exp.amount)}</td>
+                    <td className={`px-4 py-3 font-num font-bold text-rose-400 ${isVoided ? 'line-through' : ''}`}>{formatEGP(exp.amount)}</td>
                     <td className="px-4 py-3">
-                      <button onClick={() => setDeleteTarget(exp)} className="btn-danger px-2.5 py-1.5 text-xs">
-                        <Trash2 size={14} /> حذف
-                      </button>
+                      {isVoided ? (
+                        <span title={exp.void_reason ?? 'مصروف ملغى'} className="text-xs text-rose-300">ملغى</span>
+                      ) : (
+                        <button onClick={() => {
+                          setVoidError(null);
+                          setVoidReason('');
+                          setVoidTarget(exp);
+                        }} className="btn-danger px-2.5 py-1.5 text-xs">
+                          <Ban size={14} /> إلغاء
+                        </button>
+                      )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -125,15 +155,33 @@ export function ExpensesPage() {
 
       <ExpenseForm open={formOpen} onClose={() => setFormOpen(false)} onSaved={refetch} />
       <ConfirmDialog
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-        title="حذف المصروف"
-        message={`هل أنت متأكد من حذف هذا المصروف بقيمة ${formatEGP(deleteTarget?.amount ?? 0)}؟ لا يمكن التراجع عن هذا الإجراء`}
-        confirmLabel="حذف"
-        loading={deleting}
+        open={!!voidTarget}
+        onClose={() => {
+          if (voiding) return;
+          setVoidTarget(null);
+          setVoidReason('');
+          setVoidError(null);
+        }}
+        onConfirm={handleVoid}
+        title="إلغاء المصروف"
+        message={`سيتم إلغاء المصروف بقيمة ${formatEGP(voidTarget?.amount ?? 0)} مع الاحتفاظ بسجله، واستبعاده من الأرصدة والتقارير.`}
+        confirmLabel="إلغاء المصروف"
+        loading={voiding}
+        confirmDisabled={voidReason.trim().length < 5}
         danger
-      />
+      >
+        <Textarea
+          label="سبب الإلغاء (إلزامي)"
+          placeholder="اذكر سبب إلغاء المصروف"
+          rows={3}
+          minLength={5}
+          maxLength={500}
+          value={voidReason}
+          onChange={(e) => setVoidReason(e.target.value)}
+          required
+        />
+        {voidError && <Alert variant="error">{voidError}</Alert>}
+      </ConfirmDialog>
     </div>
   );
 }

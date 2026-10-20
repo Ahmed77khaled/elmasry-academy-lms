@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Modal } from '@/components/ui/Modal';
-import { Input, Select, Textarea, FormActions } from '@/components/ui/Form';
+import { Input, Select, FormActions } from '@/components/ui/Form';
 import { Alert } from '@/components/ui/Alert';
 import { formatEGP } from '@/lib/format';
 import { UserPlus, UserCheck, CreditCard } from 'lucide-react';
@@ -40,7 +40,7 @@ export function QuickEnrollModal({
   const [newEmail, setNewEmail] = useState('');
   const [newEmployment, setNewEmployment] = useState('Student');
   const [newGrad, setNewGrad] = useState('Undergrad');
-  const [newNotes, setNewNotes] = useState('');
+  const [newNotes] = useState('');
 
   // Immediate Initial Payment (Optional)
   const [withPayment, setWithPayment] = useState(false);

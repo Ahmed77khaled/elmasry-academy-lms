@@ -7,6 +7,8 @@ import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { PaymentForm } from '@/components/forms/PaymentForm';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ReceiptModal } from '@/components/modals/ReceiptModal';
+import { Textarea } from '@/components/ui/Form';
+import { Alert } from '@/components/ui/Alert';
 import { formatEGP, formatDate } from '@/lib/format';
 
 const METHOD_LABELS: Record<string, string> = {
@@ -18,6 +20,7 @@ const METHOD_LABELS: Record<string, string> = {
 
 interface RawPaymentRow {
   payment_id: string;
+  receipt_number: number;
   enrollment_id: string;
   cash_box_id: string;
   amount: number;
@@ -26,6 +29,8 @@ interface RawPaymentRow {
   receipt_ref: string | null;
   notes: string | null;
   voided_at: string | null;
+  voided_by: string | null;
+  void_reason: string | null;
   created_at: string;
   enrollments?: {
     students?: { name: string; phone?: string | null } | null;
@@ -38,12 +43,15 @@ export function PaymentsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [voidTarget, setVoidTarget] = useState<RawPaymentRow | null>(null);
   const [voiding, setVoiding] = useState(false);
+  const [voidReason, setVoidReason] = useState('');
+  const [voidError, setVoidError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [methodFilter, setMethodFilter] = useState('');
 
   // Receipt Modal
   const [receiptTarget, setReceiptTarget] = useState<{
     payment_id: string;
+    receipt_number: number;
     student_name: string;
     student_phone?: string | null;
     course_name: string;
@@ -60,6 +68,7 @@ export function PaymentsPage() {
       .from('payments')
       .select(`
         payment_id,
+        receipt_number,
         enrollment_id,
         cash_box_id,
         amount,
@@ -68,6 +77,8 @@ export function PaymentsPage() {
         receipt_ref,
         notes,
         voided_at,
+        voided_by,
+        void_reason,
         created_at,
         enrollments ( students ( name, phone ), courses ( course_name ) ),
         cash_boxes ( name )
@@ -85,11 +96,23 @@ export function PaymentsPage() {
 
   const handleVoid = async () => {
     if (!voidTarget) return;
+    const reason = voidReason.trim();
+    if (reason.length < 5) {
+      setVoidError('اكتب سبب الإلغاء (5 أحرف على الأقل).');
+      return;
+    }
     setVoiding(true);
-    const { error } = await supabase.rpc('void_payment', { p_payment_id: voidTarget.payment_id });
+    setVoidError(null);
+    const { error } = await supabase.rpc('void_payment', {
+      p_payment_id: voidTarget.payment_id,
+      p_void_reason: reason,
+    });
     setVoiding(false);
-    if (!error) {
+    if (error) {
+      setVoidError(error.message);
+    } else {
       setVoidTarget(null);
+      setVoidReason('');
       refetch();
     }
   };
@@ -97,6 +120,7 @@ export function PaymentsPage() {
   const handleOpenReceipt = (p: RawPaymentRow) => {
     setReceiptTarget({
       payment_id: p.payment_id,
+      receipt_number: p.receipt_number,
       student_name: p.enrollments?.students?.name ?? 'طالب بالأكاديمية',
       student_phone: p.enrollments?.students?.phone,
       course_name: p.enrollments?.courses?.course_name ?? 'كورس تدريبي',
@@ -115,7 +139,8 @@ export function PaymentsPage() {
     const sName = p.enrollments?.students?.name?.toLowerCase() ?? '';
     const cName = p.enrollments?.courses?.course_name?.toLowerCase() ?? '';
     const ref = p.receipt_ref?.toLowerCase() ?? '';
-    return sName.includes(q) || cName.includes(q) || ref.includes(q);
+    const receiptLabel = `REC-${String(p.receipt_number).padStart(8, '0')}`.toLowerCase();
+    return sName.includes(q) || cName.includes(q) || ref.includes(q) || receiptLabel.includes(q);
   });
 
   return (
@@ -205,11 +230,13 @@ export function PaymentsPage() {
                         <Badge variant="blue">{METHOD_LABELS[p.method] ?? p.method}</Badge>
                       </td>
                       <td className="px-4 py-3 text-obsidian-300 font-num hidden lg:table-cell">
-                        {p.receipt_ref ?? '—'}
+                        REC-{String(p.receipt_number).padStart(8, '0')}
                       </td>
                       <td className="px-4 py-3">
                         {isVoided ? (
-                          <Badge variant="rose">ملغاة</Badge>
+                          <span title={p.void_reason ?? 'سبب الإلغاء غير متاح'}>
+                            <Badge variant="rose">ملغاة</Badge>
+                          </span>
                         ) : (
                           <div className="flex items-center gap-1.5">
                             <button
@@ -220,7 +247,11 @@ export function PaymentsPage() {
                               <Printer size={16} />
                             </button>
                             <button
-                              onClick={() => setVoidTarget(p)}
+                              onClick={() => {
+                                setVoidError(null);
+                                setVoidReason('');
+                                setVoidTarget(p);
+                              }}
                               className="btn-danger px-2 py-1 text-xs"
                               title="إلغاء المعاملة"
                             >
@@ -242,14 +273,32 @@ export function PaymentsPage() {
 
       <ConfirmDialog
         open={!!voidTarget}
-        onClose={() => setVoidTarget(null)}
+        onClose={() => {
+          if (voiding) return;
+          setVoidTarget(null);
+          setVoidReason('');
+          setVoidError(null);
+        }}
         onConfirm={handleVoid}
         title="إلغاء الدفعة"
-        message={`هل أنت متأكد من إلغاء هذه الدفعة بقيمة ${formatEGP(voidTarget?.amount ?? 0)}؟ لا يمكن التراجع عن هذا الإجراء`}
+        message={`سيتم إلغاء الدفعة بقيمة ${formatEGP(voidTarget?.amount ?? 0)} مع الاحتفاظ بسجلها. لا يمكن التراجع عن هذا الإجراء.`}
         confirmLabel="إلغاء الدفعة"
         loading={voiding}
+        confirmDisabled={voidReason.trim().length < 5}
         danger
-      />
+      >
+        <Textarea
+          label="سبب الإلغاء (إلزامي)"
+          placeholder="مثال: تم إدخال المبلغ أو الطالب بالخطأ"
+          rows={3}
+          minLength={5}
+          maxLength={500}
+          value={voidReason}
+          onChange={(e) => setVoidReason(e.target.value)}
+          required
+        />
+        {voidError && <Alert variant="error">{voidError}</Alert>}
+      </ConfirmDialog>
 
       <ReceiptModal
         open={!!receiptTarget}

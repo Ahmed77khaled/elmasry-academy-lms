@@ -126,7 +126,7 @@ export function TransferForm({ open, onClose, onSaved, cashBoxes }: TransferForm
     setSaving(true);
     setError(null);
 
-    const { data, error: rpcError } = await supabase.rpc('transfer_between_boxes', {
+    const { error: rpcError } = await supabase.rpc('transfer_between_boxes', {
       p_from_box_id: fromBoxId,
       p_to_box_id: toBoxId,
       p_amount: enteredAmount,

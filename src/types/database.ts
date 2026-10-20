@@ -55,6 +55,7 @@ export interface Enrollment {
 
 export interface Payment {
   payment_id: string;
+  receipt_number: number;
   enrollment_id: string;
   cash_box_id: string;
   amount: number;
@@ -64,6 +65,8 @@ export interface Payment {
   notes: string | null;
   added_by?: string | null;
   voided_at: string | null;
+  voided_by: string | null;
+  void_reason: string | null;
   created_at: string;
 }
 
@@ -77,6 +80,9 @@ export interface Expense {
   expense_date: string;
   notes: string | null;
   added_by?: string | null;
+  voided_at: string | null;
+  voided_by: string | null;
+  void_reason: string | null;
   created_at: string;
 }
 

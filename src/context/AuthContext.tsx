@@ -19,12 +19,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState<boolean>(true);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
-  const checkAdmin = async (userId: string) => {
+  const checkAdmin = async () => {
     try {
-      const { data } = await supabase.rpc('is_admin', { p_user_id: userId });
-      setIsAdmin(!!data);
+      const { data, error } = await supabase.rpc('is_admin');
+      setIsAdmin(!error && data === true);
     } catch {
-      setIsAdmin(true); // default fallback if RPC is executing as authenticated admin
+      setIsAdmin(false);
     }
   };
 
@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        checkAdmin(session.user.id);
+        void checkAdmin();
       }
       setLoading(false);
     });
@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        checkAdmin(session.user.id);
+        void checkAdmin();
       } else {
         setIsAdmin(false);
       }

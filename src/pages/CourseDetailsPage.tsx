@@ -15,14 +15,13 @@ import {
   Eye,
   CreditCard,
   CheckCircle2,
-  Calendar,
   Clock,
   Award,
 } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from '@/components/AppShell';
-import { Badge, paymentStatusBadge, enrollmentStatusBadge, courseStatusBadge } from '@/components/ui/Badge';
+import { Badge, paymentStatusBadge, courseStatusBadge } from '@/components/ui/Badge';
 import { PageLoader, EmptyState } from '@/components/ui/Feedback';
 import { formatEGP, formatDate } from '@/lib/format';
 import { QuickEnrollModal } from '@/components/forms/QuickEnrollModal';
@@ -30,6 +29,7 @@ import { CourseForm } from '@/components/forms/CourseForm';
 import { PaymentForm } from '@/components/forms/PaymentForm';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type { Course, CourseFinancialSummary, EnrollmentBalance } from '@/types/database';
+import { Alert } from '@/components/ui/Alert';
 
 const LEVEL_LABELS: Record<string, string> = {
   Beginner: 'مبتدئ',
@@ -47,6 +47,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
   const [preselectedEnrollmentId, setPreselectedEnrollmentId] = useState<string | undefined>();
   const [closeTarget, setCloseTarget] = useState<boolean>(false);
   const [closing, setClosing] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   // 1. Fetch Course details
   const { data: course, loading: courseLoading, refetch: refetchCourse } = useQuery<Course>(async () => {
@@ -97,8 +98,13 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
   };
 
   const handleUpdateEnrollmentStatus = async (enrollmentId: string, newStatus: string) => {
-    await supabase.from('enrollments').update({ status: newStatus }).eq('enrollment_id', enrollmentId);
-    refetchAll();
+    setStatusError(null);
+    const { error } = await supabase.rpc('set_enrollment_status', {
+      p_enrollment_id: enrollmentId,
+      p_status: newStatus,
+    });
+    if (error) setStatusError(error.message);
+    else refetchAll();
   };
 
   const handleRecordPaymentForEnrollment = (enrId: string) => {
@@ -262,6 +268,8 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
         )}
       </div>
 
+      {statusError && <Alert variant="error">{statusError}</Alert>}
+
       {/* Financial Pulse Overview (Zero JS recalculation — from PostgreSQL view) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="card-surface p-4 bg-gradient-to-b from-azure-brand/10 to-transparent">
@@ -337,7 +345,6 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
               <tbody>
                 {enrollments.map((enr) => {
                   const ps = paymentStatusBadge(enr.payment_status);
-                  const es = enrollmentStatusBadge(enr.enrollment_status);
                   return (
                     <tr
                       key={enr.enrollment_id}

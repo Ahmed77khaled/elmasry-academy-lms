@@ -10,7 +10,6 @@ import { formatEGP } from '@/lib/format';
 import type { CashBoxBalance } from '@/types/database';
 
 export function SettingsPage() {
-  const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [saving, setSaving] = useState(false);
@@ -52,7 +51,6 @@ export function SettingsPage() {
       setPasswordError(error.message);
     } else {
       setPasswordSuccess(true);
-      setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
     }

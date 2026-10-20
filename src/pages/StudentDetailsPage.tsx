@@ -4,24 +4,22 @@ import {
   Phone,
   Mail,
   GraduationCap,
-  BookOpen,
-  StickyNote,
   Plus,
   Pencil,
   CreditCard,
   Eye,
-  CheckCircle2,
 } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from '@/components/AppShell';
-import { Badge, paymentStatusBadge, enrollmentStatusBadge } from '@/components/ui/Badge';
+import { Badge, paymentStatusBadge } from '@/components/ui/Badge';
 import { PageLoader, EmptyState } from '@/components/ui/Feedback';
 import { formatEGP, formatDate } from '@/lib/format';
 import { QuickEnrollModal } from '@/components/forms/QuickEnrollModal';
 import { StudentForm } from '@/components/forms/StudentForm';
 import { PaymentForm } from '@/components/forms/PaymentForm';
 import type { Student, EnrollmentBalance } from '@/types/database';
+import { Alert } from '@/components/ui/Alert';
 
 const EMPLOYMENT_LABELS: Record<string, string> = {
   Employed: 'يعمل',
@@ -38,6 +36,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
   const [studentFormOpen, setStudentFormOpen] = useState(false);
   const [paymentFormOpen, setPaymentFormOpen] = useState(false);
   const [preselectedEnrollmentId, setPreselectedEnrollmentId] = useState<string | undefined>();
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   const { data: student, loading: studentLoading, refetch: refetchStudent } = useQuery<Student>(async () => {
     if (!studentId) return { data: null, error: null };
@@ -61,8 +60,13 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
   };
 
   const handleUpdateStatus = async (enrId: string, newStatus: string) => {
-    await supabase.from('enrollments').update({ status: newStatus }).eq('enrollment_id', enrId);
-    refetchEnrollments();
+    setStatusError(null);
+    const { error } = await supabase.rpc('set_enrollment_status', {
+      p_enrollment_id: enrId,
+      p_status: newStatus,
+    });
+    if (error) setStatusError(error.message);
+    else refetchEnrollments();
   };
 
   const handleRecordPayment = (enrId: string) => {
@@ -179,6 +183,8 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
         )}
       </div>
 
+      {statusError && <Alert variant="error">{statusError}</Alert>}
+
       {/* Enrolled Courses Cards */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -205,7 +211,6 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {enrollments.map((enr) => {
               const ps = paymentStatusBadge(enr.payment_status);
-              const es = enrollmentStatusBadge(enr.enrollment_status);
               return (
                 <div
                   key={enr.enrollment_id}

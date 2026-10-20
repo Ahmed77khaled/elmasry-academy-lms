@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Modal } from '@/components/ui/Modal';
-import { Input, Select, FormActions } from '@/components/ui/Form';
+import { Input } from '@/components/ui/Form';
 import { Alert } from '@/components/ui/Alert';
 import { formatEGP } from '@/lib/format';
 import type { Course, Student } from '@/types/database';
