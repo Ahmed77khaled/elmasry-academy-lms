@@ -191,6 +191,10 @@ ALTER FUNCTION public.is_admin()
 
 -- Bring the RPC in line with the documented rule: closed courses cannot be
 -- enrolled into, even when a caller bypasses the frontend course selector.
+DROP FUNCTION IF EXISTS public.enroll_student(uuid, uuid, numeric, text);
+DROP FUNCTION IF EXISTS public.enroll_student(uuid, uuid, numeric);
+DROP FUNCTION IF EXISTS public.enroll_student(uuid, uuid);
+
 CREATE OR REPLACE FUNCTION public.enroll_student(
   p_student_id uuid,
   p_course_id uuid,
@@ -262,8 +266,9 @@ ALTER FUNCTION public.set_updated_at()
 -- Keep existing void_payment clients from silently voiding without a reason:
 -- the optional arg preserves the old RPC call shape but rejects missing reason.
 DROP FUNCTION IF EXISTS public.void_payment(uuid);
+DROP FUNCTION IF EXISTS public.void_payment(uuid, text);
 
-CREATE FUNCTION public.void_payment(
+CREATE OR REPLACE FUNCTION public.void_payment(
   p_payment_id uuid,
   p_void_reason text DEFAULT NULL
 )
@@ -307,6 +312,9 @@ BEGIN
   RETURN v_payment;
 END;
 $function$;
+
+DROP FUNCTION IF EXISTS public.void_expense(uuid);
+DROP FUNCTION IF EXISTS public.void_expense(uuid, text);
 
 CREATE OR REPLACE FUNCTION public.void_expense(
   p_expense_id uuid,
@@ -354,6 +362,8 @@ END;
 $function$;
 
 -- Serialize enrollment-status changes with registrations and seat-capacity checks.
+DROP FUNCTION IF EXISTS public.set_enrollment_status(uuid, text);
+
 CREATE OR REPLACE FUNCTION public.set_enrollment_status(
   p_enrollment_id uuid,
   p_status text
@@ -424,6 +434,9 @@ END;
 $function$;
 
 -- Lock both cash boxes in deterministic UUID order to avoid transfer deadlocks.
+DROP FUNCTION IF EXISTS public.transfer_between_boxes(uuid, uuid, numeric, date, text);
+DROP FUNCTION IF EXISTS public.transfer_between_boxes(uuid, uuid, numeric, date);
+
 CREATE OR REPLACE FUNCTION public.transfer_between_boxes(
   p_from_box_id uuid,
   p_to_box_id uuid,
