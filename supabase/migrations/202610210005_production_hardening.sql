@@ -188,8 +188,68 @@ FOR EACH ROW EXECUTE FUNCTION public.prevent_financial_record_mutation();
 -- Harden SECURITY DEFINER routines against mutable search_path resolution.
 ALTER FUNCTION public.is_admin()
   SET search_path = pg_catalog, public;
-ALTER FUNCTION public.enroll_student(uuid, uuid, numeric, text)
-  SET search_path = pg_catalog, public;
+
+-- Bring the RPC in line with the documented rule: closed courses cannot be
+-- enrolled into, even when a caller bypasses the frontend course selector.
+CREATE OR REPLACE FUNCTION public.enroll_student(
+  p_student_id uuid,
+  p_course_id uuid,
+  p_agreed_cost numeric DEFAULT NULL,
+  p_status text DEFAULT 'Active'
+)
+RETURNS public.enrollments
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $function$
+DECLARE
+  v_course public.courses%ROWTYPE;
+  v_active_count integer;
+  v_enrollment public.enrollments%ROWTYPE;
+  v_final_cost numeric;
+BEGIN
+  IF public.is_admin() IS NOT TRUE THEN
+    RAISE EXCEPTION 'Unauthorized: admin access required';
+  END IF;
+  IF p_status IS NULL OR p_status NOT IN ('Active', 'Completed', 'Dropped') THEN
+    RAISE EXCEPTION 'Invalid status: %. Must be Active, Completed, or Dropped', p_status;
+  END IF;
+
+  SELECT * INTO v_course
+  FROM public.courses
+  WHERE course_id = p_course_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Course not found: %', p_course_id;
+  END IF;
+  IF v_course.availability_status = 'Closed' THEN
+    RAISE EXCEPTION 'Cannot enroll into a closed course: %', p_course_id;
+  END IF;
+
+  SELECT count(*) INTO v_active_count
+  FROM public.enrollments
+  WHERE course_id = p_course_id AND status = 'Active';
+
+  IF v_course.max_students IS NOT NULL
+     AND v_active_count >= v_course.max_students THEN
+    RAISE EXCEPTION 'Course is full (max_students = %, active = %)',
+                    v_course.max_students, v_active_count;
+  END IF;
+
+  v_final_cost := COALESCE(p_agreed_cost, v_course.default_cost);
+  IF v_final_cost IS NULL THEN
+    RAISE EXCEPTION 'agreed_cost is required: course has no default_cost set';
+  END IF;
+
+  INSERT INTO public.enrollments (student_id, course_id, agreed_cost, status)
+  VALUES (p_student_id, p_course_id, v_final_cost, p_status)
+  RETURNING * INTO v_enrollment;
+
+  RETURN v_enrollment;
+END;
+$function$;
+
 ALTER FUNCTION public.record_payment(uuid, uuid, numeric, date, text, text, text)
   SET search_path = pg_catalog, public;
 ALTER FUNCTION public.record_expense(uuid, numeric, date, text, text, text, uuid)

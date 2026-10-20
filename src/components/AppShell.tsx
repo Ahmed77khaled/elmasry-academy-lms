@@ -166,7 +166,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         const hasNumericReceiptSearch = /^\d+$/.test(receiptSearch)
           && Number.isSafeInteger(Number(receiptSearch));
         const [studentsRes, coursesRes, paymentsRes] = await Promise.all([
-          supabase.from('students').select('student_id, name, phone').ilike('name', `%${q}%`).limit(5),
+          supabase.from('students').select('student_id, name, phone')
+            .or(`name.ilike.%${q}%,phone.ilike.%${q}%`).limit(5),
           supabase.from('courses').select('course_id, course_name, default_cost').ilike('course_name', `%${q}%`).limit(5),
           (hasNumericReceiptSearch
             ? supabase.from('payments').select('payment_id, receipt_number, receipt_ref, amount, payment_date')
