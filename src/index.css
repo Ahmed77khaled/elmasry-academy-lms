@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Cairo', 'Alexandria', sans-serif;
+  }
+
+  body {
+    background-color: #0B0F17;
+    color: #E2E8F0;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0F172A;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
+
+  /* Number font for Latin/Inter */
+  .font-num {
+    font-family: 'Inter', sans-serif;
+    font-feature-settings: 'tnum';
+  }
+}
+
+@layer components {
+  .card-surface {
+    @apply bg-obsidian-600 border border-obsidian-500/50 rounded-xl;
+  }
+
+  .input-base {
+    @apply w-full bg-obsidian-700 border border-obsidian-500/60 rounded-lg px-4 py-2.5 text-sm text-obsidian-100 placeholder:text-obsidian-300 focus:outline-none focus:ring-2 focus:ring-emerald-brand/50 focus:border-emerald-brand/50 transition-all;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-emerald-brand hover:bg-emerald-dark text-white font-semibold px-4 py-2.5 rounded-lg text-sm transition-all active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 bg-obsidian-600 hover:bg-obsidian-500 text-obsidian-100 font-medium px-4 py-2.5 rounded-lg text-sm border border-obsidian-500/60 transition-all active:scale-95;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-medium px-4 py-2.5 rounded-lg text-sm border border-rose-500/30 transition-all active:scale-95;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 hover:bg-obsidian-500/40 text-obsidian-200 font-medium px-3 py-2 rounded-lg text-sm transition-all;
+  }
+}
