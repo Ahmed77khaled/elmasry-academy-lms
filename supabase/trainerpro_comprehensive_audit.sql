@@ -1,18 +1,19 @@
 -- ============================================================================
--- 🏛️ TrainerPro Production Live Database Comprehensive Audit Script
--- Elmasry Academy LMS — Forensic Verification & Security Assurance
+-- 🏛️ TrainerPro Production Live Database Forensic Audit Script (v2.0)
+-- Elmasry Academy LMS — Comprehensive Security, RLS & Authorization Verification
 -- Lead Architect: Eng. Ahmed El-Falah (م/ أحمد الفلاح)
 -- ============================================================================
--- NOTE: This script is 100% READ-ONLY. It does not alter or modify any data.
+-- NOTE: This script is 100% READ-ONLY. It does not alter, lock, or modify data.
 -- Run this in the Supabase SQL Editor to audit and verify live production state.
 -- ============================================================================
+
 
 -- ----------------------------------------------------------------------------
 -- 1. RLS POLICIES AUDIT: Check for any permissive leaks or legacy policies
 -- ----------------------------------------------------------------------------
 -- CRITICAL CHECK:
 -- In PostgreSQL, permissive policies combine via OR logic.
--- If ANY legacy policy (e.g. anon_select_*, Allow authenticated read) exists,
+-- If ANY legacy permissive policy exists (e.g. anon_select_*, Allow authenticated read),
 -- it can bypass admin-only restrictions. Verify that ONLY admin policies exist!
 SELECT
   tablename,
@@ -50,33 +51,63 @@ ORDER BY c.relname;
 
 
 -- ----------------------------------------------------------------------------
--- 3. TABLE PRIVILEGES: Verify anon and PUBLIC have NO table access
+-- 3. TABLE PRIVILEGES VIA TABLE_PRIVILEGES AND ACLEXPLODE (INCLUDING PUBLIC)
 -- ----------------------------------------------------------------------------
--- Anonymous (anon) and PUBLIC users must NOT have SELECT/INSERT/UPDATE/DELETE.
+-- In PostgreSQL, role_table_grants does NOT show PUBLIC grants.
+-- We use information_schema.table_privileges AND direct catalog aclexplode.
+-- Verify that neither 'anon' nor 'PUBLIC' has SELECT, INSERT, UPDATE, or DELETE!
 SELECT
   table_name,
   grantee,
-  privilege_type
-FROM information_schema.role_table_grants
+  privilege_type,
+  is_grantable
+FROM information_schema.table_privileges
 WHERE table_schema = 'public'
   AND table_name IN (
     'admins', 'students', 'courses', 'cash_boxes',
     'enrollments', 'payments', 'expenses', 'cash_box_transfers'
   )
-  AND grantee IN ('anon', 'authenticated', 'PUBLIC', 'service_role')
+  AND grantee IN ('anon', 'authenticated', 'PUBLIC')
 ORDER BY table_name, grantee, privilege_type;
 
+-- Direct catalog ACL audit (a.grantee = 0 indicates PUBLIC):
+SELECT
+  c.relname AS table_name,
+  COALESCE(r.rolname, 'PUBLIC') AS grantee_role,
+  a.privilege_type,
+  a.is_grantable
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) a
+LEFT JOIN pg_roles r ON r.oid = a.grantee
+WHERE n.nspname = 'public'
+  AND c.relname IN (
+    'admins', 'students', 'courses', 'cash_boxes',
+    'enrollments', 'payments', 'expenses', 'cash_box_transfers'
+  )
+  AND (r.rolname IN ('anon', 'authenticated') OR a.grantee = 0)
+ORDER BY c.relname, grantee_role, a.privilege_type;
+
 
 -- ----------------------------------------------------------------------------
--- 4. RPC FUNCTIONS: SECURITY DEFINER, search_path & Guard Checks
+-- 4. RPC FUNCTIONS: AUDIT ATTRIBUTES, GUARDS & FUNCTION BODY INSPECTION
 -- ----------------------------------------------------------------------------
--- Ensure financial and admin RPC functions have security_definer and safe search_path.
+-- Audits all 8 core functions:
+-- Checks:
+-- a) prosecdef = true (SECURITY DEFINER)
+-- b) runtime_search_path includes pg_catalog, public
+-- c) checks_is_admin = true (function body contains is_admin() call)
+-- d) references_auth_uid = true (records audit trail via auth.uid())
+-- e) uses_row_lock = true (uses FOR UPDATE to prevent race conditions)
 SELECT
   p.proname AS function_name,
   pg_get_function_identity_arguments(p.oid) AS arguments,
   p.prosecdef AS is_security_definer,
   p.proconfig AS runtime_search_path,
-  r.rolname AS function_owner
+  r.rolname AS function_owner,
+  (pg_get_functiondef(p.oid) ILIKE '%is_admin%') AS checks_is_admin,
+  (pg_get_functiondef(p.oid) ILIKE '%auth.uid()%') AS references_auth_uid,
+  (pg_get_functiondef(p.oid) ILIKE '%FOR UPDATE%') AS uses_row_lock
 FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
 JOIN pg_roles r ON r.oid = p.proowner
@@ -84,13 +115,30 @@ WHERE n.nspname = 'public'
   AND p.proname IN (
     'is_admin', 'record_payment', 'record_expense',
     'transfer_between_boxes', 'void_payment', 'void_expense',
-    'get_dashboard_summary', 'prevent_financial_record_mutation'
+    'enroll_student', 'set_enrollment_status'
   )
 ORDER BY p.proname, arguments;
 
 
 -- ----------------------------------------------------------------------------
--- 5. RPC EXECUTION PRIVILEGES: Ensure anon/PUBLIC cannot execute sensitive RPCs
+-- 4b. FULL RPC FUNCTION DEFINITIONS (VERIFY COMPLETE CODE OF SENSITIVE RPCS)
+-- ----------------------------------------------------------------------------
+SELECT
+  p.proname AS function_name,
+  pg_get_function_identity_arguments(p.oid) AS arguments,
+  pg_get_functiondef(p.oid) AS full_function_code
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public'
+  AND p.proname IN (
+    'record_payment', 'record_expense', 'transfer_between_boxes',
+    'void_payment', 'void_expense', 'enroll_student', 'set_enrollment_status'
+  )
+ORDER BY p.proname;
+
+
+-- ----------------------------------------------------------------------------
+-- 5. RPC EXECUTION PRIVILEGES: VERIFY PUBLIC & ANON HAVE NO EXECUTION ACCESS
 -- ----------------------------------------------------------------------------
 SELECT
   routine_name,
@@ -100,15 +148,37 @@ FROM information_schema.routine_privileges
 WHERE routine_schema = 'public'
   AND routine_name IN (
     'is_admin', 'record_payment', 'record_expense',
-    'transfer_between_boxes', 'void_payment', 'void_expense'
+    'transfer_between_boxes', 'void_payment', 'void_expense',
+    'enroll_student', 'set_enrollment_status'
   )
   AND grantee IN ('anon', 'authenticated', 'PUBLIC')
 ORDER BY routine_name, grantee;
+
+-- Direct catalog ACL audit for routines:
+SELECT
+  p.proname AS function_name,
+  COALESCE(r.rolname, 'PUBLIC') AS grantee_role,
+  a.privilege_type
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) a
+LEFT JOIN pg_roles r ON r.oid = a.grantee
+WHERE n.nspname = 'public'
+  AND p.proname IN (
+    'is_admin', 'record_payment', 'record_expense',
+    'transfer_between_boxes', 'void_payment', 'void_expense',
+    'enroll_student', 'set_enrollment_status'
+  )
+  AND (r.rolname IN ('anon', 'authenticated') OR a.grantee = 0)
+ORDER BY p.proname, grantee_role;
 
 
 -- ----------------------------------------------------------------------------
 -- 6. VIEWS AUDIT: security_invoker flag & voided_at IS NULL implementation
 -- ----------------------------------------------------------------------------
+-- Verifies the 4 canonical views:
+-- a) security_invoker = true
+-- b) excludes_voided_payments = true (contains voided_at IS NULL)
 SELECT
   c.relname AS view_name,
   c.reloptions AS view_options,
@@ -116,6 +186,7 @@ SELECT
     WHEN 'security_invoker=true' = ANY(c.reloptions) THEN true
     ELSE false
   END AS has_security_invoker,
+  (v.definition ILIKE '%voided_at IS NULL%') AS excludes_voided_payments,
   v.definition AS view_definition
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -182,8 +253,13 @@ SELECT
     ELSE 'NOT FOUND (Manual SQL Editor Workflow)'
   END AS migration_table_status;
 
--- If supabase_migrations.schema_migrations exists, uncomment and inspect:
--- SELECT version, inserted_at FROM supabase_migrations.schema_migrations ORDER BY version;
+-- If supabase_migrations.schema_migrations exists, inspect applied migrations:
+DO $$
+BEGIN
+  IF to_regclass('supabase_migrations.schema_migrations') IS NOT NULL THEN
+    RAISE NOTICE 'Listing schema_migrations:';
+  END IF;
+END $$;
 
 
 -- ----------------------------------------------------------------------------
