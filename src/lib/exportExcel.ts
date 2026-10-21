@@ -1,6 +1,7 @@
 /**
  * Excel / CSV Exporter for Elmasry Academy
  * Prepends UTF-8 Byte Order Mark (\uFEFF) so Microsoft Excel opens Arabic text cleanly.
+ * Sanitizes against CSV / Spreadsheet Formula Injection (=, +, -, @, \t, \r).
  */
 
 export function exportToCSV({
@@ -14,7 +15,19 @@ export function exportToCSV({
 }) {
   const escapeCell = (cell: string | number | null | undefined): string => {
     if (cell === null || cell === undefined) return '';
-    const str = String(cell);
+    let str = String(cell);
+
+    // OWASP CSV Formula Injection mitigation:
+    // If text begins with =, +, -, @, \t, \r, prepend a single quote (')
+    // Pure numeric values (like -150 or +20) remain intact.
+    const isPureNumber = typeof cell === 'number' || (!isNaN(Number(str)) && str.trim() !== '');
+    if (!isPureNumber) {
+      const trimmed = str.trimStart();
+      if (trimmed.length > 0 && ['=', '+', '-', '@', '\t', '\r'].includes(trimmed.charAt(0))) {
+        str = `'${str}`;
+      }
+    }
+
     if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
       return `"${str.replace(/"/g, '""')}"`;
     }

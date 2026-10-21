@@ -19,32 +19,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState<boolean>(true);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
-  const checkAdmin = async () => {
-    try {
-      const { data, error } = await supabase.rpc('is_admin');
-      setIsAdmin(!error && data === true);
-    } catch {
-      setIsAdmin(false);
-    }
-  };
-
   useEffect(() => {
-    // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        void checkAdmin();
-      }
-      setLoading(false);
-    });
+    let mounted = true;
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    async function verifyAdmin(userId?: string): Promise<boolean> {
+      if (!userId) return false;
+      try {
+        const { data, error } = await supabase.rpc('is_admin');
+        return !error && data === true;
+      } catch {
+        return false;
+      }
+    }
+
+    async function initAuth() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted) return;
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          const adminStatus = await verifyAdmin(session.user.id);
+          if (mounted) setIsAdmin(adminStatus);
+        } else {
+          setIsAdmin(false);
+        }
+      } catch {
+        if (mounted) setIsAdmin(false);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    void initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        void checkAdmin();
+        const adminStatus = await verifyAdmin(session.user.id);
+        setIsAdmin(adminStatus);
       } else {
         setIsAdmin(false);
       }
@@ -52,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
