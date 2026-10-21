@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, CreditCard, Eye } from 'lucide-react';
+import { Search, Plus, CreditCard, Eye, FileSpreadsheet, MessageCircle } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from '@/components/AppShell';
@@ -8,6 +8,8 @@ import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { QuickEnrollModal } from '@/components/forms/QuickEnrollModal';
 import { PaymentForm } from '@/components/forms/PaymentForm';
 import { formatEGP, formatDate } from '@/lib/format';
+import { exportToCSV } from '@/lib/exportExcel';
+import { generatePaymentReminderUrl } from '@/lib/whatsapp';
 import { Alert } from '@/components/ui/Alert';
 import type { EnrollmentBalance } from '@/types/database';
 
@@ -20,6 +22,19 @@ export function EnrollmentsPage() {
   const [paymentFormOpen, setPaymentFormOpen] = useState(false);
   const [selectedEnrForPay, setSelectedEnrForPay] = useState<string | undefined>();
   const [statusError, setStatusError] = useState<string | null>(null);
+
+  // Phone lookup map for students to power 1-click WhatsApp reminders
+  const { data: studentsPhoneMap } = useQuery<Record<string, string>>(async () => {
+    const { data, error } = await supabase.from('students').select('student_id, phone');
+    if (error || !data) return { data: {}, error: error?.message ?? null };
+    const map: Record<string, string> = {};
+    data.forEach((s) => {
+      if (s.student_id && s.phone) {
+        map[s.student_id] = s.phone;
+      }
+    });
+    return { data: map, error: null };
+  });
 
   const { data: enrollments, loading, refetch } = useQuery<EnrollmentBalance[]>(async () => {
     let query = supabase.from('enrollment_balances').select('*').order('enrolled_at', { ascending: false });
@@ -47,45 +62,120 @@ export function EnrollmentsPage() {
     setPaymentFormOpen(true);
   };
 
+  // Export to Excel handler
+  const handleExportExcel = () => {
+    if (!enrollments || enrollments.length === 0) return;
+
+    const headers = [
+      'اسم المتدرب',
+      'رقم الهاتف',
+      'الدورة التدريبية',
+      'تاريخ التسجيل',
+      'المتفق عليه (ج.م)',
+      'المدفوع (ج.م)',
+      'المتبقي (ج.م)',
+      'حالة السداد',
+      'حالة الاشتراك',
+    ];
+
+    const rows = enrollments.map((enr) => {
+      const ps = paymentStatusBadge(enr.payment_status);
+      return [
+        enr.student_name,
+        studentsPhoneMap?.[enr.student_id] ?? '',
+        enr.course_name,
+        enr.enrolled_at?.slice(0, 10) ?? '',
+        enr.agreed_cost,
+        enr.total_paid,
+        enr.remaining_balance,
+        ps.label,
+        enr.enrollment_status === 'Active' ? 'نشط' : enr.enrollment_status === 'Completed' ? 'مكتمل' : 'منسحب',
+      ];
+    });
+
+    const dateSuffix = new Date().toISOString().slice(0, 10);
+    exportToCSV({
+      filename: `تقرير_الاشتراكات_${dateSuffix}`,
+      headers,
+      rows,
+    });
+  };
+
   return (
-      <div className="space-y-5">
+    <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-white font-bold text-xl">جدول الاشتراكات المركزي</h2>
-          <p className="text-obsidian-300 text-sm mt-1">كل الاشتراكات عبر جميع الكورسات</p>
+          <p className="text-obsidian-300 text-sm mt-1">كل الاشتراكات ومتابعة الأقساط عبر جميع الكورسات</p>
         </div>
-        <button onClick={() => setEnrollModalOpen(true)} className="btn-primary">
-          <Plus size={18} />
-          تسجيل طالب في كورس
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportExcel}
+            className="btn-secondary flex items-center gap-2 text-sm bg-obsidian-700 hover:bg-obsidian-600 text-emerald-light border border-emerald-500/30"
+            title="تصدير بيانات الاشتراكات لملف إكسيل"
+          >
+            <FileSpreadsheet size={16} />
+            تصدير إكسيل
+          </button>
+          <button onClick={() => setEnrollModalOpen(true)} className="btn-primary">
+            <Plus size={18} />
+            تسجيل طالب في كورس
+          </button>
+        </div>
       </div>
 
       {statusError && <Alert variant="error">{statusError}</Alert>}
 
-      <div className="card-surface p-4 flex flex-wrap gap-3">
-        <div className="flex items-center gap-2 bg-obsidian-700 rounded-lg px-3 py-2 border border-obsidian-500/40 flex-1 min-w-[200px]">
-          <Search size={16} className="text-obsidian-300 shrink-0" />
-          <input
-            type="text"
-            placeholder="بحث بالطالب أو الكورس..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="bg-transparent text-sm text-obsidian-100 placeholder:text-obsidian-300 outline-none w-full"
-          />
+      <div className="card-surface p-4 space-y-3">
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-2 bg-obsidian-700 rounded-lg px-3 py-2 border border-obsidian-500/40 flex-1 min-w-[200px]">
+            <Search size={16} className="text-obsidian-300 shrink-0" />
+            <input
+              type="text"
+              placeholder="بحث بالطالب أو الكورس..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="bg-transparent text-sm text-obsidian-100 placeholder:text-obsidian-300 outline-none w-full"
+            />
+          </div>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-base w-auto">
+            <option value="">كل حالات الاشتراك</option>
+            <option value="Active">نشط</option>
+            <option value="Completed">مكتمل</option>
+            <option value="Dropped">منسحب</option>
+          </select>
+          <select value={payFilter} onChange={(e) => setPayFilter(e.target.value)} className="input-base w-auto">
+            <option value="">كل حالات الدفع</option>
+            <option value="Paid">مدفوع</option>
+            <option value="Partial">جزئي</option>
+            <option value="Unpaid">غير مدفوع</option>
+            <option value="Overpaid">مدفوع زيادة</option>
+          </select>
         </div>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-base w-auto">
-          <option value="">كل حالات الاشتراك</option>
-          <option value="Active">نشط</option>
-          <option value="Completed">مكتمل</option>
-          <option value="Dropped">منسحب</option>
-        </select>
-        <select value={payFilter} onChange={(e) => setPayFilter(e.target.value)} className="input-base w-auto">
-          <option value="">كل حالات الدفع</option>
-          <option value="Paid">مدفوع</option>
-          <option value="Partial">جزئي</option>
-          <option value="Unpaid">غير مدفوع</option>
-          <option value="Overpaid">مدفوع زيادة</option>
-        </select>
+
+        {enrollments && (
+          <div className="flex items-center justify-between flex-wrap gap-3 text-xs text-obsidian-300 pt-1">
+            <div>
+              عدد الاشتراكات: <span className="font-num text-white font-semibold">{enrollments.length}</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <span>
+                إجمالي المحصل:{' '}
+                <span className="font-num text-emerald-light font-bold">
+                  {formatEGP(enrollments.reduce((sum, e) => sum + Number(e.total_paid), 0))}
+                </span>
+              </span>
+              <span>
+                المتبقي المطلوب:{' '}
+                <span className="font-num text-amber-400 font-bold">
+                  {formatEGP(
+                    enrollments.reduce((sum, e) => sum + (e.remaining_balance > 0 ? Number(e.remaining_balance) : 0), 0)
+                  )}
+                </span>
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="card-surface overflow-hidden">
@@ -115,15 +205,39 @@ export function EnrollmentsPage() {
               <tbody>
                 {enrollments.map((enr) => {
                   const ps = paymentStatusBadge(enr.payment_status);
+                  const studentPhone = studentsPhoneMap?.[enr.student_id];
+                  const reminderUrl =
+                    enr.remaining_balance > 0 && studentPhone
+                      ? generatePaymentReminderUrl({
+                          phone: studentPhone,
+                          studentName: enr.student_name,
+                          courseName: enr.course_name,
+                          remainingAmount: enr.remaining_balance,
+                        })
+                      : null;
+
                   return (
                     <tr key={enr.enrollment_id} className="border-b border-obsidian-500/20 hover:bg-obsidian-700/30 transition-colors">
                       <td className="px-4 py-3 text-white font-medium">
-                        <button
-                          onClick={() => navigate('student-details', { id: enr.student_id })}
-                          className="hover:text-emerald-light transition-colors text-right"
-                        >
-                          {enr.student_name}
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => navigate('student-details', { id: enr.student_id })}
+                            className="hover:text-emerald-light transition-colors text-right"
+                          >
+                            {enr.student_name}
+                          </button>
+                          {reminderUrl && (
+                            <a
+                              href={reminderUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-emerald-400 hover:text-emerald-300 p-0.5"
+                              title={`إرسال تذكير واتساب للمتدرب بمتبقي ${formatEGP(enr.remaining_balance)}`}
+                            >
+                              <MessageCircle size={14} />
+                            </a>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-obsidian-200">
                         <button
@@ -164,6 +278,18 @@ export function EnrollmentsPage() {
                               <CreditCard size={13} />
                               دفع قسط
                             </button>
+                          )}
+                          {reminderUrl && (
+                            <a
+                              href={reminderUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn-secondary text-xs py-1 px-2 flex items-center gap-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-light border border-emerald-500/30"
+                              title="تذكير واتساب"
+                            >
+                              <MessageCircle size={13} />
+                              تذكير
+                            </a>
                           )}
                           <button
                             onClick={() => navigate('student-details', { id: enr.student_id })}

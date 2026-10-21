@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Clock,
   Award,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
@@ -24,6 +25,8 @@ import { useRouter } from '@/components/AppShell';
 import { Badge, paymentStatusBadge, courseStatusBadge } from '@/components/ui/Badge';
 import { PageLoader, EmptyState } from '@/components/ui/Feedback';
 import { formatEGP, formatDate } from '@/lib/format';
+import { exportToCSV } from '@/lib/exportExcel';
+import { generatePaymentReminderUrl } from '@/lib/whatsapp';
 import { QuickEnrollModal } from '@/components/forms/QuickEnrollModal';
 import { CourseForm } from '@/components/forms/CourseForm';
 import { PaymentForm } from '@/components/forms/PaymentForm';
@@ -48,6 +51,19 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
   const [closeTarget, setCloseTarget] = useState<boolean>(false);
   const [closing, setClosing] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+
+  // Phone lookup map for enrolled students (for WhatsApp reminders & exports)
+  const { data: studentsPhoneMap } = useQuery<Record<string, string>>(async () => {
+    const { data, error } = await supabase.from('students').select('student_id, phone');
+    if (error || !data) return { data: {}, error: error?.message ?? null };
+    const map: Record<string, string> = {};
+    data.forEach((s) => {
+      if (s.student_id && s.phone) {
+        map[s.student_id] = s.phone;
+      }
+    });
+    return { data: map, error: null };
+  });
 
   // 1. Fetch Course details
   const { data: course, loading: courseLoading, refetch: refetchCourse } = useQuery<Course>(async () => {
@@ -110,6 +126,44 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
   const handleRecordPaymentForEnrollment = (enrId: string) => {
     setPreselectedEnrollmentId(enrId);
     setPaymentFormOpen(true);
+  };
+
+  // Export Course Students to Excel
+  const handleExportEnrollmentsExcel = () => {
+    if (!enrollments || enrollments.length === 0) return;
+
+    const headers = [
+      'اسم المتدرب',
+      'رقم الهاتف',
+      'تاريخ التسجيل',
+      'المتفق عليه (ج.م)',
+      'المدفوع (ج.م)',
+      'المتبقي (ج.م)',
+      'حالة السداد',
+      'حالة الاشتراك',
+    ];
+
+    const rows = enrollments.map((enr) => {
+      const ps = paymentStatusBadge(enr.payment_status);
+      return [
+        enr.student_name,
+        studentsPhoneMap?.[enr.student_id] ?? '',
+        enr.enrolled_at?.slice(0, 10) ?? '',
+        enr.agreed_cost,
+        enr.total_paid,
+        enr.remaining_balance,
+        ps.label,
+        enr.enrollment_status === 'Active' ? 'نشط' : enr.enrollment_status === 'Completed' ? 'مكتمل' : 'منسحب',
+      ];
+    });
+
+    const dateSuffix = new Date().toISOString().slice(0, 10);
+    const sanitizedCourseName = (course?.course_name ?? 'الكورس').replace(/[\/\\?%*:|"<>]/g, '_');
+    exportToCSV({
+      filename: `طلاب_${sanitizedCourseName}_${dateSuffix}`,
+      headers,
+      rows,
+    });
   };
 
   if (courseLoading || summaryLoading) return <PageLoader />;
@@ -306,14 +360,28 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
 
       {/* Enrolled Students Table with Action Buttons */}
       <div className="card-surface overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-obsidian-500/40">
+        <div className="flex items-center justify-between p-4 border-b border-obsidian-500/40 flex-wrap gap-3">
           <div>
             <h3 className="text-white font-bold text-base">الطلبة المسجلون بهذا الكورس</h3>
             <p className="text-xs text-obsidian-300 mt-0.5">متابعة نسب السداد والتحصيل لكل طالب</p>
           </div>
-          <button onClick={() => setEnrollModalOpen(true)} className="btn-primary text-xs py-1.5 px-3">
-            <Plus size={15} /> تسجيل طالب بالكورس
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportEnrollmentsExcel}
+              className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 bg-obsidian-700 hover:bg-obsidian-600 text-emerald-light border border-emerald-500/30"
+              title="تصدير قائمة الطلاب المشتركين لملف إكسيل"
+            >
+              <FileSpreadsheet size={15} />
+              تصدير إكسيل
+            </button>
+            <button
+              onClick={() => setEnrollModalOpen(true)}
+              className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1"
+              disabled={course.availability_status === 'Closed'}
+            >
+              <Plus size={15} /> تسجيل طالب بالكورس
+            </button>
+          </div>
         </div>
 
         {enrollLoading ? (
@@ -345,18 +413,42 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
               <tbody>
                 {enrollments.map((enr) => {
                   const ps = paymentStatusBadge(enr.payment_status);
+                  const studentPhone = studentsPhoneMap?.[enr.student_id];
+                  const reminderUrl =
+                    enr.remaining_balance > 0 && studentPhone
+                      ? generatePaymentReminderUrl({
+                          phone: studentPhone,
+                          studentName: enr.student_name,
+                          courseName: course.course_name,
+                          remainingAmount: enr.remaining_balance,
+                        })
+                      : null;
+
                   return (
                     <tr
                       key={enr.enrollment_id}
                       className="border-b border-obsidian-500/20 hover:bg-obsidian-700/30 transition-colors"
                     >
                       <td className="px-4 py-3 text-white font-medium">
-                        <button
-                          onClick={() => navigate('student-details', { id: enr.student_id })}
-                          className="hover:text-emerald-light transition-colors text-right font-semibold"
-                        >
-                          {enr.student_name}
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => navigate('student-details', { id: enr.student_id })}
+                            className="hover:text-emerald-light transition-colors text-right font-semibold"
+                          >
+                            {enr.student_name}
+                          </button>
+                          {reminderUrl && (
+                            <a
+                              href={reminderUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-emerald-400 hover:text-emerald-300 p-0.5"
+                              title={`إرسال تذكير واتساب للمتدرب بمتبقي ${formatEGP(enr.remaining_balance)}`}
+                            >
+                              <MessageCircle size={14} />
+                            </a>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-obsidian-300 font-num hidden sm:table-cell">
                         {formatDate(enr.enrolled_at)}
@@ -401,6 +493,18 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
                               <CreditCard size={14} />
                               دفع قسط
                             </button>
+                          )}
+                          {reminderUrl && (
+                            <a
+                              href={reminderUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn-secondary text-xs py-1 px-2 flex items-center gap-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-light border border-emerald-500/30"
+                              title="تذكير واتساب"
+                            >
+                              <MessageCircle size={13} />
+                              تذكير
+                            </a>
                           )}
                           <button
                             onClick={() => navigate('student-details', { id: enr.student_id })}

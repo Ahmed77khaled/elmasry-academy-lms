@@ -8,6 +8,7 @@ import {
   Pencil,
   CreditCard,
   Eye,
+  MessageCircle,
 } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
@@ -15,6 +16,7 @@ import { useRouter } from '@/components/AppShell';
 import { Badge, paymentStatusBadge } from '@/components/ui/Badge';
 import { PageLoader, EmptyState } from '@/components/ui/Feedback';
 import { formatEGP, formatDate } from '@/lib/format';
+import { formatEgyptPhoneForWhatsApp, generatePaymentReminderUrl } from '@/lib/whatsapp';
 import { QuickEnrollModal } from '@/components/forms/QuickEnrollModal';
 import { StudentForm } from '@/components/forms/StudentForm';
 import { PaymentForm } from '@/components/forms/PaymentForm';
@@ -87,6 +89,8 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
     );
   }
 
+  const formattedWa = formatEgyptPhoneForWhatsApp(student.phone);
+
   return (
     <div className="space-y-6">
       {/* Top Header & Quick Actions */}
@@ -136,12 +140,25 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
         {/* Contact info grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-3 border-t border-obsidian-500/30">
           {student.phone ? (
-            <div className="flex items-center gap-2.5 text-sm p-2.5 bg-obsidian-700/40 rounded-xl">
-              <Phone size={16} className="text-emerald-light shrink-0" />
-              <div>
-                <p className="text-[11px] text-obsidian-300">رقم الهاتف</p>
-                <p className="text-obsidian-100 font-num font-semibold">{student.phone}</p>
+            <div className="flex items-center justify-between gap-2.5 text-sm p-2.5 bg-obsidian-700/40 rounded-xl">
+              <div className="flex items-center gap-2.5">
+                <Phone size={16} className="text-emerald-light shrink-0" />
+                <div>
+                  <p className="text-[11px] text-obsidian-300">رقم الهاتف</p>
+                  <p className="text-obsidian-100 font-num font-semibold">{student.phone}</p>
+                </div>
               </div>
+              {formattedWa && (
+                <a
+                  href={`https://wa.me/${formattedWa}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-emerald-400 hover:text-emerald-300 p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
+                  title="محادثة واتساب مباشرة مع المتدرب"
+                >
+                  <MessageCircle size={16} />
+                </a>
+              )}
             </div>
           ) : null}
 
@@ -199,7 +216,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
         ) : !enrollments || enrollments.length === 0 ? (
           <div className="card-surface">
             <EmptyState
-              message="لا توجد اشتراكات مسجلة لهذا الطالب — اضغط على زر تسجيل الطالب في كورس جديد"
+              message="الطالب غير مسجل في أي كورس بعد"
               action={
                 <button onClick={() => setEnrollModalOpen(true)} className="btn-primary">
                   <Plus size={16} /> تسجيل في أول كورس
@@ -211,11 +228,18 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {enrollments.map((enr) => {
               const ps = paymentStatusBadge(enr.payment_status);
+              const reminderUrl =
+                student.phone && enr.remaining_balance > 0
+                  ? generatePaymentReminderUrl({
+                      phone: student.phone,
+                      studentName: student.name,
+                      courseName: enr.course_name,
+                      remainingAmount: enr.remaining_balance,
+                    })
+                  : null;
+
               return (
-                <div
-                  key={enr.enrollment_id}
-                  className="card-surface p-5 hover:border-obsidian-400/50 transition-all flex flex-col justify-between"
-                >
+                <div key={enr.enrollment_id} className="card-surface p-4 flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-3">
                       <h4 className="text-white font-bold text-base">{enr.course_name}</h4>
@@ -253,7 +277,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
                   </div>
 
                   {/* Actions Bar */}
-                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-obsidian-500/30">
+                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-obsidian-500/30 flex-wrap">
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-obsidian-300">الحالة:</span>
                       <select
@@ -276,6 +300,18 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
                           <CreditCard size={14} />
                           دفع قسط
                         </button>
+                      )}
+                      {reminderUrl && (
+                        <a
+                          href={reminderUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-light border border-emerald-500/30"
+                          title="تذكير المتدرب بالقسط المتبقي عبر واتساب"
+                        >
+                          <MessageCircle size={14} />
+                          تذكير واتساب
+                        </a>
                       )}
                       <button
                         onClick={() => navigate('course-details', { id: enr.course_id })}
