@@ -40,6 +40,7 @@ export interface CashBox {
   opening_balance: number;
   is_active: boolean;
   notes: string | null;
+  added_by?: string | null;
   created_at: string;
 }
 

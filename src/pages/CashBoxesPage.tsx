@@ -4,6 +4,7 @@ import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, PageLoader } from '@/components/ui/Feedback';
+import { Alert } from '@/components/ui/Alert';
 import { CashBoxForm, TransferForm } from '@/components/forms/CashBoxForm';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { formatEGP } from '@/lib/format';
@@ -22,6 +23,7 @@ export function CashBoxesPage() {
   const [transferOpen, setTransferOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<CashBoxBalance | null>(null);
   const [archiving, setArchiving] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
 
   const { data: boxes, loading, refetch } = useQuery<CashBoxBalance[]>(async () => {
     const { data, error } = await supabase
@@ -35,11 +37,30 @@ export function CashBoxesPage() {
   const handleArchive = async () => {
     if (!archiveTarget) return;
     setArchiving(true);
-    const { error } = await supabase.from('cash_boxes').update({ is_active: false }).eq('cash_box_id', archiveTarget.cash_box_id);
-    setArchiving(false);
-    if (!error) {
+    setArchiveError(null);
+    try {
+      const { data, error } = await supabase
+        .from('cash_boxes')
+        .update({ is_active: false })
+        .eq('cash_box_id', archiveTarget.cash_box_id)
+        .select('cash_box_id');
+
+      if (error) {
+        setArchiveError(error.message || 'تعذر أرشفة الخزنة. حاول مرة أخرى.');
+        return;
+      }
+
+      if (!data?.length) {
+        setArchiveError('لم يتم العثور على الخزنة أو لا تملك صلاحية أرشفتها.');
+        return;
+      }
+
       setArchiveTarget(null);
       refetch();
+    } catch {
+      setArchiveError('تعذر الاتصال بالخادم لإتمام الأرشفة. تحقق من اتصالك وحاول مرة أخرى.');
+    } finally {
+      setArchiving(false);
     }
   };
 
@@ -164,14 +185,21 @@ export function CashBoxesPage() {
       <TransferForm open={transferOpen} onClose={() => setTransferOpen(false)} onSaved={refetch} cashBoxes={activeBoxes} />
       <ConfirmDialog
         open={!!archiveTarget}
-        onClose={() => setArchiveTarget(null)}
+        onClose={() => {
+          if (!archiving) {
+            setArchiveTarget(null);
+            setArchiveError(null);
+          }
+        }}
         onConfirm={handleArchive}
         title="أرشفة الخزنة"
         message={`هل أنت متأكد من أرشفة خزنة "${archiveTarget?.name}"؟ لن تظهر في خيارات الدفع أو الصرف ولكن ستبقى كل معاملاتها التاريخية محفوظة.`}
         confirmLabel="أرشفة"
         loading={archiving}
         danger={false}
-      />
+      >
+        {archiveError && <Alert variant="error">{archiveError}</Alert>}
+      </ConfirmDialog>
     </div>
   );
 }

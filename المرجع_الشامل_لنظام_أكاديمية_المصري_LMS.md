@@ -7,8 +7,8 @@
 > **المؤسسة:** أكاديمية م/ محمد المصري لهندسة النظم والبنية التحتية والشبكات  
 > **المشرف العام:** م/ محمد المصري (Eng. Mohamed Elmasry)  
 > **كبير مهندسي النظام والمعماري الرئيسي:** م/ أحمد الفلاح (Eng. Ahmed El-Falah — Lead Software Engineer & System Architect)  
-> **تاريخ الإصدار والاعتماد:** أكتوبر 2026  
-> **حالة الوثيقة:** مرجع معماري وتشغيلي معتمد ومثبت بالدليل الجنائي على قاعدة الإنتاج الحية (Live Database Verified). تم إثبات تطبيق FORCE RLS على الـ 8 جداول، وتحصين كافة الدوال الـ 8 بـ is_admin() و SECURITY DEFINER، وتوثيق audit trail عبر auth.uid()، مع خلو القاعدة من أي سياسات anon مسربة.  
+> **تاريخ الإصدار والاعتماد:** 21 أكتوبر 2026  
+> **حالة الوثيقة:** مرجع معماري وتشغيلي يوثق المعمارية المستهدفة وكود المستودع بدقة. أظهرت نتائج استعلامات التدقيق الميداني المنفذة بتاريخ 21 أكتوبر 2026 مطابقة بنية الجداول الـ 8، وتفعيل `FORCE RLS`، وتفعيل تريجرات الحماية المالية الثلاثة لحركات المقبوضات والمصروفات والتحويلات، وحصر دوال العمليات على فحص الصلاحية الإدارية، وقصر جداول الحركات و`admins` على `SELECT` لدور `authenticated`. وقد تم تطبيق والتحقق ميدانياً بتاريخ 21 أكتوبر 2026 من ميجريشن 008 لتحصين الرصيد الافتتاحي `opening_balance`، حيث أثبتت نتائج الاستعلام الميداني سحب صلاحيات INSERT و DELETE و TRUNCATE وصلاحية UPDATE العامة على مستوى جدول cash_boxes بالكامل لدور authenticated (`table_update = false`)، وقصر الـ UPDATE على الأعمدة التشغيلية الخمسة، وتجميد `opening_balance` و `added_by` و `cash_box_id` و `created_at` على مستوى الـ ACL ومستوى التريجر، وحصر الإنشاء لدور `authenticated` في `create_cash_box` RPC (استناداً إلى نتائج الفحص الميداني المبلغة من جلسة العمل عبر SQL Editor، مع توثيق ترحيل 009 التابع لمعالجة تصفير added_by عند حذف مستخدم auth فقط باعتباره مُبلّغاً عن تشغيله في Supabase SQL Editor على مشروع "TrainerPro"؛ ولم يتم التحقق المستقل من معرف المشروع المختار أو اختباره تشغيلياً).  
 > **مستودع المشروع الرسمي على GitHub:** [Ahmed77khaled/elmasry-academy-lms](https://github.com/Ahmed77khaled/elmasry-academy-lms) (الفرع الرئيسي: `main`)  
 > **البيئة المعتمدة:** Supabase PostgreSQL 17 + React 18 + TypeScript + Vite 5 + Tailwind CSS.
 
@@ -22,14 +22,14 @@
 | **02** | **المبادئ الهندسية والمعمارية الصارمة** | مبدأ SSOT لقاعدة البيانات، سجل مالي غير قابل للتعديل أو الحذف، ترقيم إيصالات تسلسلي، وأقفال ذرية. |
 | **03** | **المكدس التقني والبنية التحتية** | تفاصيل Frontend (React 18, TS, Vite 5) وBackend (PostgreSQL 17, RLS, PostgREST, Supabase Auth). |
 | **04** | **مخطط قاعدة البيانات (8 جداول أساسية)** | التوثيق الكامل لجداول (admins, students, courses, cash_boxes, enrollments, payments, expenses, cash_box_transfers). |
-| **05** | **تريجرز منع التعديل والحذف المالي** | شرح trigger منع الحذف والتعديل prevent_financial_record_mutation وآلية الإلغاء الموثق (Audited Void). |
+| **05** | **تريجرز منع التعديل والحذف المالي** | توثيق تريجرات الحصانة الأربعة (payments, expenses, cash_box_transfers, cash_boxes) وآلية الإلغاء المالي الموثق. |
 | **06** | **محرك المعالجة والفيوهات المعتمدة (Views)** | توثيق حسابات ومعادلات الفيوهات الـ 4 مع security_invoker = true واستبعاد السجلات الملغاة voided_at IS NULL. |
-| **07** | **الدوال الذرية والأقفال التزامنية (RPCs)** | كافة دوال النظام المالية والإدارية الـ 8 مع التحقق الإلزامي من صلاحية المدير is_admin() وأقفال FOR UPDATE. |
-| **08** | **مصفوفة الأمان وسياسات RLS وPostgREST** | سياسات FORCE ROW LEVEL SECURITY الصارمة، قفل PostgREST، وحماية الواجهة والـ CSV من الاختراق. |
+| **07** | **الدوال الذرية والأقفال التزامنية (RPCs)** | تفصيل دوال النظام الـ 9: دالة الفحص is_admin() كحارس مركزي، ودالة create_cash_box، ودوال العمليات الـ 7 المحصنة بفحص الصلاحية وأقفال FOR UPDATE. |
+| **08** | **مصفوفة الأمان وسياسات RLS وPostgREST** | سياسات FORCE RLS، حلقة مسح السياسات بميجريشن 007، الصلاحيات المثبتة حياً، وقفل PostgREST. |
 | **09** | **الدليل التشغيلي التفصيلي للشاشات** | دليل عملي شامل للـ 9 شاشات، فلاتر المدى الزمني، وتذكير واتساب wa.me، وتصدير إكسيل UTF-8 BOM. |
 | **10** | **محرك سندات القبض والإيصالات الرسمية** | رقم الإيصال الرسمي sequence-backed، نافذة الطباعة النظيفة @media print، وتأكيد السندات عبر واتساب. |
 | **11** | **البحث الفوري الشامل والقائمة المتجاوبة** | البحث بالاسم ورقم الهاتف ورقم السند REC-XXXXXXXX، وواجهة Obsidian الداكنة المتجاوبة. |
-| **12** | **سجل ترحيلات قاعدة البيانات (Migrations)** | توثيق كامل لكافة الترحيلات من 001 حتى 005 و006 المحصنة المعتمدة والمطبقة بنجاح على قاعدة الإنتاج. |
+| **12** | **سجل ترحيلات قاعدة البيانات (Migrations)** | توثيق كامل للترحيلات من 001 حتى 006، وميجريشن 007 و 008 المنفذين والمثبتين، وميجريشن 009 المُبلّغ عن تشغيله في SQL Editor. |
 | **13** | **الصيانة والنسخ الاحتياطي واستكشاف الأخطاء** | خطوات معالجة الأخطاء المالية، سياسة النسخ الاحتياطي pg_dump، والتعامل مع الفجوات المحاسبية. |
 | **14** | **إرشادات النشر والاستضافة السحابية** | إعدادات Vercel / Netlify، متغيرات البيئة، وضوابط أمان مفاتيح API وعزل مفتاح service_role. |
 
@@ -134,7 +134,7 @@ RTL-First Responsive Drawer]
 - `start_date date NULLABLE`
 - `end_date date NULLABLE`
 - `max_students integer NULLABLE` (السعة القصوى للمقاعد)
-- `default_cost numeric(12,2) NULLABLE`
+- `default_cost decimal(10,2) NULLABLE CHECK (default_cost >= 0)`
 - `availability_status varchar DEFAULT 'Upcoming' CHECK (availability_status IN ('Upcoming', 'Active', 'Closed'))`
 - `link_whatsapp text NULLABLE` (جروب واتساب الدفعة)
 - `link_tasks text NULLABLE` (منصة تسليم المهام)
@@ -148,16 +148,21 @@ RTL-First Responsive Drawer]
 - `name varchar NOT NULL`
 - `type varchar DEFAULT 'Main'` (كاش، فودافون كاش، إنستاباي، بنك، عهدة)
 - `owner varchar NULLABLE`
-- `opening_balance numeric(12,2) NOT NULL DEFAULT 0.00`
+- `opening_balance decimal(10,2) NOT NULL DEFAULT 0.00` (رصيد افتتاحي يدخل في احتساب رصيد الخزينة الفعلي؛ محصن تريجرياً ضد التعديل اللاحق ومحدد بحد أقصى 99,999,999.99 في دالة create_cash_box لمنع التلاعب المالي المباشر عبر PostgREST).
 - `is_active boolean NOT NULL DEFAULT true`
 - `notes text NULLABLE`
+- `added_by uuid NULLABLE REFERENCES auth.users(id) ON DELETE SET NULL` (مُضاف في ترحيل 008 بدون قيمة افتراضية وبخاصية ON DELETE SET NULL لمنع كسر السجلات عند حذف حساب المستخدم؛ السجلات التاريخية القائمة تظل NULL منعاً للنسبة الخاطئة).
 - `created_at timestamptz DEFAULT now()`
+
+> 📌 **توثيق تعارض المخطط التاريخي وأنواع الأعمدة المالية (Schema Divergence & Monetary Types):**  
+> 1. **المصدر المعياري للإنتاج (Canonical Production Schema):** المخطط الأصيل المعتمد لبيئة الإنتاج هو `docs/migrations/001_tables.sql` (في مجلد التوثيق العام)؛ ويُعرّف كافة الأعمدة المالية (`courses.default_cost`, `cash_boxes.opening_balance`, `enrollments.agreed_cost`, `payments.amount`, `expenses.amount`, `cash_box_transfers.amount`) بنوع `DECIMAL(10,2)` مع قيود التحقق (`CHECK >= 0` أو `CHECK > 0`).  
+> 2. **ترحيلات البداية المؤرشفة بالمستودع (Archived Starter Migrations):** تضمنت مسودات ترحيلات البداية الأولى (`supabase/migrations/001` إلى `004`) محاولات أولية استخدمت نوع `numeric(12,2)` وأسماء قديمة مثل (`id`, `box_type`, `archived`) وافتقرت لجدول `admins`. هذه الملفات مؤرشفة لأسباب تاريخية وتُترك كما هي دون تعديل رجعي، ولا تمثل مخطط الإنتاج الفعلي، حيث بُنيت ترحيلات الإنتاج المعتمدة (من 005 فصاعداً) وتطبيقات الواجهة على المخطط المعياري الأصيل `DECIMAL(10,2)` ومسميات `*_id`.
 
 ### 5. جدول الاشتراكات المركزي (`enrollments`):
 - `enrollment_id uuid PRIMARY KEY DEFAULT gen_random_uuid()`
 - `student_id uuid NOT NULL REFERENCES students(student_id) ON DELETE RESTRICT`
 - `course_id uuid NOT NULL REFERENCES courses(course_id) ON DELETE RESTRICT`
-- `agreed_cost numeric(12,2) NOT NULL` (المبلغ المتفق عليه للمتدرب)
+- `agreed_cost decimal(10,2) NOT NULL CHECK (agreed_cost >= 0)` (المبلغ المتفق عليه للمتدرب)
 - `status varchar DEFAULT 'Active' CHECK (status IN ('Active', 'Completed', 'Dropped'))`
 - `enrolled_at timestamptz DEFAULT now()`
 - `updated_at timestamptz DEFAULT now()`
@@ -168,7 +173,7 @@ RTL-First Responsive Drawer]
 - `receipt_number bigint NOT NULL UNIQUE DEFAULT nextval('payment_receipt_number_seq')`
 - `enrollment_id uuid NOT NULL REFERENCES enrollments(enrollment_id) ON DELETE RESTRICT`
 - `cash_box_id uuid NOT NULL REFERENCES cash_boxes(cash_box_id) ON DELETE RESTRICT`
-- `amount numeric(12,2) NOT NULL CHECK (amount > 0)`
+- `amount decimal(10,2) NOT NULL CHECK (amount > 0)`
 - `payment_date date NOT NULL DEFAULT CURRENT_DATE`
 - `method varchar NOT NULL DEFAULT 'Cash'` (الاسم المعياري الحقيقي)
 - `receipt_ref varchar NULLABLE` (مرجع التحويل البنكي أو فودافون كاش)
@@ -183,7 +188,7 @@ RTL-First Responsive Drawer]
 - `expense_id uuid PRIMARY KEY DEFAULT gen_random_uuid()`
 - `cash_box_id uuid NOT NULL REFERENCES cash_boxes(cash_box_id) ON DELETE RESTRICT`
 - `course_id uuid NULLABLE REFERENCES courses(course_id) ON DELETE SET NULL`
-- `amount numeric(12,2) NOT NULL CHECK (amount > 0)`
+- `amount decimal(10,2) NOT NULL CHECK (amount > 0)`
 - `category varchar DEFAULT 'Other'` (إيجار، مرتبات، بوفيه وأدوات، أجهزة، إعلانات، كهرباء وإنترنت، أخرى)
 - `description text NULLABLE`
 - `expense_date date NOT NULL DEFAULT CURRENT_DATE`
@@ -198,7 +203,7 @@ RTL-First Responsive Drawer]
 - `transfer_id uuid PRIMARY KEY DEFAULT gen_random_uuid()`
 - `from_box_id uuid NOT NULL REFERENCES cash_boxes(cash_box_id) ON DELETE RESTRICT`
 - `to_box_id uuid NOT NULL REFERENCES cash_boxes(cash_box_id) ON DELETE RESTRICT`
-- `amount numeric(12,2) NOT NULL CHECK (amount > 0)`
+- `amount decimal(10,2) NOT NULL CHECK (amount > 0)`
 - `transfer_date date NOT NULL DEFAULT CURRENT_DATE`
 - `added_by uuid REFERENCES auth.users(id)`
 - `notes text NULLABLE`
@@ -209,11 +214,19 @@ RTL-First Responsive Drawer]
 
 ## 5. تريجرز منع التعديل والحذف المالي (Immutability Engine)
 
-تطبيق تريجر `prevent_financial_record_mutation()` الإلزامي على جدولي `payments` و `expenses`:
-- **حظر الحذف نهائياً (Block DELETE):** محاولة تنفيذ أي أمر `DELETE` تفشل فورياً مع إلقاء استثناء:  
-  `'Financial records cannot be deleted; use the audited void operation.'`
-- **حظر تعديل البيانات المالية (Block UPDATE on Core Columns):** يمنع تعديل أي حقل من حقول السند (المبلغ، التاريخ، الخزينة، الكورس، الطالب).
-- **السماح بالانتقال الوحيد للإلغاء الموثق:** العملية الوحيدة المسموح بها هي الانتقال من `voided_at IS NULL` إلى `voided_at IS NOT NULL` شريطة وجود `voided_by` وسبب إلغاء لا يقل عن 5 أحرف. السند الملغى يقفل تماماً ولا يقبل أي تعديل لاحق.
+تطبيق منظومة التريجرز الإلزامية لمنع التلاعب المالي وإلغاء إمكانيات الحذف العشوائي والتعديل بأثر رجعي:
+
+| اسم الجدول | اسم التريجر (Trigger Name) | الدالة المنفذة (Function) | نطاق وسلوك الحماية الميدانية | الحالة الميدانية |
+|---|---|---|---|---|
+| `payments` | `trg_payments_financial_immutability` | `prevent_financial_record_mutation()` | حظر الحذف (DELETE) تماماً، حظر تعديل الحقول المالية (UPDATE)، والسماح فقط بالانتقال للإلغاء الموثق مع تسجيل voided_by وسبب لا يقل عن 5 أحرف. | **مثبت بالتدقيق الحي** (21 أكتوبر 2026) |
+| `expenses` | `trg_expenses_financial_immutability` | `prevent_financial_record_mutation()` | حظر الحذف (DELETE) تماماً، حظر تعديل بنود المصروف (المبلغ، التاريخ، الخزينة)، والسماح فقط بالإلغاء الموثق. | **مثبت بالتدقيق الحي** (21 أكتوبر 2026) |
+| `cash_box_transfers` | `trg_transfers_financial_immutability` | `prevent_transfer_mutation()` | حظر الحذف (DELETE) تماماً، وحظر تعديل أي بيان جوهري للتحويل (المبلغ، خزينة المصدر، خزينة الوجهة، تاريخ التحويل). | **مثبت بالتدقيق الحي** (21 أكتوبر 2026) |
+| `cash_boxes` | `trg_cash_boxes_immutability` | `prevent_cash_box_mutation()` | حظر الحذف المباشر (DELETE) وإلزام الأرشفة عبر is_active = false، وحظر أي تعديل على الرصيد الافتتاحي opening_balance وتجميد added_by و cash_box_id و created_at ضد التعديل المباشر (مع الإبلاغ عن تشغيل ترحيل 009 في Supabase SQL Editor على مشروع "TrainerPro" للسماح بتصفير added_by إلى NULL عند حذف حساب المستخدم؛ ولم يتم التحقق المستقل من معرف المشروع المختار أو اختباره تشغيلياً). | **منفذ ومثبت بالتدقيق الميداني** (21 أكتوبر 2026) |
+
+> 🔒 **تحصين الرصيد الافتتاحي للخزن (Cash Box Immutability Hardening — Migration 008):**  
+> عولجت ثغرة تعديل الرصيد الافتتاحي عبر ميجريشن 008 المطبقة والمثبتة بنتائج التدقيق الميداني بتاريخ 21 أكتوبر 2026. يضيف الترحيل تريجر `trg_cash_boxes_immutability`، ويسحب صلاحيات `INSERT` و `DELETE` و `TRUNCATE` وصلاحية `UPDATE` العامة على مستوى جدول `cash_boxes` من `authenticated`، مع قصر الـ UPDATE على الأعمدة التشغيلية الخمسة (`name`, `type`, `owner`, `is_active`, `notes`)، وتجميد `opening_balance` و `added_by` و `cash_box_id` و `created_at` على مستوى الـ ACL ومستوى التريجر، وحصر الإنشاء لدور `authenticated` حصراً في دالة `create_cash_box` RPC. أثبتت نتائج فحص الصلاحيات الميداني عبر SQL Editor مطابقة هذه القيود بالكامل (`table_update = false`).  
+> ⚠️ **تنويه حول عمود المنشئ (added_by) وميجريشن 009:**  
+> تحت ميجريشن 008، تم تجميد `added_by` ضد أي تعديل. ونظراً لأن عمود `added_by` يعتمد قيد المفتاح الأجنبي `ON DELETE SET NULL` مع جدول `auth.users`، فقد أُعد ترحيل تصحيحي تابع (ميجريشن 009: `20261021171218_allow_cash_box_creator_nullification_on_auth_delete.sql`) يسمح حصراً بانتقال القيمة من UUID قائم إلى `NULL` عند حذف حساب المستخدم، مع استمرار حظر تغيير المنشئ إلى أي حساب آخر وتجميد الرصيد الافتتاحي. وقد أُبلغ فقط عن تشغيل هذا الترحيل في Supabase SQL Editor على مشروع "TrainerPro"؛ ولم يتم التحقق المستقل من معرف المشروع المختار أو اختباره تشغيلياً.
 
 ---
 
@@ -261,16 +274,26 @@ $$	ext{الرصيد الفعلي} = 	ext{الرصيد الافتتاحي} + 	ext
 
 ## 7. الدوال الذرية والأقفال التزامنية (Audited RPCs)
 
-| اسم الدالة (RPC) | المدخلات والبارامترات | الحماية والتحقق الداخلي |
-|---|---|---|
-| `is_admin` | `is_admin()` | تفحص عضوية المستخدم في جدول `admins` عبر `auth_user_id = auth.uid()`. |
-| `enroll_student` | `(p_student_id, p_course_id, p_agreed_cost, p_status)` | تفحص `is_admin()`، تقفل صف الكورس `FOR UPDATE`، ترفض الكورس المغلق، وتمنع تجاوز السعة القصوى. |
-| `set_enrollment_status` | `(p_enrollment_id, p_status)` | تفحص `is_admin()`، تقفل صف الكورس والاشتراك، وتمنع إعادة تنشيط طالب منسحب إذا اكتملت سعة الكورس. |
-| `record_payment` | `(p_enrollment_id, p_cash_box_id, p_amount, p_payment_date, p_method, p_receipt_ref, p_notes)` | تفحص `is_admin()`، تقفل الخزينة والاشتراك، تحسب المتبقي باستبعاد السجلات الملغاة، وتسجل `added_by = auth.uid()`. |
-| `record_expense` | `(p_cash_box_id, p_amount, p_expense_date, p_category, p_description, p_notes, p_course_id)` | تفحص `is_admin()`، تقفل الخزينة، وتدرج المصروف مع تسجيل `added_by = auth.uid()`. |
-| `transfer_between_boxes` | `(p_from_box_id, p_to_box_id, p_amount, p_transfer_date, p_notes)` | تفحص `is_admin()`، تقفل الخزنتين تصاعدياً حسب المعرف لتفادي Deadlock، وتسجل `added_by = auth.uid()`. |
-| `void_payment` | `(p_payment_id, p_void_reason)` | تفحص `is_admin()`، تشترط سبباً لا يقل عن 5 أحرف، وتسجل `voided_at` و `voided_by = auth.uid()`. |
-| `void_expense` | `(p_expense_id, p_void_reason)` | تفحص `is_admin()`، تشترط سبباً لا يقل عن 5 أحرف، وتسجل `voided_at` و `voided_by = auth.uid()`. |
+تعتمد المنصة على 9 دوال مركزية في قاعدة البيانات بعد تطبيق ميجريشن 008 (دالة الفحص الإداري is_admin، ودالة إنشاء الخزن create_cash_box، و7 دوال للعمليات المالية والاشتراكات)، مع تمييز معماري دقيق وصارم بين الأنواع:
+1. **دالة الفحص والتحقق (`is_admin()`):** هي الفاحص المركزي المستقل (Gatekeeper Predicate Function)؛ تقرأ عضوية المستخدم في جدول `admins` عبر شرط `auth_user_id = auth.uid()`. هي دالة قراءة بحتة لا تستدعي نفسها ولا تأخذ أقفالاً (`FOR UPDATE`).
+2. **دوال العمليات التنفيذية السبع (7 Operational Functions):** تستدعي إجبارياً في سطرها الأول فاحص الصلاحية (`IF NOT public.is_admin() THEN RAISE EXCEPTION ...`)، وتطبق الدوال المغيرة للمقاعد والأرصدة أقفال التزامن الذرية `FOR UPDATE` لمنع سباق البيانات.
+3. **دالة إنشاء الخزن النقدية المحصنة (`create_cash_box`):** دالة مستقلة لإنشاء الخزن تحت حراسة `is_admin()` مع توثيق هوية المنشئ وتثبيت الرصيد الافتتاحي ومنع التلاعب به.
+
+| اسم الدالة (RPC) | نوع ودور الدالة | المدخلات والبارامترات | الحماية والتحقق الداخلي وسجل التدقيق |
+|---|---|---|---|
+| `is_admin` | فاحص مركزي (Gatekeeper) | `is_admin()` | الفاحص المستقل؛ تفحص العضوية في `admins` عبر `auth_user_id = auth.uid()` دون استدعاء داخلي ودون أقفال. |
+| `enroll_student` | عملية تسجيل متدرب | `(p_student_id, p_course_id, p_agreed_cost, p_status)` | تستدعي `is_admin()`، تقفل صف الكورس `FOR UPDATE` لمنع تجاوز المقاعد. **(لا تسجل معرف `auth.uid()`)**. |
+| `set_enrollment_status` | عملية تعديل حالة اشتراك | `(p_enrollment_id, p_status)` | تستدعي `is_admin()`، تقفل صف الكورس والاشتراك `FOR UPDATE` لمنع تجاوز السعة. **(لا تسجل معرف `auth.uid()`)**. |
+| `record_payment` | حركة مالية (تسجيل دفعة) | `(p_enrollment_id, p_cash_box_id, p_amount, p_payment_date, p_method, p_receipt_ref, p_notes)` | تستدعي `is_admin()`، تقفل الخزينة والاشتراك `FOR UPDATE`، تحسب المتبقي، وتسجل `added_by = auth.uid()`. |
+| `record_expense` | حركة مالية (تسجيل مصروف) | `(p_cash_box_id, p_amount, p_expense_date, p_category, p_description, p_notes, p_course_id)` | تستدعي `is_admin()`، تقفل الخزينة `FOR UPDATE`، وتدرج المصروف مع تسجيل `added_by = auth.uid()`. |
+| `transfer_between_boxes` | حركة مالية (تحويل خزن) | `(p_from_box_id, p_to_box_id, p_amount, p_transfer_date, p_notes)` | تستدعي `is_admin()`، تقفل الخزنتين تصاعدياً `FOR UPDATE` لتفادي Deadlock، وتسجل `added_by = auth.uid()`. |
+| `void_payment` | عملية إلغاء سند قبض | `(p_payment_id, p_void_reason)` | تستدعي `is_admin()`، تشترط سبباً لا يقل عن 5 أحرف، وتسجل توقيت الإلغاء `voided_at` وهوية المسؤول `voided_by = auth.uid()`. |
+| `void_expense` | عملية إلغاء مصروف | `(p_expense_id, p_void_reason)` | تستدعي `is_admin()`، تشترط سبباً لا يقل عن 5 أحرف، وتسجل توقيت الإلغاء `voided_at` وهوية المسؤول `voided_by = auth.uid()`. |
+| `create_cash_box` | إنشاء خزنة موثقة | `(p_name, p_type, p_owner, p_opening_balance, p_notes)` | تستدعي `is_admin()`، تفحص عدم سلبية الرصيد، وتدرج الخزنة مع توثيق هوية المنشئ `added_by = auth.uid()`. **(منفذة ومثبتة في ميجريشن 008)**. |
+
+> 📌 **تصحيح هندسي دقيق لسجل التدقيق وهوية المنفذين:**  
+> تُظهر نتائج فحص أجسام دوال قاعدة البيانات الحية أن تسجيل هوية المسؤول المنفذ عبر `auth.uid()` مطبق حصرياً على العمليات المالية المباشرة (سندات القبض، المصروفات، تحويلات الخزن، والإلغاء المالي) لوجود أعمدة `added_by` و `voided_by` في تلك الجداول.  
+> في المقابل، دوال إدارة الاشتراكات (`enroll_student` و `set_enrollment_status`) تفحص صلاحية المسؤول فقط عبر استدعاء `is_admin()`، **ولا تكتب معرف `auth.uid()` في جدول `enrollments`**، وبالتالي لا يوجد توثيق لهوية المنفذ لكل عملية تسجيل أو تغيير حالة اشتراك في بنية الجدول الحالية.
 
 ---
 
@@ -286,9 +309,9 @@ $$	ext{الرصيد الفعلي} = 	ext{الرصيد الافتتاحي} + 	ext
 
 ### 2. معضلة السياسات التراكمية في PostgreSQL وحلقة المسح الشاملة (RLS Dynamic Purge):
 - **المعضلة الهندسية:** في PostgreSQL، تُجمع السياسات المسموحة (Permissive Policies) دائماً بمنطق `OR`.  
-  إذا وُجدت أي سياسة قديمة متوارثة من ميجريشنات سابقة (مثل `anon_select_students` أو `anon_insert_students` من ميجريشن 001، أو `Allow authenticated read`)، فإن هذه السياسة الواسعة **تبطل تماماً وتلغي أثر** سياسة حصر البيانات على المديرين (`admins_admin_only_policy`).
-- **الحل الجذري المعتمد في ميجريشن 007 التصحيحي المستقل:**  
-  تنفيذ حلقة مسح ديناميكية حاسمة (Dynamic PL/pgSQL Purge Loop) تستعلم من جدول النظام `pg_policies` وتحذف **كل** السياسات السابقة بدون استثناء على الجداول الـ 8 الأساسية قبل إنشاء السياسات الجديدة:
+  إذا وُجدت أي سياسة قديمة متوارثة من ترحيلات سابقة (مثل `anon_select_students` أو `anon_insert_students` من ميجريشن 001، أو `Allow authenticated read`)، فإن هذه السياسة الواسعة **تبطل تماماً وتلغي أثر** سياسة حصر البيانات على المديرين (`admins_admin_only_policy`).
+- **الحل الجذري المعتمد في ترحيل 007 التصحيحي المستقل (`202610210007_purge_legacy_rls_and_revoke_public.sql`):**  
+  تم إعداد هذا الترحيل المستقل لتنفيذ حلقة مسح ديناميكية حاسمة (Dynamic PL/pgSQL Purge Loop) تستعلم من جدول النظام `pg_policies` وتحذف كل السياسات السابقة بدون استثناء على الجداول الـ 8 الأساسية لضمان عدم تراكم السياسات المكررة أو المتساهلة مع السياسات الجديدة:
 ```sql
 DO $$
 DECLARE r RECORD;
@@ -304,35 +327,131 @@ BEGIN
 END $$;
 ```
 
-### 3. سحب الصلاحيات المباشرة والفصل الصارم بين الكيانات وسجل الحركات:
-- **جداول الحركات المالية والاشتراكات (`enrollments`, `payments`, `expenses`, `cash_box_transfers`):**  
-  تم سحب صلاحيات `INSERT, UPDATE, DELETE` بالكامل من دور `authenticated`، وقصرها على `SELECT` فقط، مما يمنع تجاوز منطق الـ RPCs أو سعة الكورس أو التلاعب المالي عبر PostgREST.
-- **جدول المسؤولين (`admins`):**  
-  مقيد بـ `SELECT` فقط للمستخدمين المصادقين للتحقق من العضوية، مع حظر التعديل أو الإضافة المباشرة لضمان بقاء إدارة المسؤولين عبر قنوات إدارية موثوقة فقط.
-- **جداول الكيانات التشغيلية (`students`, `courses`, `cash_boxes`):**  
-  تتيح عمليات الـ CRUD الكاملة للمسؤولين المصادقين فقط لإدارة شؤون الأكاديمية والتدريب من الواجهة.
-- **تجريد الأدوار العامة (`anon` و `PUBLIC`):**  
-  تنفيذ `REVOKE ALL` صريح على الجداول الثمانية لإغلاق أي منافذ غير مصادقة.
+#### جدول السياسات الثمانية الحصرية المثبتة بالتدقيق الحي بعد تنفيذ ميجريشن 007:
+أثبتت نتائج الفحص الحي اختفاء كافة السياسات القديمة والمكررة تماماً، وبقاء سياسة واحدة معيارية ومحكمة لكل جدول من الجداول الثمانية:
+
+| اسم الجدول (Table) | اسم السياسة المعتمدة (Policy Name) | نوع الأمر (Command) | الدور المستهدف (Role) | شرط الحماية (Using Expression) |
+|---|---|---|---|---|
+| `admins` | `admins_admin_only_policy` | `SELECT` | `{authenticated}` | `((auth_user_id = auth.uid()) OR is_admin())` |
+| `cash_box_transfers` | `transfers_admin_only_policy` | `SELECT` | `{authenticated}` | `is_admin()` |
+| `cash_boxes` | `cash_boxes_admin_only_policy` | `ALL` | `{authenticated}` | `is_admin()` |
+| `courses` | `courses_admin_only_policy` | `ALL` | `{authenticated}` | `is_admin()` |
+| `enrollments` | `enrollments_admin_only_policy` | `SELECT` | `{authenticated}` | `is_admin()` |
+| `expenses` | `expenses_admin_only_policy` | `SELECT` | `{authenticated}` | `is_admin()` |
+| `payments` | `payments_admin_only_policy` | `SELECT` | `{authenticated}` | `is_admin()` |
+| `students` | `students_admin_only_policy` | `ALL` | `{authenticated}` | `is_admin()` |
+
+> 📌 **تدقيق شرط سياسة المسؤولين (`admins_admin_only_policy`):**  
+> الشرط المطبق `((auth_user_id = auth.uid()) OR is_admin())` يتيح لأي مستخدم مصادق قراءة صفه الشخصي للتحقق من هويته ورتبته، وفي نفس الوقت يتيح للمسؤولين قراءة سجلات كافة المسؤولين في النظام، مع سحب كامل لصلاحيات التعديل أو الحذف أو الإضافة المباشرة.
+
+### 3. مصفوفة صلاحيات الجداول وضوابط PostgREST المثبتة حياً بالتدقيق:
+أظهرت نتائج استعلامات التدقيق الميداني المنفذة بتاريخ 21 أكتوبر 2026 تطبيق مصفوفة الصلاحيات لدور `authenticated`:
+
+| اسم الجدول (Table) | الدور الممنوح (Grantee) | الصلاحيات المثبتة حياً (Privileges) | الحالة المعمارية والرقابية |
+|---|---|---|---|
+| `admins` | `authenticated` | `SELECT` فقط | تتيح قراءة السجل الشخصي أو قائمة المسؤولين، ومحظور تماماً من INSERT / UPDATE / DELETE عبر PostgREST لمنع تلاعب المسؤولين بحسابات بعضهم. |
+| `cash_box_transfers` | `authenticated` | `SELECT` فقط | محظور من INSERT / UPDATE / DELETE؛ كافة التحويلات تمر حصرياً عبر دالة `transfer_between_boxes`. |
+| `enrollments` | `authenticated` | `SELECT` فقط | محظور من INSERT / UPDATE / DELETE؛ التسجيل وتغيير الحالة يمران عبر `enroll_student` و `set_enrollment_status`. |
+| `payments` | `authenticated` | `SELECT` فقط | محظور من INSERT / UPDATE / DELETE؛ القبض والإلغاء يمران عبر `record_payment` و `void_payment`. |
+| `expenses` | `authenticated` | `SELECT` فقط | محظور من INSERT / UPDATE / DELETE؛ الصرف والإلغاء يمران عبر `record_expense` و `void_expense`. |
+| `students` | `authenticated` | `SELECT, INSERT, UPDATE, DELETE` | مسموح بإدارة الطلاب والمتدربين من الواجهة تحت حراسة شرط `is_admin()`. |
+| `courses` | `authenticated` | `SELECT, INSERT, UPDATE, DELETE` | مسموح بإدارة الكورسات وبياناتها ومواعيدها من الواجهة تحت حراسة شرط `is_admin()`. |
+| `cash_boxes` | `authenticated` | `SELECT` (جدول) + `UPDATE` (أعمدة تشغيلية محددة) | مسموح بقراءة الخزن وتعديل الأعمدة التشغيلية فقط (`name`, `type`, `owner`, `is_active`, `notes`). محظور تماماً من `INSERT` و `DELETE` و `TRUNCATE` ومحظور من تعديل `opening_balance` و `added_by` و `cash_box_id` و `created_at`. الإنشاء محصور في `create_cash_box` والأرشفة عبر `is_active = false`. (مثبت بنتائج التدقيق الميداني لميجريشن 008). |
+
+> 🔒 **تجريد الأدوار العامة (`anon` و `PUBLIC`):**  
+> كافة الصلاحيات (`ALL PRIVILEGES`) مسحوبة ومجردة بالكامل من دور `anon` ودور `PUBLIC` على الجداول الثمانية، ولا يملك أي منهما حق قراءة أو كتابة أي صف.
 
 ### 4. تحصين ملفات التقارير وإكسيل من هجمات الحقن (CSV Formula Injection Protection):
 - في ملف `src/lib/exportExcel.ts`، يتم فحص كل حقل نصي قبل التصدير.
-- إذا كانت القيمة النصية تبدأ بأي رمز من الرموز الحسابية أو التشغيلية الخطرة (`=`, `+`, `-`, `@`, `	`, ``)، يتم حقن علامة اقتباس مفردة `'` كبادئة للخلية لإلغاء تفسيرها كمعادلة تنفيذية داخل برامج Excel وتثبيتها كنص نقي آمن.
+- إذا كانت القيمة النصية تبدأ بأي رمز من الرموز الحسابية أو التشغيلية الخطرة (`=`, `+`, `-`, `@`, `\t`, `\r`)، يتم حقن علامة اقتباس مفردة `'` كبادئة للخلية لإلغاء تفسيرها كمعادلة تنفيذية داخل برامج Excel وتثبيتها كنص نقي آمن.
 
 ### 5. التدقيق الهندسي لخاصية حماية كلمات المرور (Leaked Password Protection):
 - **تسعير وباقات Supabase:** فحص كلمات المرور المسربة عبر تكامل API الرسمي مع HaveIBeenPwned.org متاح حصرياً في باقات Supabase المدفوعة (Pro Plans وما فوق) ولا يتوفر في الباقة المجانية (Free Tier).
 - **الحدود الأمنية لإيقاف التسجيل العام:** إيقاف التسجيل العام (Disable Public Signups) واقتصار التسجيل على الحسابات المنشأة يدوياً يمنع تسجيل المتسللين، ولكنه **لا يحمي** حسابات المديرين الحالية إذا اختار أحد المديرين كلمة مرور ضعيفة أو متسربة في اختراقات سابقة.
 - **التوصية التشغيلية:** تفعيل فحص كلمات المرور فور ترقية المشروع إلى باقة Pro، والالتزام بسياسة تعقيد صارمة لحسابات المديرين حالياً.
 
-### 6. مصفوفة التحقق الجنائي المثبتة على قاعدة الإنتاج الحية (Live Forensic Audit Matrix):
-أثبتت نتائج تشغيل سكريبت التدقيق الجنائي `trainerpro_comprehensive_audit.sql` على قاعدة بيانات الإنتاج الحية ما يلي:
+### 6. مصفوفة التحقق الجنائي التاريخية لما بعد تطبيق 007 (Historical Audit Snapshot — Pre-008):
+> ⏱️ **لقطة تاريخية توثيقية (Historical Audit Snapshot):**  
+> تمثل المصفوفة الواردة في هذا البند والمخرجات الخام في البند 7 أدناه لقطة فحص تاريخية أُجريت فور تطبيق ميجريشن 007 (صباح 21 أكتوبر 2026) وقبل إعداد وتطبيق ميجريشن 008. تُظهر هذه اللقطة الحالة التاريخية السابقة لقاعدة البيانات، بما فيها منح صلاحيات CRUD لجدول `cash_boxes`، وهي الثغرة الرقابية التي استدعت لاحقاً إعداد وتطبيق ميجريشن 008 لعزل الصلاحيات وحظر تعديل الرصيد الافتتاحي. الصلاحيات الحالية المعتمدة بعد ميجريشن 008 موثقة في «مصفوفة صلاحيات الجداول وضوابط PostgREST» (البند 3 من هذا القسم).
+
+أثبتت نتائج الفحص الجنائي التاريخي المنفذة يدوياً عبر نافذة SQL Editor في Supabase بعد تطبيق ميجريشن 007 (وقبل ميجريشن 008) ما يلي:
 1. **الجداول الأساسية (8 من أصل 8):** مفعل عليها `rls_enabled = true` و `force_rls_enabled = true` بنسبة 100%.
-2. **سياسات الأمان RLS:** لا توجد أي سياسة ممنوحة لدور `anon` أو `PUBLIC`؛ جميع السياسات مقصورة على `{authenticated}` وتلزم شرط `is_admin()`.
-3. **الدوال المعالجة (8 من أصل 8):**
-   - كافة الدوال تعمل بـ `is_security_definer = true` وتضبط `search_path = pg_catalog, public`.
-   - مالك الدوال هو `postgres` مع `owner_bypasses_rls = true` مما يمكنها من قراءة جدول المسؤولين وتخطي حلقة التكرار تحت مظلة `FORCE RLS`.
-   - كافة الدوال الـ 8 تفحص العضوية الإدارية بـ `checks_is_admin = true`.
-   - كافة الدوال المغيرة للأرصدة والبيانات تطبق أقفال التزامن الذرية `FOR UPDATE` لمنع سباق البيانات (Race Conditions).
-   - تسجيل هوية المسؤول المنفذ عبر `auth.uid()` محصور ومطبق في العمليات المالية المباشرة (سندات القبض `record_payment`، المصروفات `record_expense`، تحويلات الخزن `transfer_between_boxes`، وعمليات الإلغاء المالي `void_payment` و `void_expense`)، بينما دوال إدارة الاشتراكات (`enroll_student` و `set_enrollment_status`) تفرض حراسة الوصول وصلاحية المدير عبر `is_admin()` دون تسجيل حقل هوية منفصل في جدول الاشتراكات الحالي.
+2. **صلاحيات الجداول لدور `authenticated` (لقطة تاريخية بعد 007 وقبل 008):** كانت الصلاحيات حينها مقصورة بدقة على `SELECT` لخمسة جداول (`admins` وجداول الحركات الأربعة)، وتتيح CRUD كامل لجدولي `students` و `courses`، بينما كان جدول `cash_boxes` يُتيح CRUD كاملاً آنذاك، قبل أن تُقيّد صلاحيات الكتابة فيه بموجب ميجريشن 008 التي سحبت منه صلاحيات INSERT و DELETE وصلاحية UPDATE العامة (مع سحب TRUNCATE احتياطياً) مع الإبقاء على SELECT للقراءة، وقيدت التحديث على خمسة أعمدة تشغيلية فقط.
+3. **التريجرات الثلاثة لمنع التلاعب المالي (قبل إضافة تريجر الخزن في 008):** مفعلة وشغالة بنسبة 100% (`payments`, `expenses`, `cash_box_transfers`).
+4. **سياسات الأمان RLS الموجهة للمديرين في تلك اللقطة:** كانت موجهة حصرياً إلى `{authenticated}` وتلزم شرط `is_admin()`.
+5. **الدوال المعالجة (8 دوال):**
+   - كافة الدوال تعمل بـ `is_security_definer = true` وتضبط مسار البحث الآمن `search_path = pg_catalog, public`.
+   - مالك الدوال هو `postgres` مع `owner_bypasses_rls = true` مما يمكنها من تجاوز حلقة التكرار تحت مظلة `FORCE RLS`.
+   - **التمييز الدقيق بين الفاحص والعمليات:** دالة `is_admin()` هي الفاحص المستقل (Gatekeeper) الذي يتحقق من جدول `admins` دون استدعاء نفسها ودون أقفال؛ بينما دوال العمليات السبع تستدعي فاحص الصلاحية إجبارياً في بداية جسم الدالة لمنع أي استدعاء غير مصرح به. (نتيجة البحث النصي `%is_admin%` في سكريبت التدقيق أعطت دالة is_admin قيمة true إيجابية كاذبة لأن اسمها مطابق داخل ترويسة تعريفها).
+   - دوال العمليات المغيرة للأرصدة والمقاعد تطبق أقفال التزامن الذرية `FOR UPDATE` لمنع سباق البيانات (Race Conditions).
+   - تسجيل هوية المسؤول المنفذ `auth.uid()` محصور في العمليات المالية الـ 5 المباشرة (`record_payment`, `record_expense`, `transfer_between_boxes`, `void_payment`, `void_expense`). في المقابل، دوال الاشتراكات (`enroll_student` و `set_enrollment_status`) تفحص `is_admin()` فقط ولا تكتب `auth.uid()`.
+6. **جدول تتبع الترحيلات:** تم التأكد من عدم وجود جدول التتبع الآلي لـ Supabase CLI (`MANUAL_SQL_EDITOR_WORKFLOW`)، والتحقق مثبت جنائياً بنتائج الاستعلامات المباشرة.
+
+### 7. سجل مخرجات التدقيق الميداني الخام (لقطة تاريخية بعد 007 وقبل 008):
+توثيقاً للمسار التاريخي لتطور النظام، ندرج أدناه الجداول الخام المستخرجة مباشرة من نافذة Supabase SQL Editor بعد تشغيل ميجريشن 007 وقبل تشغيل ميجريشن 008 (تاريخ الفحص التاريخي: صباح 21 أكتوبر 2026):
+
+#### 1) مخرجات فحص سياسات الأمان RLS (التأكد من تنظيف كافة السياسات القديمة والمكررة):
+```text
+| tablename          | policyname                    | cmd    | roles           | using_condition                             |
+| ------------------ | ----------------------------- | ------ | --------------- | ------------------------------------------- |
+| admins             | admins_admin_only_policy      | SELECT | {authenticated} | ((auth_user_id = auth.uid()) OR is_admin()) |
+| cash_box_transfers | transfers_admin_only_policy   | SELECT | {authenticated} | is_admin()                                  |
+| cash_boxes         | cash_boxes_admin_only_policy  | ALL    | {authenticated} | is_admin()                                  |
+| courses            | courses_admin_only_policy     | ALL    | {authenticated} | is_admin()                                  |
+| enrollments        | enrollments_admin_only_policy | SELECT | {authenticated} | is_admin()                                  |
+| expenses           | expenses_admin_only_policy    | SELECT | {authenticated} | is_admin()                                  |
+| payments           | payments_admin_only_policy    | SELECT | {authenticated} | is_admin()                                  |
+| students           | students_admin_only_policy    | ALL    | {authenticated} | is_admin()                                  |
+```
+
+#### 2) مخرجات فحص صلاحيات الجداول لدور `authenticated` (لقطة تاريخية بعد 007 توضح منح CRUD السابق لجدول cash_boxes قبل تقييده في 008):
+```text
+| table_name         | grantee       | privilege_type |
+| ------------------ | ------------- | -------------- |
+| admins             | authenticated | SELECT         |
+| cash_box_transfers | authenticated | SELECT         |
+| cash_boxes         | authenticated | DELETE         |
+| cash_boxes         | authenticated | INSERT         |
+| cash_boxes         | authenticated | SELECT         |
+| cash_boxes         | authenticated | UPDATE         |
+| courses            | authenticated | DELETE         |
+| courses            | authenticated | INSERT         |
+| courses            | authenticated | SELECT         |
+| courses            | authenticated | UPDATE         |
+| enrollments        | authenticated | SELECT         |
+| expenses           | authenticated | SELECT         |
+| payments           | authenticated | SELECT         |
+| students           | authenticated | DELETE         |
+| students           | authenticated | INSERT         |
+| students           | authenticated | SELECT         |
+| students           | authenticated | UPDATE         |
+```
+
+> 📌 **ملاحظة رقابية حول لقطة الصلاحيات التاريخية أعلاه:**  
+> يُلاحظ في الجدول التاريخي أعلاه ظهور أربعة صفوف لجدول `cash_boxes` تمنح (`DELETE`, `INSERT`, `SELECT`, `UPDATE`). تم تقييد هذا الوضع التاريخي بموجب ميجريشن 008؛ حيث سُحبت صلاحيات `DELETE` و `INSERT` وصلاحية `UPDATE` العامة على الجدول (مع سحب `TRUNCATE` احتياطياً) مع الإبقاء على `SELECT` للقراءة، وقُيد التحديث حصراً على 5 أعمدة تشغيلية مع تجميد `opening_balance` و `added_by` و `cash_box_id` و `created_at`، كما هو موثق في مصفوفة الصلاحيات المعتمدة (البند 3 من هذا القسم) وسجل ترحيل 008.
+
+#### 3) مخرجات فحص تريجرات الحماية المالية الثلاثة بعد 007 (قبل إضافة تريجر حماية الخزن في 008):
+```text
+| table_name         | trigger_name                         | trigger_definition                                                                                                                                                 |
+| ------------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| cash_box_transfers | trg_transfers_financial_immutability | CREATE TRIGGER trg_transfers_financial_immutability BEFORE DELETE OR UPDATE ON public.cash_box_transfers FOR EACH ROW EXECUTE FUNCTION prevent_transfer_mutation() |
+| expenses           | trg_expenses_financial_immutability  | CREATE TRIGGER trg_expenses_financial_immutability BEFORE DELETE OR UPDATE ON public.expenses FOR EACH ROW EXECUTE FUNCTION prevent_financial_record_mutation()    |
+| payments           | trg_payments_financial_immutability  | CREATE TRIGGER trg_payments_financial_immutability BEFORE DELETE OR UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION prevent_financial_record_mutation()    |
+```
+
+#### 4) مخرجات فحص صلاحيات تنفيذ الدوال الـ 8 بعد 007 (قبل إضافة دالة create_cash_box في 008):
+```text
+| routine_name           | grantee       | privilege_type |
+| ---------------------- | ------------- | -------------- |
+| enroll_student         | authenticated | EXECUTE        |
+| is_admin               | authenticated | EXECUTE        |
+| record_expense         | authenticated | EXECUTE        |
+| record_payment         | authenticated | EXECUTE        |
+| set_enrollment_status  | authenticated | EXECUTE        |
+| transfer_between_boxes | authenticated | EXECUTE        |
+| void_expense           | authenticated | EXECUTE        |
+| void_payment           | authenticated | EXECUTE        |
+```
 
 ---
 
@@ -396,10 +515,12 @@ END $$;
 | `004` | `20261015024209_004_fix_constraint_and_seed.sql` | مؤرشف (قديم) | قيود وبيانات تجريبية أولية. |
 | `005` | `202610210005_production_hardening.sql` | **موثق في المستودع** (مخطط الإنتاج `*_id`) | ترقيم إيصالات تسلسلي Sequence، تريجرز منع الحذف والتعديل، وأقفال التحويل الذرية. يتطلب إثبات الحالة الحية عبر سكريبت التدقيق. |
 | `006` | `202610210006_security_and_authorization_hardening.sql` | **موثق في المستودع** (أكتوبر 2026) | حراسة `is_admin` لدوال التحصيل والمصروفات، وتسجيل `added_by = auth.uid()`، وتوحيد الأرصدة على `voided_at IS NULL`. |
-| `007` | `202610210007_purge_legacy_rls_and_revoke_public.sql` | **منفذ يدوياً ومثبت بنتائج التدقيق** (21 أكتوبر 2026) | حلقة مسح ديناميكية أزالت السياسات المكررة، سحب صلاحيات INSERT/UPDATE/DELETE من authenticated على جداول الحركات الأربعة وadmins وقصرها على SELECT، وإضافة تريجر التحويلات trg_transfers_financial_immutability. |
+| `007` | `202610210007_purge_legacy_rls_and_revoke_public.sql` | **منفذ يدوياً ومثبت بنتائج التدقيق الحي** (21 أكتوبر 2026) | ترحيل تصحيحي مستقل نُفذ عبر SQL Editor؛ طبق بنجاح حلقة المسح الديناميكية لإزالة السياسات المكررة، وقصر صلاحيات authenticated على SELECT فقط لجدول admins وجداول الحركات الأربعة، وحصر صلاحيات INSERT/UPDATE/DELETE على students وcourses وcash_boxes، وتفعيل تريجر trg_transfers_financial_immutability. أثبتت نتائج الفحص الحي مطابقة الصلاحيات والتريجرات. |
+| `008` | `202610210008_protect_cash_boxes_opening_balance.sql` | **منفذ ومثبت بنتائج التدقيق الميداني على قاعدة الإنتاج** (21 أكتوبر 2026) | ترحيل تصحيحي نُفذ بنجاح عبر SQL Editor؛ طبق سحب صلاحيات INSERT و DELETE و TRUNCATE وصلاحية UPDATE العامة على مستوى جدول cash_boxes بالكامل من authenticated (`table_update = false`)، وقصر الـ UPDATE على الأعمدة التشغيلية الخمسة (`true`)، مع حظر تعديل opening_balance و added_by و cash_box_id و created_at (`false`) على مستوى محرك PostgreSQL وعلى مستوى التريجر، وقصر الإنشاء لدور authenticated حصراً على دالة create_cash_box RPC المحصنة بـ is_admin() (مثبت بنتائج استعلام التدقيق الميداني المبلغة من جلسة العمل). |
+| `009` | `20261021171218_allow_cash_box_creator_nullification_on_auth_delete.sql` | **مُبلّغ عن تشغيله في SQL Editor على TrainerPro** (لم يُتحقق استقلالياً من معرف المشروع أو اختباره تشغيلياً) | ترحيل تصحيحي تابع بعد 008؛ يعالج تعارض تريجر `prevent_cash_box_mutation` مع قيد المفتاح الأجنبي `ON DELETE SET NULL` بالسماح حصراً بتحويل `added_by` من UUID قائم إلى `NULL` عند حذف مستخدم من جدول `auth.users`، مع استمرار تجميد الرصيد الافتتاحي ومنع إعادة تعيين المنشئ لأي UUID آخر. (أُبلغ فقط عن تشغيله في Supabase SQL Editor على مشروع "TrainerPro"؛ ولم يتم التحقق المستقل من معرف المشروع المختار أو اختباره تشغيلياً). |
 
 > 📌 **ملاحظة معمارية للمطابقة الحية:**  
-> نظراً لأن الترحيلات طُبقت في بيئة Supabase الحية عبر نافذة الاستعلامات (SQL Editor) ولم تُدرج عبر أداة Supabase CLI في جدول ترحيلات آلي، فإن الحكم النهائي على مطابقة قاعدة البيانات لا يعتمد على افتراضات المستودع، بل يستند حصرياً إلى نتائج تشغيل سكريبت التدقيق الشامل `trainerpro_comprehensive_audit.sql`.
+> نظراً لأن الترحيلات تطبق في بيئة Supabase الحية عبر نافذة الاستعلامات (SQL Editor) يدوياً ولم تُدرج عبر أداة Supabase CLI في جدول ترحيلات آلي (`schema_migrations` غير موجود)، فإن الحكم النهائي على مطابقة قاعدة البيانات لا يعتمد على افتراضات المستودع، بل يستند حصرياً إلى نتائج تشغيل سكريبت التدقيق الشامل `trainerpro_comprehensive_audit.sql` ومطابقة مخرجاته يدوياً.
 
 ---
 
@@ -450,6 +571,6 @@ npm run build
 * **الجهة المشرفة والمالكة:** أكاديمية م/ محمد المصري للتدريب وهندسة النظم.
 * **التصميم والتنفيذ المعماري:** م/ أحمد الفلاح (Lead Software Engineer & System Architect).
 * **تاريخ مراجعة وتحديث المرجع:** 21 أكتوبر 2026.
-* **الحالة:** مرجع معماري وتشغيلي نهائي معتمد ومثبت بالدليل الجنائي على قاعدة الإنتاج الحية بعد اجتياز كافة فحوصات الأمان والدوال وصلاحيات RLS بنسبة 100%.
+* **الحالة:** مرجع معماري وتشغيلي يوثق المعمارية المستهدفة وكود المستودع. أظهرت نتائج استعلامات التدقيق الميداني المنفذة بتاريخ 21 أكتوبر 2026 مطابقة بنية الجداول وسياسات RLS المحصورة وتريجرات الحركات المالية، وتطبيق ترحيل 008 والتحقق الميداني من مخرجاته عبر SQL Editor (سحب UPDATE العام وحظر تعديل الرصيد الافتتاحي وحصر الإنشاء في RPC) استناداً إلى نتائج فحص الصلاحيات الميداني المنفذ والمبلغ في جلسة العمل، مع توثيق ترحيل 009 فقط باعتباره مُبلّغاً عن تشغيله في Supabase SQL Editor على مشروع "TrainerPro"؛ دون تحقق مستقل من معرف المشروع المختار أو اختبار تشغيلي.
 
 </div>

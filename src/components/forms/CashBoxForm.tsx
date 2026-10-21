@@ -36,22 +36,56 @@ export function CashBoxForm({ open, onClose, onSaved }: CashBoxFormProps) {
     setSaving(true);
     setError(null);
 
-    const { error: err } = await supabase.from('cash_boxes').insert({
-      name: name.trim(),
-      type: boxType,
-      owner: owner.trim(),
-      opening_balance: openingBalance ? parseFloat(openingBalance) : 0,
-    });
+    const trimmedBalance = openingBalance.trim();
+    let parsedBalance = 0;
 
-    if (err) {
-      setError(err.message);
+    if (trimmedBalance !== '') {
+      // Strict numeric check: non-negative digits only, optional decimal point with at most 2 digits
+      if (!/^\d+(\.\d{1,2})?$/.test(trimmedBalance)) {
+        setError('الرصيد الافتتاحي يجب أن يكون رقماً موجباً أو صفراً (بحد أقصى خانتين عشريتين)');
+        setSaving(false);
+        return;
+      }
+      parsedBalance = Number(trimmedBalance);
+      if (isNaN(parsedBalance) || !Number.isFinite(parsedBalance) || parsedBalance < 0) {
+        setError('الرصيد الافتتاحي يجب أن يكون رقماً موجباً أو صفراً');
+        setSaving(false);
+        return;
+      }
+    }
+
+    if (parsedBalance > 99999999.99) {
+      setError('الرصيد الافتتاحي يتجاوز الحد الأقصى المسموح به (99,999,999.99)');
       setSaving(false);
       return;
     }
 
-    setSaving(false);
-    onSaved();
-    onClose();
+    try {
+      // Audited RPC create_cash_box only (strictly no fallback to direct INSERT)
+      const { error: rpcErr } = await supabase.rpc('create_cash_box', {
+        p_name: name.trim(),
+        p_type: boxType,
+        p_owner: owner.trim() || null,
+        p_opening_balance: parsedBalance,
+        p_notes: null,
+      });
+
+      if (rpcErr) {
+        const isDenied = rpcErr.code === '42501' || rpcErr.message?.includes('42501') || /access denied/i.test(rpcErr.message ?? '');
+        const msg = isDenied
+          ? 'غير مصرح: يتطلب صلاحيات مدير نظام لإنشاء خزنة جديدة'
+          : (rpcErr.message || 'فشل في إنشاء الخزنة');
+        setError(msg);
+        return;
+      }
+
+      onSaved();
+      onClose();
+    } catch {
+      setError('تعذر الاتصال بالخادم لإتمام العملية. تحقق من اتصالك وحاول مرة أخرى.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -72,7 +106,7 @@ export function CashBoxForm({ open, onClose, onSaved }: CashBoxFormProps) {
           ]}
         />
         <Input label="المسؤول" placeholder="اسم المسؤول" value={owner} onChange={(e) => setOwner(e.target.value)} />
-        <Input label="رصيد الافتتاح (ج.م)" type="number" step="0.01" placeholder="0.00" value={openingBalance} onChange={(e) => setOpeningBalance(e.target.value)} />
+        <Input label="رصيد الافتتاح (ج.م)" type="number" step="0.01" min="0" max="99999999.99" placeholder="0.00" value={openingBalance} onChange={(e) => setOpeningBalance(e.target.value)} />
         <FormActions>
           <button type="button" onClick={onClose} className="btn-secondary">إلغاء</button>
           <button type="submit" disabled={saving} className="btn-primary">
