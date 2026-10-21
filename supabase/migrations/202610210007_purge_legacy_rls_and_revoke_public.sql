@@ -1,17 +1,19 @@
 -- ============================================================================
 -- Migration: 202610210007_purge_legacy_rls_and_revoke_public.sql
 -- Project: Elmasry Academy LMS (TrainerPro)
--- Target: Dedicated RLS Purge & PUBLIC Privilege Lockdown
+-- Target: Dedicated RLS Purge, Financial Write Lockdown & Transfer Immutability
 -- Lead Architect: Eng. Ahmed El-Falah (م/ أحمد الفلاح)
 -- ============================================================================
--- Purpose:
--- 1. In PostgreSQL, permissive policies combine via OR logic. Any leftover
---    permissive policy (e.g. anon_select_*, anon_insert_*, Allow authenticated read)
---    from initial development migrations (001-004) would completely bypass admin restrictions.
--- 2. Dynamically purge ALL existing policies on the 8 core tables.
--- 3. Explicitly revoke table privileges from PUBLIC and anon.
--- 4. Establish singular, authoritative admin-only policies on all core tables.
--- 5. Revoke execution of sensitive RPC functions from PUBLIC and anon.
+-- Key Hardening:
+-- 1. Dynamically purges all existing RLS policies on the 8 core tables (clearing duplicates).
+-- 2. Fully closes direct PostgREST writes (INSERT/UPDATE/DELETE) on the 4 transactional tables:
+--    enrollments, payments, expenses, cash_box_transfers.
+--    Writes to these tables MUST go exclusively through authorized SECURITY DEFINER RPCs.
+-- 3. Grants SELECT, INSERT, UPDATE, DELETE to authenticated admins ONLY on entity tables:
+--    admins, students, courses, cash_boxes.
+-- 4. Establishes singular, authoritative admin-only RLS policies.
+-- 5. Adds missing immutability trigger on cash_box_transfers.
+-- 6. Revokes execution of sensitive RPC functions from PUBLIC and anon.
 -- ============================================================================
 
 BEGIN;
@@ -38,7 +40,7 @@ END $$;
 
 
 -- ============================================================================
--- 2. ENFORCE AND FORCE ROW LEVEL SECURITY
+-- 2. ENFORCE AND FORCE ROW LEVEL SECURITY ON ALL 8 TABLES
 -- ============================================================================
 ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admins FORCE ROW LEVEL SECURITY;
@@ -66,17 +68,25 @@ ALTER TABLE public.cash_box_transfers FORCE ROW LEVEL SECURITY;
 
 
 -- ============================================================================
--- 3. REVOKE PRIVILEGES FROM PUBLIC AND ANON
+-- 3. TABLE PRIVILEGES: STRICT SPLIT BETWEEN ENTITIES AND TRANSACTIONAL LEDGER
 -- ============================================================================
--- In PostgreSQL, PUBLIC is a pseudo-role representing every role.
--- Revoking from PUBLIC and anon closes direct REST access for unauthenticated users.
+-- Step 3a: Completely revoke all table privileges from PUBLIC and anon
 REVOKE ALL ON TABLE public.admins, public.students, public.courses, public.cash_boxes,
                     public.enrollments, public.payments, public.expenses, public.cash_box_transfers
 FROM PUBLIC, anon;
 
--- Grant required table operations to authenticated role (RLS will filter to is_admin only)
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.admins, public.students, public.courses, public.cash_boxes,
-                                              public.enrollments, public.payments, public.expenses, public.cash_box_transfers
+-- Step 3b: Entity Tables (Admins, Students, Courses, Cash Boxes)
+-- Allow authenticated admins to perform standard CRUD operations via UI
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.admins, public.students, public.courses, public.cash_boxes
+TO authenticated;
+
+-- Step 3c: Transactional & Financial Tables (Enrollments, Payments, Expenses, Transfers)
+-- READ-ONLY for authenticated users. Direct INSERT, UPDATE, DELETE are strictly REVOKED!
+-- All writes must execute via audited SECURITY DEFINER RPCs (record_payment, enroll_student, etc.)
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.enrollments, public.payments, public.expenses, public.cash_box_transfers
+FROM authenticated;
+
+GRANT SELECT ON TABLE public.enrollments, public.payments, public.expenses, public.cash_box_transfers
 TO authenticated;
 
 
@@ -108,33 +118,50 @@ FOR ALL TO authenticated
 USING (public.is_admin())
 WITH CHECK (public.is_admin());
 
--- 5) Enrollments: Only authenticated administrators can read/write
+-- 5) Enrollments: SELECT only for authenticated admins; writes exclusively via enroll_student / set_enrollment_status RPCs
 CREATE POLICY "enrollments_admin_only_policy" ON public.enrollments
-FOR ALL TO authenticated
-USING (public.is_admin())
-WITH CHECK (public.is_admin());
+FOR SELECT TO authenticated
+USING (public.is_admin());
 
--- 6) Payments: Only authenticated administrators can read; direct writes blocked by ledger trigger
+-- 6) Payments: SELECT only for authenticated admins; writes exclusively via record_payment / void_payment RPCs
 CREATE POLICY "payments_admin_only_policy" ON public.payments
-FOR ALL TO authenticated
-USING (public.is_admin())
-WITH CHECK (public.is_admin());
+FOR SELECT TO authenticated
+USING (public.is_admin());
 
--- 7) Expenses: Only authenticated administrators can read; direct writes blocked by ledger trigger
+-- 7) Expenses: SELECT only for authenticated admins; writes exclusively via record_expense / void_expense RPCs
 CREATE POLICY "expenses_admin_only_policy" ON public.expenses
-FOR ALL TO authenticated
-USING (public.is_admin())
-WITH CHECK (public.is_admin());
+FOR SELECT TO authenticated
+USING (public.is_admin());
 
--- 8) Cash Box Transfers: Only authenticated administrators can read; direct writes blocked by ledger trigger
+-- 8) Cash Box Transfers: SELECT only for authenticated admins; writes exclusively via transfer_between_boxes RPC
 CREATE POLICY "transfers_admin_only_policy" ON public.cash_box_transfers
-FOR ALL TO authenticated
-USING (public.is_admin())
-WITH CHECK (public.is_admin());
+FOR SELECT TO authenticated
+USING (public.is_admin());
 
 
 -- ============================================================================
--- 5. SECURE RPC EXECUTION PRIVILEGES (REVOKE FROM PUBLIC & ANON)
+-- 5. IMMUTABILITY TRIGGER ON CASH_BOX_TRANSFERS
+-- ============================================================================
+-- Enforce append-only ledger for transfers, matching payments and expenses
+CREATE OR REPLACE FUNCTION public.prevent_transfer_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, public
+AS $$
+BEGIN
+  RAISE EXCEPTION 'Cash box transfers are append-only and cannot be updated or deleted.';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_transfers_financial_immutability ON public.cash_box_transfers;
+CREATE TRIGGER trg_transfers_financial_immutability
+BEFORE UPDATE OR DELETE ON public.cash_box_transfers
+FOR EACH ROW EXECUTE FUNCTION public.prevent_transfer_mutation();
+
+
+-- ============================================================================
+-- 6. SECURE RPC EXECUTION PRIVILEGES (REVOKE FROM PUBLIC & ANON)
 -- ============================================================================
 DO $$
 DECLARE
