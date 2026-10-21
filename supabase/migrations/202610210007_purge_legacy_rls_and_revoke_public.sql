@@ -75,18 +75,20 @@ REVOKE ALL ON TABLE public.admins, public.students, public.courses, public.cash_
                     public.enrollments, public.payments, public.expenses, public.cash_box_transfers
 FROM PUBLIC, anon;
 
--- Step 3b: Entity Tables (Admins, Students, Courses, Cash Boxes)
+-- Step 3b: Entity Tables (Students, Courses, Cash Boxes)
 -- Allow authenticated admins to perform standard CRUD operations via UI
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.admins, public.students, public.courses, public.cash_boxes
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.students, public.courses, public.cash_boxes
 TO authenticated;
 
--- Step 3c: Transactional & Financial Tables (Enrollments, Payments, Expenses, Transfers)
+-- Step 3c: Administrative & Financial Tables (Admins, Enrollments, Payments, Expenses, Transfers)
 -- READ-ONLY for authenticated users. Direct INSERT, UPDATE, DELETE are strictly REVOKED!
--- All writes must execute via audited SECURITY DEFINER RPCs (record_payment, enroll_student, etc.)
-REVOKE INSERT, UPDATE, DELETE ON TABLE public.enrollments, public.payments, public.expenses, public.cash_box_transfers
+-- 1. Admins: Provisioning is restricted to trusted administrative channels / database operators;
+--    authenticated sessions can only query to verify own identity or active admin list.
+-- 2. Ledger & Enrollments: All writes must execute via audited SECURITY DEFINER RPCs.
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.admins, public.enrollments, public.payments, public.expenses, public.cash_box_transfers
 FROM authenticated;
 
-GRANT SELECT ON TABLE public.enrollments, public.payments, public.expenses, public.cash_box_transfers
+GRANT SELECT ON TABLE public.admins, public.enrollments, public.payments, public.expenses, public.cash_box_transfers
 TO authenticated;
 
 
@@ -94,11 +96,10 @@ TO authenticated;
 -- 4. CREATE SINGULAR, CRISP ADMIN-ONLY RLS POLICIES
 -- ============================================================================
 
--- 1) Admins: allow authenticated user to verify own admin row, and active admins to manage all
+-- 1) Admins: SELECT only for authenticated users to verify identity / check active admin status
 CREATE POLICY "admins_admin_only_policy" ON public.admins
-FOR ALL TO authenticated
-USING (auth_user_id = auth.uid() OR public.is_admin())
-WITH CHECK (public.is_admin());
+FOR SELECT TO authenticated
+USING (auth_user_id = auth.uid() OR public.is_admin());
 
 -- 2) Students: Only authenticated administrators can read/write
 CREATE POLICY "students_admin_only_policy" ON public.students
