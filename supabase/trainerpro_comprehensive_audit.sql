@@ -90,24 +90,31 @@ ORDER BY c.relname, grantee_role, a.privilege_type;
 
 
 -- ----------------------------------------------------------------------------
--- 4. RPC FUNCTIONS: AUDIT ATTRIBUTES, GUARDS & FUNCTION BODY INSPECTION
+-- 4. RPC FUNCTIONS: AUDIT ATTRIBUTES, GUARDS & OWNER BYPASS RLS
 -- ----------------------------------------------------------------------------
 -- Audits all 8 core functions:
--- Checks:
+-- Notes for Manual Forensic Review:
 -- a) prosecdef = true (SECURITY DEFINER)
 -- b) runtime_search_path includes pg_catalog, public
--- c) checks_is_admin = true (function body contains is_admin() call)
--- d) references_auth_uid = true (records audit trail via auth.uid())
--- e) uses_row_lock = true (uses FOR UPDATE to prevent race conditions)
+-- c) owner_bypasses_rls: crucial for understanding how is_admin() queries public.admins
+--    when FORCE ROW LEVEL SECURITY is active. If owner has rolbypassrls, it can read admins table directly.
+-- d) checks_is_admin: true for functions enforcing admin authentication.
+-- e) uses_row_lock_when_mutating: expected ONLY on mutating operations (payments, expenses, transfers, enrollments).
+--    NOT expected on read-only helper functions like is_admin().
 SELECT
   p.proname AS function_name,
   pg_get_function_identity_arguments(p.oid) AS arguments,
   p.prosecdef AS is_security_definer,
   p.proconfig AS runtime_search_path,
   r.rolname AS function_owner,
+  r.rolbypassrls AS owner_bypasses_rls,
   (pg_get_functiondef(p.oid) ILIKE '%is_admin%') AS checks_is_admin,
   (pg_get_functiondef(p.oid) ILIKE '%auth.uid()%') AS references_auth_uid,
-  (pg_get_functiondef(p.oid) ILIKE '%FOR UPDATE%') AS uses_row_lock
+  CASE
+    WHEN p.proname IN ('record_payment', 'record_expense', 'transfer_between_boxes', 'enroll_student', 'set_enrollment_status')
+      THEN (pg_get_functiondef(p.oid) ILIKE '%FOR UPDATE%')
+    ELSE NULL -- Not applicable for read-only functions (e.g. is_admin)
+  END AS uses_row_lock_when_mutating
 FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
 JOIN pg_roles r ON r.oid = p.proowner
@@ -245,21 +252,35 @@ ORDER BY tablename, indexname;
 
 
 -- ----------------------------------------------------------------------------
--- 9. SUPABASE MIGRATION HISTORY (Check CLI migration tracking table)
+-- 9. SUPABASE MIGRATION HISTORY (Retrieve Actual Applied Migration Rows)
 -- ----------------------------------------------------------------------------
-SELECT
-  CASE
-    WHEN to_regclass('supabase_migrations.schema_migrations') IS NOT NULL THEN 'EXISTS (CLI Migrations Tracking)'
-    ELSE 'NOT FOUND (Manual SQL Editor Workflow)'
-  END AS migration_table_status;
+-- Dynamically queries supabase_migrations.schema_migrations if it exists,
+-- without failing if the table is absent (in manual SQL editor workflows).
+DROP TABLE IF EXISTS temp_migration_history;
+CREATE TEMP TABLE temp_migration_history (
+  version text,
+  inserted_at text,
+  tracking_mode text
+);
 
--- If supabase_migrations.schema_migrations exists, inspect applied migrations:
 DO $$
 BEGIN
   IF to_regclass('supabase_migrations.schema_migrations') IS NOT NULL THEN
-    RAISE NOTICE 'Listing schema_migrations:';
+    EXECUTE 'INSERT INTO temp_migration_history (version, inserted_at, tracking_mode)
+             SELECT version::text, inserted_at::text, ''CLI_MIGRATIONS_TRACKED''
+             FROM supabase_migrations.schema_migrations';
+  ELSE
+    INSERT INTO temp_migration_history (version, inserted_at, tracking_mode)
+    VALUES ('NONE_FOUND', 'N/A', 'MANUAL_SQL_EDITOR_WORKFLOW (No CLI schema_migrations table)');
   END IF;
 END $$;
+
+SELECT
+  version,
+  inserted_at,
+  tracking_mode
+FROM temp_migration_history
+ORDER BY version DESC;
 
 
 -- ----------------------------------------------------------------------------
