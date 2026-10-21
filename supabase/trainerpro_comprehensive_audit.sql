@@ -1,9 +1,10 @@
 -- ============================================================================
--- 🏛️ TrainerPro Production Live Database Forensic Audit Script (v2.0)
+-- 🏛️ TrainerPro Production Live Database Forensic Audit Script (v2.2)
 -- Elmasry Academy LMS — Comprehensive Security, RLS & Authorization Verification
 -- Lead Architect: Eng. Ahmed El-Falah (م/ أحمد الفلاح)
 -- ============================================================================
--- NOTE: This script is 100% READ-ONLY. It does not alter, lock, or modify data.
+-- NOTE: This script consists purely of read-only diagnostic SELECT queries.
+-- It does not alter, lock, or modify any permanent or session database objects (No DDL/DML).
 -- Run this in the Supabase SQL Editor to audit and verify live production state.
 -- ============================================================================
 
@@ -252,35 +253,34 @@ ORDER BY tablename, indexname;
 
 
 -- ----------------------------------------------------------------------------
--- 9. SUPABASE MIGRATION HISTORY (Retrieve Actual Applied Migration Rows)
+-- 9. SUPABASE MIGRATION HISTORY (Read-Only Tracking Table Inspection)
 -- ----------------------------------------------------------------------------
--- Dynamically queries supabase_migrations.schema_migrations if it exists,
--- without failing if the table is absent (in manual SQL editor workflows).
-DROP TABLE IF EXISTS temp_migration_history;
-CREATE TEMP TABLE temp_migration_history (
-  version text,
-  inserted_at text,
-  tracking_mode text
-);
-
-DO $$
-BEGIN
-  IF to_regclass('supabase_migrations.schema_migrations') IS NOT NULL THEN
-    EXECUTE 'INSERT INTO temp_migration_history (version, inserted_at, tracking_mode)
-             SELECT version::text, inserted_at::text, ''CLI_MIGRATIONS_TRACKED''
-             FROM supabase_migrations.schema_migrations';
-  ELSE
-    INSERT INTO temp_migration_history (version, inserted_at, tracking_mode)
-    VALUES ('NONE_FOUND', 'N/A', 'MANUAL_SQL_EDITOR_WORKFLOW (No CLI schema_migrations table)');
-  END IF;
-END $$;
-
+-- 9a) Check if the Supabase CLI schema_migrations table exists:
 SELECT
-  version,
-  inserted_at,
-  tracking_mode
-FROM temp_migration_history
-ORDER BY version DESC;
+  table_schema,
+  table_name,
+  CASE
+    WHEN table_name IS NOT NULL THEN 'CLI_MIGRATIONS_TABLE_EXISTS'
+    ELSE 'MANUAL_SQL_EDITOR_WORKFLOW (CLI tracking table does not exist)'
+  END AS migration_tracking_status
+FROM (SELECT 1) _
+LEFT JOIN information_schema.tables
+  ON table_schema = 'supabase_migrations' AND table_name = 'schema_migrations';
+
+-- 9b) Inspect the exact columns of schema_migrations (if present):
+SELECT
+  column_name,
+  data_type,
+  ordinal_position
+FROM information_schema.columns
+WHERE table_schema = 'supabase_migrations'
+  AND table_name = 'schema_migrations'
+ORDER BY ordinal_position;
+
+-- 9c) Optional: If 9a returns CLI_MIGRATIONS_TABLE_EXISTS, inspect applied migrations.
+-- Note: Supabase CLI canonical schema stores (version, name, statements).
+-- Run separately if applicable:
+-- SELECT version, name FROM supabase_migrations.schema_migrations ORDER BY version DESC;
 
 
 -- ----------------------------------------------------------------------------
