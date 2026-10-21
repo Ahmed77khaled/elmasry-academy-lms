@@ -320,33 +320,35 @@ ALTER TABLE public.expenses FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.cash_box_transfers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cash_box_transfers FORCE ROW LEVEL SECURITY;
 
--- Drop any previous or legacy policies to eliminate permissive leaks
-DROP POLICY IF EXISTS "Allow authenticated read" ON public.admins;
-DROP POLICY IF EXISTS "Allow authenticated read" ON public.students;
-DROP POLICY IF EXISTS "Allow authenticated read" ON public.courses;
-DROP POLICY IF EXISTS "Allow authenticated read" ON public.cash_boxes;
-DROP POLICY IF EXISTS "Allow authenticated read" ON public.enrollments;
-DROP POLICY IF EXISTS "Allow authenticated read" ON public.payments;
-DROP POLICY IF EXISTS "Allow authenticated read" ON public.expenses;
-DROP POLICY IF EXISTS "Allow authenticated read" ON public.cash_box_transfers;
+-- CRITICAL FIX: In PostgreSQL, permissive policies combine via OR logic.
+-- To prevent any legacy permissive policy (such as anon_select_*, anon_insert_*, Allow authenticated read, etc.)
+-- from silently bypassing admin-only restrictions, we dynamically purge ALL existing policies
+-- on the 8 core tables before creating the singular, authoritative admin policy.
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN (
+    SELECT schemaname, tablename, policyname
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename IN (
+        'admins', 'students', 'courses', 'cash_boxes',
+        'enrollments', 'payments', 'expenses', 'cash_box_transfers'
+      )
+  ) LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', r.policyname, r.schemaname, r.tablename);
+  END LOOP;
+END $$;
 
-DROP POLICY IF EXISTS "Admins can do everything" ON public.admins;
-DROP POLICY IF EXISTS "Admins can do everything on students" ON public.students;
-DROP POLICY IF EXISTS "Admins can do everything on courses" ON public.courses;
-DROP POLICY IF EXISTS "Admins can do everything on cash_boxes" ON public.cash_boxes;
-DROP POLICY IF EXISTS "Admins can do everything on enrollments" ON public.enrollments;
-DROP POLICY IF EXISTS "Admins can do everything on payments" ON public.payments;
-DROP POLICY IF EXISTS "Admins can do everything on expenses" ON public.expenses;
-DROP POLICY IF EXISTS "Admins can do everything on cash_box_transfers" ON public.cash_box_transfers;
+-- Revoke all table-level privileges from anon and public to block direct REST endpoints for unauthenticated users
+REVOKE ALL ON TABLE public.admins, public.students, public.courses, public.cash_boxes,
+                    public.enrollments, public.payments, public.expenses, public.cash_box_transfers
+FROM PUBLIC, anon;
 
-DROP POLICY IF EXISTS "admins_admin_only_policy" ON public.admins;
-DROP POLICY IF EXISTS "students_admin_only_policy" ON public.students;
-DROP POLICY IF EXISTS "courses_admin_only_policy" ON public.courses;
-DROP POLICY IF EXISTS "cash_boxes_admin_only_policy" ON public.cash_boxes;
-DROP POLICY IF EXISTS "enrollments_admin_only_policy" ON public.enrollments;
-DROP POLICY IF EXISTS "payments_admin_only_policy" ON public.payments;
-DROP POLICY IF EXISTS "expenses_admin_only_policy" ON public.expenses;
-DROP POLICY IF EXISTS "transfers_admin_only_policy" ON public.cash_box_transfers;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.admins, public.students, public.courses, public.cash_boxes,
+                                              public.enrollments, public.payments, public.expenses, public.cash_box_transfers
+TO authenticated;
 
 -- 1) Admins table: user can verify own membership via auth_user_id, and full admins can read all
 CREATE POLICY "admins_admin_only_policy" ON public.admins
@@ -378,19 +380,19 @@ FOR ALL TO authenticated
 USING (public.is_admin())
 WITH CHECK (public.is_admin());
 
--- 6) Payments: Only authenticated administrators can read; direct writes revoked
+-- 6) Payments: Only authenticated administrators can read; direct writes revoked / restricted
 CREATE POLICY "payments_admin_only_policy" ON public.payments
 FOR ALL TO authenticated
 USING (public.is_admin())
 WITH CHECK (public.is_admin());
 
--- 7) Expenses: Only authenticated administrators can read; direct writes revoked
+-- 7) Expenses: Only authenticated administrators can read; direct writes revoked / restricted
 CREATE POLICY "expenses_admin_only_policy" ON public.expenses
 FOR ALL TO authenticated
 USING (public.is_admin())
 WITH CHECK (public.is_admin());
 
--- 8) Cash Box Transfers: Only authenticated administrators can read; direct writes revoked
+-- 8) Cash Box Transfers: Only authenticated administrators can read; direct writes revoked / restricted
 CREATE POLICY "transfers_admin_only_policy" ON public.cash_box_transfers
 FOR ALL TO authenticated
 USING (public.is_admin())
