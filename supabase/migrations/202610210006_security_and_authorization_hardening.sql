@@ -8,9 +8,29 @@
 -- 2. Harden record_payment and record_expense with is_admin() guards and added_by = auth.uid().
 -- 3. Recreate enrollment_balances view to unify ledger accounting on voided_at IS NULL.
 -- 4. Eliminate legacy voided column discrepancies across all calculations.
+-- 5. Standardize admin lookup on auth_user_id column.
 -- ============================================================================
 
 BEGIN;
+
+-- ============================================================================
+-- 0. CANONICAL IS_ADMIN FUNCTION DEFINITION
+-- ============================================================================
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.admins
+    WHERE auth_user_id = auth.uid()
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
+
 
 -- ============================================================================
 -- 1. RECREATE ENROLLMENT_BALANCES VIEW WITH UNIFIED VOID CHECKING
@@ -328,10 +348,10 @@ DROP POLICY IF EXISTS "payments_admin_only_policy" ON public.payments;
 DROP POLICY IF EXISTS "expenses_admin_only_policy" ON public.expenses;
 DROP POLICY IF EXISTS "transfers_admin_only_policy" ON public.cash_box_transfers;
 
--- 1) Admins table: user can verify own membership, and full admins can read all
+-- 1) Admins table: user can verify own membership via auth_user_id, and full admins can read all
 CREATE POLICY "admins_admin_only_policy" ON public.admins
 FOR ALL TO authenticated
-USING (id = auth.uid() OR public.is_admin())
+USING (auth_user_id = auth.uid() OR public.is_admin())
 WITH CHECK (public.is_admin());
 
 -- 2) Students: Only authenticated administrators can read/write
