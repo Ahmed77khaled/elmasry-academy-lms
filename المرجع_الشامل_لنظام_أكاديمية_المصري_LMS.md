@@ -8,9 +8,11 @@
 > **المشرف العام:** م/ محمد المصري (Eng. Mohamed Elmasry)  
 > **كبير مهندسي النظام والمعماري الرئيسي:** م/ أحمد الفلاح (Eng. Ahmed El-Falah — Lead Software Engineer & System Architect)  
 > **تاريخ الإصدار:** أكتوبر 2026  
-> **حالة الاعتماد:** معتمد للإنتاج (Production-Grade Certified — Hardened)  
+> **حالة الوثيقة:** نسخة مراجعة فنيًا وفق لقطة المستودع وقاعدة TrainerPro بتاريخ 21 أكتوبر 2026؛ ليست شهادة اعتماد إنتاجية.  
 > **مستودع المشروع الرسمي على GitHub:** [Ahmed77khaled/elmasry-academy-lms](https://github.com/Ahmed77khaled/elmasry-academy-lms)  
-> **البيئة السحابية المعتمدة:** Supabase Cloud (PostgreSQL 15+) + React 18 (Vite + TypeScript)
+> **البيئة التي تمت مراجعتها:** Supabase PostgreSQL 17.11.0.003 + React 18.3.1 + Vite 5.4.2 (كما ظهرت في لقطة 21 أكتوبر 2026).
+> **حدود المطابقة:** هذه الوثيقة تعكس لقطة قاعدة TrainerPro والمستودع بتاريخ 21 أكتوبر 2026. راجع `trainerpro_schema_audit.sql` لإعادة استخراج أسماء الحقول والقيود من قاعدة البيانات؛ لا تُعدّل قاعدة الإنتاج لمجرد تصحيح أسماء الوثيقة.
+
 
 ---
 
@@ -33,7 +35,7 @@
     <tr style="background-color: #0F172A;">
       <td style="padding: 10px; border: 1px solid #334155; text-align: center;"><strong>02</strong></td>
       <td style="padding: 10px; border: 1px solid #334155;"><strong>المبادئ الهندسية والمعمارية الصارمة</strong></td>
-      <td style="padding: 10px; border: 1px solid #334155;">مبدأ قاعدة البيانات كمصدر وحيد للحقيقة (SSOT)، عدم الحذف المالي، التسلسل الرقمي، وتفادي الـ Deadlocks.</td>
+      <td style="padding: 10px; border: 1px solid #334155;">مصدر البيانات المالي، الإلغاء الموثق، أرقام إيصالات فريدة، وتقليل تعارض الأقفال.</td>
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #334155; text-align: center;"><strong>03</strong></td>
@@ -58,12 +60,12 @@
     <tr>
       <td style="padding: 10px; border: 1px solid #334155; text-align: center;"><strong>07</strong></td>
       <td style="padding: 10px; border: 1px solid #334155;"><strong>الدوال الذرية والأقفال التزامنية (RPCs)</strong></td>
-      <td style="padding: 10px; border: 1px solid #334155;">التسجيل الذري، تغيير حالة الاشتراك، سندات القبض، المصروفات، إلغاء العمليات، والتحويل بين الخزن بدون Deadlock.</td>
+      <td style="padding: 10px; border: 1px solid #334155;">عمليات RPC المالية وأقفال الصفوف؛ ترتيب الأقفال يقلل تعارض التحويلات ولا يضمن منع كل أنواع Deadlock.</td>
     </tr>
     <tr style="background-color: #0F172A;">
       <td style="padding: 10px; border: 1px solid #334155; text-align: center;"><strong>08</strong></td>
       <td style="padding: 10px; border: 1px solid #334155;"><strong>مصفوفة الأمان وسياسات RLS وPostgREST</strong></td>
-      <td style="padding: 10px; border: 1px solid #334155;">عزل PostgREST عن التعديل المالي المباشر، حصر الدوال بـ SECURITY DEFINER، وفحص صلاحيات المدير is_admin().</td>
+      <td style="padding: 10px; border: 1px solid #334155;">تقييد تعديل دفتر الأستاذ المباشر، تدقيق RPCs ذات SECURITY DEFINER، والتحقق من صلاحية المدير.</td>
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #334155; text-align: center;"><strong>09</strong></td>
@@ -73,17 +75,17 @@
     <tr style="background-color: #0F172A;">
       <td style="padding: 10px; border: 1px solid #334155; text-align: center;"><strong>10</strong></td>
       <td style="padding: 10px; border: 1px solid #334155;"><strong>محرك سندات القبض والإيصالات الرسمية</strong></td>
-      <td style="padding: 10px; border: 1px solid #334155;">هيكلية الإيصال التسلسلي (REC-00000001)، طباعة A4/A5، التوقيعات الرسمية، والعلامة المائية للسندات الملغاة.</td>
+      <td style="padding: 10px; border: 1px solid #334155;">رقم الإيصال الرسمي، الطباعة الحالية، والتمييز بين المنفذ فعليًا والميزات غير المتاحة.</td>
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #334155; text-align: center;"><strong>11</strong></td>
       <td style="padding: 10px; border: 1px solid #334155;"><strong>نظام البحث الفوري والقائمة المنزلقة</strong></td>
-      <td style="padding: 10px; border: 1px solid #334155;">البحث الفوري بالهاتف واسم الطالب ورقم السند، ودرج التنقل الجانبي لزيادة مساحة العرض للجداول إلى 100%.</td>
+      <td style="padding: 10px; border: 1px solid #334155;">البحث بالهاتف والاسم ورقم السند، وقائمة جانبية متجاوبة مع الشاشة.</td>
     </tr>
     <tr style="background-color: #0F172A;">
       <td style="padding: 10px; border: 1px solid #334155; text-align: center;"><strong>12</strong></td>
       <td style="padding: 10px; border: 1px solid #334155;"><strong>سجل ترحيلات قاعدة البيانات (Migrations)</strong></td>
-      <td style="padding: 10px; border: 1px solid #334155;">شرح تسلسل ملفات الميجرشن وتاريخ تطبيق ميجرشن التقوية الإنتاجية 202610210005_production_hardening.sql.</td>
+      <td style="padding: 10px; border: 1px solid #334155;">أسماء ملفات migrations بالمستودع، وحالة المخطط الحي وسجل migrations المنفصل.</td>
     </tr>
     <tr>
       <td style="padding: 10px; border: 1px solid #334155; text-align: center;"><strong>13</strong></td>
@@ -108,10 +110,10 @@
 - حلول الحوسبة السحابية ومراكز البيانات (Cloud Computing & Data Centers).
 
 ### 🎯 الأهداف التشغيلية للمنصة:
-1. **التحكم المحاسبي الصارم (Zero Financial Discrepancy):** القضاء التام على أخطاء التحصيل اليدوي وحسابات الإكسيل المتضاربة، وتوفير دفتر أستاذ مالي غير قابل للتعديل أو الحذف العشوائي.
+1. **هدف الرقابة المحاسبية:** تقليل أخطاء التحصيل والحسابات اليدوية باستخدام قيود وقواعد مركزية؛ لا تمثل البنية ضمانًا مطلقًا لانعدام الفروقات.
 2. **إدارة دورة حياة المتدرب (End-to-End Trainee Lifecycle):** من لحظة التسجيل الأولي، وتوزيع المقاعد وسداد الأقساط، وحتى إتمام التدريب واستخراج السندات.
 3. **انضباط السعة الاستيعابية للمقاعد (Hard Capacity Enforcement):** منع تسجيل أي متدرب إضافي فوق السعة القصوى للكورس على مستوى محرك قاعدة البيانات مباشرة.
-4. **الشفافية الرقابية وإيصالات الدفع الرسمية:** إصدار سندات قبض رسمية متسلسلة تلقائياً وموقعة من إدارة الأكاديمية لكل حركة مالية تدخل الخزائن.
+4. **الشفافية الرقابية وإيصالات الدفع الرسمية:** إصدار رقم إيصال متزايد وفريد من قاعدة البيانات لكل دفعة مسجلة؛ ضمان عدم وجود فجوات في الأرقام غير متاح مع PostgreSQL sequence، والتوقيع المطبوع الحالي باسم م/ أحمد الفلاح.
 
 > [!IMPORTANT]
 > **توصيف النطاق الوظيفي (System Scope Clarification):**  
@@ -121,14 +123,14 @@
 
 ## 2. المبادئ الهندسية الصارمة (Core Architectural Principles)
 
-تم بناء النظام بالكامل وفق 6 ركائز هندسية غير قابلة للكسر:
+يوثق هذا القسم 6 مبادئ هندسية موجِّهة، ويجب اختبارها باستمرار مع تطور التطبيق:
 
 ```mermaid
 flowchart TD
     DB[(PostgreSQL Database\nSingle Source of Truth)]
-    Trigger[Immutability Triggers\nNo DELETE / No Tampering]
+    Trigger[Payments and Expenses Triggers\nBlock Hard DELETE / Audit Voids]
     RPC[SECURITY DEFINER RPCs\nExplicit Row Locks FOR UPDATE]
-    Seq[Receipt Number Sequence\nUnique Consecutive Series]
+    Seq[Unique Increasing Receipt Numbers\nGaps May Occur]
     Views[Calculated Views\nLive Financial Balances]
     UI[React 18 Frontend\nRTL-First Responsive Drawer]
 
@@ -137,17 +139,17 @@ flowchart TD
     DB --> Seq
     DB --> Views
     Views --> UI
-    UI -->|Mutations via RPC only| RPC
+    UI -->|Ledger Mutations via RPC| RPC
 ```
 
 1. **قاعدة البيانات كالمصدر الوحيد للحقيقة (Database-Driven SSOT):**  
-   حظر حساب أي أرصدة مالية أو سعة مقاعد أو متبقي أقساط داخل كود الواجهة (Frontend JavaScript / TypeScript). كافة الأرصدة تُحسب داخل PostgreSQL Views ويتم قراءتها جاهزة بنسبة دقة 100%.
+   حظر حساب أي أرصدة مالية أو سعة مقاعد أو متبقي أقساط داخل كود الواجهة (Frontend JavaScript / TypeScript). الأرصدة المالية الأساسية تُحسب داخل PostgreSQL Views وتُعرض للواجهة؛ وتبقى دقة النتائج رهينة سلامة البيانات والقيود.
 2. **سجل مالي ثابت غير قابل للتلاعب (Immutable Financial Ledger):**  
-   يُمنع منعاً باتاً تنفيذ أمر `DELETE` على أي دفعة أو مصروف أو تحويل خزنة. يتم إبطال العمليات الخاطئة عبر آلية **الإلغاء المعتمد (Audited Void Operation)** مع تسجيل هوية المنفذ وتوقيت الإلغاء وسبب إلزامي لا يقل عن 5 أحرف.
+   دفعات ومصروفات التطبيق لا تُحذف؛ يتيح التطبيق إلغاء الدفعات والمصروفات بسبب إلزامي، ويسجل المنفذ والوقت والسبب. لا توجد في المخطط الحالي آلية void للتحويلات؛ تُحمى من الكتابة المباشرة للمستخدم المصادق وتُنشأ عبر RPC.
 3. **أرقام سندات متسلسلة تلقائية (Sequential Database Receipts):**  
-   توليد أرقام سندات القبض حصرياً عبر تسلسل قاعدة بيانات `payment_receipt_number_seq` (مثال: `REC-00000001`) لمنع القفزات أو التكرارات، مع بقاء حقل `receipt_ref` مخصصاً لإيصالات التحويل البنكي وفودافون كاش الخارجية.
-4. **أقفال تزامنية وحظر الـ Deadlocks في الخزن:**  
-   في عمليات التحويل المالي بين صندوقين، يتم قفل الصندوقين معاً داخل قاعدة البيانات بترتيب تصاعدي ثابت `ORDER BY cb.cash_box_id FOR UPDATE`، مما يمنع تعارض الحركات المتزامنة (Deadlock Elimination).
+   توليد `receipt_number` الفريد والمتزايد عبر `payment_receipt_number_seq` (مثال: `REC-00000001`). لا يضمن PostgreSQL sequence تسلسلاً بلا فجوات. `receipt_ref` مرجع خارجي اختياري للتحويل.
+4. **ترتيب أقفال التحويل:**  
+   تقفل دالة التحويل الخزنتين بترتيب `cash_box_id` تصاعدي؛ يساعد ذلك على تقليل تعارض الأقفال في هذا المسار، ولا يثبت استحالة كل حالات Deadlock بالنظام.
 5. **منع تجاوز سعة المقاعد حتى عند تغيير الحالة:**  
    تغيير حالة اشتراك الطالب من «منسحب» إلى «منتظم» يمر حصرياً عبر دالة `set_enrollment_status` الذرية التي تقفل صف الكورس وتفحص المقاعد المتاحة قبل قبول التفعيل.
 6. **لغة تجربة مستخدم مصرية حية (Human-Centric Microcopy):**  
@@ -196,124 +198,79 @@ flowchart TD
 
 ---
 
-## 4. مخطط قاعدة البيانات والجداول الأساسية (Database Schema — 8 Tables)
+## 4. مخطط قاعدة البيانات والجداول الأساسية (المخطط الحي — 8 جداول)
 
-النظام يحتوي على **8 جداول أساسية** تترابط فيما بينها بمفاتيح أجنبية وقيود سلامة صارمة:
+القائمة التالية مطابقة لأسماء وأنواع الحقول التي أظهرتها قاعدة `TrainerPro` الحية في 21 أكتوبر 2026. `NULLABLE` تعني أن العمود يقبل `NULL`؛ وأي عمود غير موسوم `DEFAULT` لا يملك قيمة افتراضية.
 
-```mermaid
-erDiagram
-    admins ||--o{ payments : "voids / audits"
-    admins ||--o{ expenses : "registers / voids"
-    students ||--o{ enrollments : "registers in"
-    courses ||--o{ enrollments : "contains"
-    courses ||--o{ expenses : "incurs"
-    cash_boxes ||--o{ payments : "deposits into"
-    cash_boxes ||--o{ expenses : "draws from"
-    cash_boxes ||--o{ cash_box_transfers : "from_box / to_box"
-    enrollments ||--o{ payments : "paid for"
-```
+### 1. `admins`
+- `admin_id uuid NOT NULL PK DEFAULT gen_random_uuid()`.
+- `auth_user_id uuid NOT NULL UNIQUE FK → auth.users(id) ON DELETE CASCADE`.
+- `role character varying NOT NULL DEFAULT 'instructor'`؛ لا يوجد قيد CHECK في قاعدة البيانات يحصر القيم إلى قائمة محددة.
+- `created_at timestamptz NULLABLE DEFAULT now()`.
 
-### 1. جدول مديري النظام (`admins`):
-امتداد آمن لجدول `auth.users` لتحديد مديري الأكاديمية ومنحهم صلاحيات الإدارة:
-* `admin_id` (`UUID`, PK, Default: `gen_random_uuid()`): المعرف الفريد للمدير.
-* `auth_user_id` (`UUID`, UNIQUE, FK -> `auth.users(id)`): ارتباط صريح بحساب المصادقة السحابي.
-* `role` (`VARCHAR(50)`, Default: `'instructor'`): دور المستخدم (`superadmin`, `instructor`, `viewer`).
-* `created_at` (`TIMESTAMPTZ`, Default: `NOW()`): توقيت إضافة المدير.
+### 2. `students`
+- `student_id uuid NOT NULL PK DEFAULT gen_random_uuid()`؛ `name character varying NOT NULL`.
+- `phone character varying NULLABLE`؛ `email character varying NULLABLE`؛ `employment_status character varying NULLABLE`؛ `grad_status character varying NULLABLE`؛ `grad_college character varying NULLABLE`.
+- `previous_courses text NULLABLE`؛ `notes text NULLABLE`.
+- `created_at timestamptz NULLABLE DEFAULT now()`؛ `updated_at timestamptz NULLABLE DEFAULT now()`.
 
-### 2. جدول الطلاب والمتدربين (`students`):
-* `student_id` (`UUID`, PK): المعرف الفريد للمتدرب.
-* `name` (`VARCHAR(255)`, NOT NULL): اسم المتدرب الرباعي الرسمي.
-* `phone` (`VARCHAR(20)`): رقم الهاتف المحمول (مفهرس ويدعم مراسلة واتساب والبحث).
-* `email` (`VARCHAR(255)`): البريد الإلكتروني.
-* `employment_status` (`VARCHAR(50)`): الحالة الوظيفية (`Employed`, `Unemployed`, `Student`).
-* `grad_status` (`VARCHAR(50)`): الموقف الدراسي (`Graduate`, `Undergrad`).
-* `grad_college` (`VARCHAR(255)`): الكلية والتخصص الجامعي.
-* `previous_courses` (`TEXT`): ملاحظات مسبقة عن الدورات التدريبية التي حضرها الطالب سابقاً.
-* `notes` (`TEXT`): ملاحظات إدارية عامة.
-* `created_at`, `updated_at` (`TIMESTAMPTZ`): طوابع التدقيق الزمني.
+### 3. `courses`
+- `course_id uuid NOT NULL PK DEFAULT gen_random_uuid()`؛ `course_name character varying NOT NULL`؛ `description text NULLABLE`؛ `level character varying NULLABLE`؛ `duration_weeks integer NULLABLE`.
+- `prerequisite_courses text NULLABLE`؛ `start_date date NULLABLE`؛ `end_date date NULLABLE`؛ `max_students integer NULLABLE`؛ `default_cost numeric NULLABLE`.
+- `availability_status character varying NOT NULL DEFAULT 'Upcoming'`؛ قيد CHECK يسمح بـ `Upcoming`, `Active`, `Closed`.
+- `link_whatsapp text NULLABLE`؛ `link_tasks text NULLABLE`؛ `link_drive text NULLABLE`؛ `link_sources text NULLABLE`.
+- `created_at timestamptz NULLABLE DEFAULT now()`؛ `updated_at timestamptz NULLABLE DEFAULT now()`.
 
-### 3. جدول الكورسات والدورات التدريبية (`courses`):
-* `course_id` (`UUID`, PK): المعرف الفريد للكورس.
-* `course_name` (`VARCHAR(255)`, NOT NULL): اسم الدورة التدريبية.
-* `description` (`TEXT`): نبذة تفصيلية عن محتوى الدورة.
-* `prerequisites` (`TEXT`): المتطلبات التقنية السابقة للتسجيل في الدورة.
-* `level` (`VARCHAR(50)`): المستوى (`Beginner`, `Intermediate`, `Advanced`).
-* `duration_weeks` (`INTEGER`): مدة الدورة بعدد الأسابيع.
-* `whatsapp_group_url` (`TEXT`): رابط انضمام جروب الواتساب الميداني الخاص بالدورة.
-* `task_platform_url` (`TEXT`): رابط منصة تسليم الواجبات والمهام العملية.
-* `drive_folder_url` (`TEXT`): رابط مجلد جوجل درايف للنسخ الاحتياطية وإيمدجات المعامل.
-* `sources_url` (`TEXT`): رابط المراجع والمذكرات والكتب الدراسية.
-* `default_cost` (`NUMERIC`, NOT NULL): التكلفة الافتراضية للكورس بالجنيه المصري.
-* `max_students` (`INTEGER`): السعة الاستيعابية القصوى للقاعة (مقاعد محدودة).
-* `availability_status` (`VARCHAR(50)`, Default: `'Active'`): حالة الكورس (`Active`, `Closed`, `Archived`).
+### 4. `cash_boxes`
+- `cash_box_id uuid NOT NULL PK DEFAULT gen_random_uuid()`؛ `name character varying NOT NULL`؛ `type character varying NULLABLE`؛ `owner character varying NULLABLE`.
+- `opening_balance numeric NOT NULL DEFAULT 0.00`؛ `is_active boolean NOT NULL DEFAULT true`؛ `notes text NULLABLE`؛ `created_at timestamptz NULLABLE DEFAULT now()`.
 
-### 4. جدول الخزن وصناديق المال (`cash_boxes`):
-* `cash_box_id` (`UUID`, PK): المعرف الفريد للخزينة.
-* `name` (`VARCHAR(255)`, NOT NULL): اسم الخزينة (مثال: الخزينة الرئيسية، فودافون كاش، إنستاباي).
-* `type` (`VARCHAR(50)`, NOT NULL): نوع الصندوق (`Cash`, `Vodafone_Cash`, `InstaPay`, `Bank_Account`).
-* `owner` (`VARCHAR(255)`): أمين الصندوق المسؤول عن العهدة.
-* `opening_balance` (`NUMERIC`, Default: `0.00`): الرصيد الافتتاحي للعهدة.
-* `is_active` (`BOOLEAN`, Default: `true`): حالة الصندوق (شغال / معطل).
+### 5. `enrollments`
+- `enrollment_id uuid NOT NULL PK DEFAULT gen_random_uuid()`؛ `student_id uuid NOT NULL FK → students(student_id) ON DELETE RESTRICT`؛ `course_id uuid NOT NULL FK → courses(course_id) ON DELETE RESTRICT`.
+- `agreed_cost numeric NOT NULL`؛ `status character varying NOT NULL DEFAULT 'Active'`؛ `enrolled_at timestamptz NULLABLE DEFAULT now()`؛ `updated_at timestamptz NULLABLE DEFAULT now()`.
 
-### 5. جدول الاشتراكات المركزي (`enrollments`):
-* `enrollment_id` (`UUID`, PK): المعرف الفريد لعملية التسجيل.
-* `student_id` (`UUID`, FK -> `students`): المتدرب المسجل.
-* `course_id` (`UUID`, FK -> `courses`): الدورة التدريبية المسجل بها.
-* `agreed_cost` (`NUMERIC`, NOT NULL): التكلفة الفعلية المتفق عليها بعد أي منحة أو خصم.
-* `status` (`VARCHAR(50)`, Default: `'Active'`): حالة الاشتراك (`Active` منتظم، `Completed` أتم الكورس، `Dropped` منسحب).
-* **قيد عدم التكرار (Unique Constraint):** `UNIQUE(student_id, course_id)` يمنع تسجيل الطالب في نفس الكورس مرتين.
+### 6. `payments`
+- `payment_id uuid NOT NULL PK DEFAULT gen_random_uuid()`؛ `enrollment_id uuid NOT NULL FK → enrollments(enrollment_id) ON DELETE RESTRICT`؛ `cash_box_id uuid NOT NULL FK → cash_boxes(cash_box_id) ON DELETE RESTRICT`.
+- `amount numeric NOT NULL`؛ `payment_date date NOT NULL`؛ `method character varying NULLABLE`؛ `receipt_ref character varying NULLABLE`؛ `notes text NULLABLE`؛ `added_by uuid NULLABLE FK → auth.users(id)`.
+- `voided_at timestamptz NULLABLE`؛ `created_at timestamptz NULLABLE DEFAULT now()`؛ `receipt_number bigint NOT NULL DEFAULT nextval('payment_receipt_number_seq') UNIQUE`؛ `voided_by uuid NULLABLE FK → auth.users(id) ON DELETE RESTRICT`؛ `void_reason text NULLABLE`.
 
-### 6. جدول سندات القبض والدفعات المالية (`payments`):
-* `payment_id` (`UUID`, PK): المعرف الفريد للدفعة.
-* `receipt_number` (`BIGINT`, NOT NULL, UNIQUE, Default: `nextval('payment_receipt_number_seq')`): رقم السند الرسمي التسلسلي الآلي.
-* `enrollment_id` (`UUID`, FK -> `enrollments`): الاشتراك التابع له السند.
-* `cash_box_id` (`UUID`, FK -> `cash_boxes`): الخزينة التي استلمت النقدية.
-* `amount` (`NUMERIC`, NOT NULL, CHECK > 0): قيمة المبلغ المدفوع بالجنيه المصري.
-* `payment_date` (`DATE`, NOT NULL): تاريخ سداد الدفعة.
-* `payment_method` (`VARCHAR(50)`): طريقة السداد (`Cash`, `Vodafone_Cash`, `InstaPay`, `Bank_Transfer`).
-* `receipt_ref` (`VARCHAR(255)`): كود إيصال التحويل الخارجي أو رقم المعاملة البنكية.
-* `notes` (`TEXT`): بيان أو ملاحظات السند.
-* `voided_at` (`TIMESTAMPTZ`): توقيت إلغاء السند (إذا تم إلغاؤه).
-* `voided_by` (`UUID`, FK -> `auth.users(id)`): هوية المستخدم المسؤول الذي ألغى السند.
-* `void_reason` (`TEXT`, CHECK: `voided_at IS NULL OR length(btrim(void_reason)) >= 5`): سبب الإلغاء المدون إجبارياً.
+### 7. `expenses`
+- `expense_id uuid NOT NULL PK DEFAULT gen_random_uuid()`؛ `cash_box_id uuid NOT NULL FK → cash_boxes(cash_box_id) ON DELETE RESTRICT`؛ `course_id uuid NULLABLE FK → courses(course_id) ON DELETE SET NULL`.
+- `amount numeric NOT NULL`؛ `category character varying NULLABLE`؛ `description text NULLABLE`؛ `expense_date date NOT NULL`؛ `notes text NULLABLE`؛ `added_by uuid NULLABLE FK → auth.users(id)`.
+- `created_at timestamptz NULLABLE DEFAULT now()`؛ `voided_at timestamptz NULLABLE`؛ `voided_by uuid NULLABLE FK → auth.users(id) ON DELETE RESTRICT`؛ `void_reason text NULLABLE`.
 
-### 7. جدول المصروفات والنفقات التشغيلية (`expenses`):
-* `expense_id` (`UUID`, PK): المعرف الفريد لسند الصرف.
-* `cash_box_id` (`UUID`, FK -> `cash_boxes`): الخزينة المسحوب منها المبلغ.
-* `course_id` (`UUID`, FK -> `courses`, NULLABLE): الدورة المرتبط بها المصروف (إن وجدت لحساب أرباحها).
-* `amount` (`NUMERIC`, NOT NULL, CHECK > 0): قيمة المصروف بالجنيه المصري.
-* `expense_date` (`DATE`, NOT NULL): تاريخ الصرف.
-* `category` (`VARCHAR(100)`, NOT NULL): تصنيف المصروف (`Instructor_Salary`, `Rent`, `Utilities`, `Hospitality`, `Marketing`, `Equipment`, `Other`).
-* `description` (`TEXT`, NOT NULL): البيان التفصيلي لسبب الصرف.
-* `created_by` (`UUID`, FK -> `auth.users`): هوية من سجل المصروف.
-* `voided_at` (`TIMESTAMPTZ`): توقيت إلغاء المصروف.
-* `voided_by` (`UUID`, FK -> `auth.users`): هوية من ألغى المصروف.
-* `void_reason` (`TEXT`, CHECK >= 5 chars): سبب إلغاء المصروف المعتمد.
+### 8. `cash_box_transfers`
+- `transfer_id uuid NOT NULL PK DEFAULT gen_random_uuid()`؛ `from_box_id uuid NOT NULL FK → cash_boxes(cash_box_id) ON DELETE RESTRICT`؛ `to_box_id uuid NOT NULL FK → cash_boxes(cash_box_id) ON DELETE RESTRICT`.
+- `amount numeric NOT NULL`؛ `transfer_date date NOT NULL`؛ `notes text NULLABLE`؛ `added_by uuid NULLABLE FK → auth.users(id)`؛ `created_at timestamptz NULLABLE DEFAULT now()`.
 
-### 8. جدول التحويلات المالية بين الخزن (`cash_box_transfers`):
-* `transfer_id` (`UUID`, PK): المعرف الفريد لحركة التحويل.
-* `from_box_id` (`UUID`, FK -> `cash_boxes`): الخزينة المصدر.
-* `to_box_id` (`UUID`, FK -> `cash_boxes`, CHECK: `from_box_id <> to_box_id`): الخزينة الوجهة.
-* `amount` (`NUMERIC`, NOT NULL, CHECK > 0): المبلغ المحول.
-* `transfer_date` (`DATE`, NOT NULL): تاريخ التحويل الفعلي.
-* `added_by` (`UUID`, FK -> `auth.users`): هوية الموظف المنفذ للتحويل.
-* `notes` (`TEXT`): ملاحظات وبيان التحويل.
+### القيود والفهارس المهمة المتحققة
+- `payments.amount > 0` و`expenses.amount > 0` و`cash_box_transfers.amount > 0`؛ تكلفة الاشتراك `agreed_cost >= 0`، وتكلفة الكورس `default_cost >= 0` عند إدخالها، والمدة والسعة موجبتان عند إدخالهما.
+- `payments.receipt_number` له فهرس فريد `payments_receipt_number_uidx`؛ رقم الإيصال فريد ومتزايد، وليس تسلسلاً مضمونًا بلا فجوات.
+- `enrollments` لها `uq_enrollment UNIQUE(student_id, course_id)` وقيد حالة `Active/Completed/Dropped`؛ لا تسجل قاعدة البيانات حالة `Archived` للكورس، ولا توجد قيمة `Archived` في قيد `availability_status`.
+- `payments` و`expenses` بهما قيدان يمنعان سبب إلغاء أقصر من 5 أحرف أو NULL إذا كان السجل ملغى. ويوجد `chk_different_boxes` لمنع تطابق مصدر التحويل ووجهته.
+- الفهارس الثانوية المرصودة: `students` (email/name/phone)، `courses` (start_date/availability_status)، `enrollments` (course_id/status/student_id)، `payments` (added_by/cash_box_id/payment_date/enrollment_id/voided_at)، `expenses` (added_by/cash_box_id/course_id/expense_date)، والتحويلات (added_by/transfer_date/from_box_id/to_box_id).
+
+> **ملاحظة أسماء مهمة:** في المخطط الحي اسم الحقل هو `payments.method` وليس `payment_method`، واسم منشئ الدفعات والمصاريف هو `added_by` وليس `created_by`، وحقول روابط الكورس هي `link_*`، وحقل المتطلبات هو `prerequisite_courses`. لا تنفذ إعادة تسمية على قاعدة الإنتاج لمجرد أن نسخة سابقة من الوثيقة استخدمت أسماء أخرى.
 
 ---
 
 ## 5. تريجرز منع التعديل والحذف المالي (Immutability Triggers)
 
-لحماية دفاتر الحسابات من أي تلاعب يدوي أو حذف غير مقصود، يعمل تريجر `prevent_financial_record_mutation()` قبل أي عملية `UPDATE` أو `DELETE` على جدولي `payments` و`expenses`:
+في المخطط الحي يوجد التريجر `trg_payments_financial_immutability` على `payments` والتريجر `trg_expenses_financial_immutability` على `expenses`. كلاهما يستدعي `public.prevent_financial_record_mutation()` قبل `UPDATE` أو `DELETE`. يسمح التريجر فقط بتغيير حقول الإلغاء مرة واحدة لسجل غير ملغى؛ يمنع حذف السجل وتغيير حقوله المحاسبية ويمنع تغيير بيانات الإلغاء بعد الإلغاء.
+
+المقطع التالي يلخص منطق التريجر الفعلي؛ خذ تعريف قاعدة البيانات/ملف SQL المسجل في المصدر المعتمد مرجعًا نهائيًا:
 
 ```sql
 CREATE OR REPLACE FUNCTION public.prevent_financial_record_mutation()
-RETURNS trigger LANGUAGE plpgsql AS $$
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path TO 'pg_catalog', 'public'
+AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN
     RAISE EXCEPTION 'Financial records cannot be deleted; use the audited void operation.';
   END IF;
 
-  -- منع تعديل أي حقل محاسبي نهائياً (القيمة، التاريخ، الخزنة، الاشتراك)
   IF (to_jsonb(NEW) - 'voided_at' - 'voided_by' - 'void_reason')
      IS DISTINCT FROM
      (to_jsonb(OLD) - 'voided_at' - 'voided_by' - 'void_reason') THEN
@@ -324,17 +281,23 @@ BEGIN
     RAISE EXCEPTION 'A voided financial record is immutable.';
   END IF;
 
-  -- اشتراط توثيق الإلغاء بهوية منفذ وسبب لا يقل عن 5 أحرف
-  IF NEW.voided_at IS NOT NULL THEN
-    IF NEW.voided_by IS NULL OR length(btrim(NEW.void_reason)) < 5 THEN
-      RAISE EXCEPTION 'Voiding requires an authenticated actor and a reason of at least 5 characters.';
+  IF NEW.voided_at IS NULL THEN
+    IF NEW.voided_by IS DISTINCT FROM OLD.voided_by
+       OR NEW.void_reason IS DISTINCT FROM OLD.void_reason THEN
+      RAISE EXCEPTION 'Void metadata may only be set as part of a void operation.';
     END IF;
+  ELSIF NEW.voided_by IS NULL
+     OR NULLIF(btrim(NEW.void_reason), '') IS NULL
+     OR length(btrim(NEW.void_reason)) < 5 THEN
+    RAISE EXCEPTION 'Voiding requires an authenticated actor and a reason of at least 5 characters.';
   END IF;
 
   RETURN NEW;
 END;
 $$;
 ```
+
+> التريجر المثبت على هذه الجداول لا يثبت وحده أن كل عمليات قاعدة البيانات غير قابلة للتعديل؛ حساب مالك قاعدة البيانات/الخدمات الإدارية خارج صلاحيات مستخدم التطبيق. جداول التحويلات لا يظهر عليها هذا التريجر؛ صلاحيات التطبيق تمنع DML المباشر عليها وتتم الإضافة عبر RPC.
 
 ---
 
@@ -348,7 +311,7 @@ $$;
 * `total_paid`: إجمالي المبالغ المدفوعة بسندات قبض غير ملغاة (`WHERE voided_at IS NULL`).
 * `remaining_balance`: المتبقي على الطالب (`agreed_cost - total_paid`).
 * `payment_status`: الحالة المالية التلقائية:
-  - `Paid` (خالص السداد): إذا كان المتبقي 0 أو أقل.
+  - `Paid` (خالص السداد): إذا كان المتبقي يساوي 0 بالضبط.
   - `Partial` (سداد جزئي): إذا كان المدفوع أكبر من 0 والمتبقي أكبر من 0.
   - `Unpaid` (لم يُسدد): إذا كان المدفوع 0 بالكامل.
   - `Overpaid` (سداد فائض): في الحالات الاستثنائية التي يزيد فيها المدفوع عن المتفق عليه.
@@ -373,64 +336,38 @@ $$\text{صافي الربح} = \text{المقبوضات المحصلة فعلي�
 * عدد الكورسات والاشتراكات النشطة حالياً.
 * مقبوضات الشهر، مصاريف الشهر، وصافي أرباح الشهر الحالي.
 * الإيراد والمصروف وصافي الأرباح التراكمية منذ بداية تشغيل الأكاديمية.
-* إجمالي الأقساط المستحقة المتأخرة على الطلاب المنتظمين.
+* إجمالي الرصيد المتبقي على الاشتراكات النشطة؛ لا يحسب الفيو تاريخ استحقاق/تأخر لأن المخطط لا يحتوي تاريخ استحقاق للقسط.
 
 ---
 
 ## 7. الدوال الذرية والأقفال التزامنية (Atomic RPC Functions)
 
-تتم كافة عمليات الكتابة في النظام عبر دوال مخزنة (RPC) ذات صلاحية `SECURITY DEFINER` ومحمية بأقفال ذرية لمنع تعارض البيانات:
+العمليات الحساسة التالية موجودة في قاعدة `TrainerPro` الحية كدوال `SECURITY DEFINER`، مع `SET search_path = pg_catalog, public` وتحقق صلاحية المدير داخل العمليات الإدارية. الأسماء والتواقيع المهمة:
 
-<table dir="rtl" style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
-  <thead>
-    <tr style="background-color: #1E3A8A; color: white;">
-      <th style="padding: 10px; border: 1px solid #334155;">الدالة الذرية (RPC)</th>
-      <th style="padding: 10px; border: 1px solid #334155;">نوع القفل والحماية</th>
-      <th style="padding: 10px; border: 1px solid #334155;">الوظيفة والضمانة الهندسية</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="padding: 10px; border: 1px solid #334155;"><code>enroll_student(...)</code></td>
-      <td style="padding: 10px; border: 1px solid #334155;"><code>courses FOR UPDATE</code></td>
-      <td style="padding: 10px; border: 1px solid #334155;">قفل صف الكورس، التأكد من أن الكورس ليس Closed، فحص عدد المقاعد المتبقية، ثم تسجيل المتدرب بأمان.</td>
-    </tr>
-    <tr style="background-color: #0F172A;">
-      <td style="padding: 10px; border: 1px solid #334155;"><code>set_enrollment_status(...)</code></td>
-      <td style="padding: 10px; border: 1px solid #334155;"><code>courses FOR UPDATE</code> ثم <code>enrollments FOR UPDATE</code></td>
-      <td style="padding: 10px; border: 1px solid #334155;">تغيير حالة الاشتراك مع إعادة فحص سعة الكورس ومنع تنشيط الطالب إذا كان الكورس قد اكتمل أو أغلق.</td>
-    </tr>
-    <tr>
-      <td style="padding: 10px; border: 1px solid #334155;"><code>transfer_between_boxes(...)</code></td>
-      <td style="padding: 10px; border: 1px solid #334155;"><code>ORDER BY cash_box_id FOR UPDATE</code></td>
-      <td style="padding: 10px; border: 1px solid #334155;">قفل الصندوقين بترتيب تصاعدي ثابت لمنع حدوث Deadlock نهائياً أثناء التحويلات المتزامنة.</td>
-    </tr>
-    <tr style="background-color: #0F172A;">
-      <td style="padding: 10px; border: 1px solid #334155;"><code>void_payment(...)</code></td>
-      <td style="padding: 10px; border: 1px solid #334155;"><code>payments FOR UPDATE</code></td>
-      <td style="padding: 10px; border: 1px solid #334155;">إلغاء سند القبض مع التحقق من صلاحية المدير وتسجيل هوية المنفذ وسبب الإلغاء (5 أحرف فأكثر).</td>
-    </tr>
-    <tr>
-      <td style="padding: 10px; border: 1px solid #334155;"><code>void_expense(...)</code></td>
-      <td style="padding: 10px; border: 1px solid #334155;"><code>expenses FOR UPDATE</code></td>
-      <td style="padding: 10px; border: 1px solid #334155;">إلغاء سند الصرف وتوثيق السبب مع إعادة احتساب رصيد الخزنة دون حذف السجل المحاسبي.</td>
-    </tr>
-  </tbody>
-</table>
+| RPC | التوقيع الفعلي | السلوك المتحقق |
+|---|---|---|
+| `is_admin` | `is_admin()` | تعيد نتيجة فحص هوية المستخدم؛ لا تستقبل `p_user_id`. |
+| `enroll_student` | `(p_student_id uuid, p_course_id uuid, p_agreed_cost numeric DEFAULT NULL, p_status text DEFAULT 'Active')` | تقفل صف الكورس؛ ترفض الكورس المغلق، وتتحقق من السعة والتكلفة والحالة قبل التسجيل. |
+| `set_enrollment_status` | `(p_enrollment_id uuid, p_status text)` | تقفل الكورس ثم الاشتراك عند تفعيل اشتراك؛ تعيد فحص السعة وترفض إعادة التفعيل في كورس مغلق. لا يوجد حقل حالة «مكتمل للكورس» في جدول الكورس؛ `Completed` هي حالة اشتراك. |
+| `record_payment` | `(p_enrollment_id uuid, p_cash_box_id uuid, p_amount numeric, p_payment_date date, p_method text, p_receipt_ref text, p_notes text)` | تسجل الدفعة عبر RPC، وتولّد قاعدة البيانات رقم السند من sequence. |
+| `record_expense` | `(p_cash_box_id uuid, p_amount numeric, p_expense_date date, p_category text, p_description text, p_notes text, p_course_id uuid)` | تسجل المصروف عبر RPC. |
+| `transfer_between_boxes` | `(p_from_box_id uuid, p_to_box_id uuid, p_amount numeric, p_transfer_date date, p_notes text DEFAULT NULL)` | تقفل صفّي الخزنتين بترتيب `cash_box_id` تصاعدي داخل هذا المسار. الترتيب يقلل تعارضات الأقفال ولا يبرر ادعاء استحالة كل deadlock في النظام. |
+| `void_payment` | `(p_payment_id uuid, p_void_reason text DEFAULT NULL)` | تقفل الدفعة وتتحقق من السبب والصلاحية، ثم تحفظ وقت/منفذ/سبب الإلغاء. |
+| `void_expense` | `(p_expense_id uuid, p_void_reason text)` | تقفل المصروف وتتحقق من السبب والصلاحية، ثم تحفظ بيانات الإلغاء. |
+
+تتم عمليات الدفعات والمصروفات والتحويلات وإدخال/تعديل الاشتراكات عبر RPC في واجهة التطبيق. أما ملفات الطلاب والكورسات والخزن الأساسية فيسمح التطبيق بإنشائها/تعديلها عبر صلاحيات RLS مناسبة؛ لذا لا تقل إن **كل** عمليات الكتابة في النظام تمر حصريًا عبر RPC.
 
 ---
 
-## 8. مصفوفة الأمان وسياسات PostgREST وRLS
+## 8. مصفوفة الأمان وسياسات PostgREST وRLS (لقطة 21 أكتوبر 2026)
 
-تم تحصين قاعدة البيانات ضد أي محاولة للالتفاف على قواعد العمل:
-1. **قفل التعديل المباشر (PostgREST Write Lockdown):**  
-   تم سحب صلاحيات `INSERT, UPDATE, DELETE, TRUNCATE` لكافة الجداول المالية (`payments`, `expenses`, `enrollments`, `cash_box_transfers`) من دور `anon` و`authenticated`؛ التعديل والإدخال يتم **حصرياً** عبر دوال الـ RPC المعتمدة.
-2. **سحب صلاحيات الدوال من العامة:**  
-   `REVOKE ALL ON FUNCTION ... FROM PUBLIC, anon;`  
-   `GRANT EXECUTE ON FUNCTION ... TO authenticated;`  
-   مع التحقق داخل كل دالة من شرط المدير: `IF NOT is_admin() THEN RAISE EXCEPTION 'Unauthorized'; END IF;`.
-3. **تثبيت مسار البحث (Search Path Hardening):**  
-   كافة الدوال تعمل مع تثبيت صريح `SET search_path = pg_catalog, public` لمنع هجمات التسميم التكتيكي لمسارات البحث.
+- RLS مفعّل على الجداول الثمانية. الفيوهات الأربعة `enrollment_balances`, `cash_box_balances`, `course_financial_summary`, `dashboard_metrics` تحمل `security_invoker=true`.
+- في الصلاحيات المرصودة، يستطيع `authenticated` قراءة جداول الدفعات والمصروفات والتحويلات والاشتراكات، ولا يملك DML مباشرًا عليها. ما زالت صلاحيات `INSERT/UPDATE` على `students`, `courses`, `cash_boxes` موجودة لأن الواجهة تستخدمها لإدارة البيانات الأساسية. تتطلب صلاحيات القراءة على الجداول والفيوهات بقاء سياسات RLS الملائمة.
+- `authenticated` يستطيع استدعاء دوال `SECURITY DEFINER` عبر RPC؛ هذا متوقع لتدفق التطبيق وليس آمنًا تلقائيًا. يجب أن يظل فحص المدير داخل كل دالة حساسة، مع مسار بحث ثابت وتأهيل أسماء الجداول والدوال. أظهر Supabase advisor ثمانية تحذيرات من هذا النوع بتاريخ الفحص؛ راجع صلاحيات كل RPC واختبرها بدور غير مدير.
+- أظهر Supabase advisor أيضًا أن **Leaked Password Protection معطل**. يجب تفعيله من إعدادات Auth والتحقق منه بعد ذلك. لم يتم التحقق من تعطيل التسجيل العام أو MFA أو سياسة كلمات المرور؛ لا تعتبرها إعدادات مثبتة في هذا المستند.
+- النص الثابت في شاشة Settings عن «التسجيل العام معطل» و«متصل وآمن 100%» ليس فحصًا حيًا لإعدادات Auth أو RLS؛ لا تستخدمه كشهادة أمان.
+
+> هذه اللقطة تصف الامتيازات التي فُحصت، ولا تعادل اختبار اختراق أو شهادة امتثال. صلاحيات `service_role` ومالك قاعدة البيانات تتجاوز سياسات تطبيق المستخدم ولا يجوز كشفها في المتصفح.
 
 ---
 
@@ -450,12 +387,12 @@ $$\text{صافي الربح} = \text{المقبوضات المحصلة فعلي�
 ```
 
 ### 1. الرئيسية والداشبورد (`/dashboard`):
-* **كروت المؤشرات العليا (KPI Cards):** عرض مقبوضات الشهر ومصاريفه، وصافي الأرباح التراكمية، مع مؤشر إجمالي المديونيات المعلقة على الطلاب المنتظمين.
+* **كروت المؤشرات العليا (KPI Cards):** عرض مقبوضات الشهر ومصاريفه، وصافي الأرباح التراكمية، مع مؤشر الرصيد المتبقي على الاشتراكات النشطة (ليس تقرير أعمار ديون).
 * **شريط الإجراءات السريعة:** أزرار سريعة لتسجيل طالب جديد، إضافة كورس، سداد قسط، تسجيل مصروف، أو تحويل عهدة بين الخزن.
 
 ### 2. إدارة الطلاب (`/students`):
 * **جدول المتدربين الشامل:** عرض الاسم، الهاتف، البريد، الكلية، والحالة الوظيفية.
-* **التواصل الفوري عبر واتساب:** الضغط على رقم هاتف الطالب يفتح المحادثة المباشرة معه.
+* **بيانات التواصل:** يعرض النظام رقم الهاتف ويتيح البحث به؛ لا يوجد رابط `wa.me` مباشر في التنفيذ الحالي.
 * **إضافة متدرب جديد:** نموذج منبثق مدقق للتحقق من سلامة وصيغة رقم الهاتف والبريد.
 
 ### 3. إدارة الكورسات (`/courses`):
@@ -491,7 +428,7 @@ $$\text{صافي الربح} = \text{المقبوضات المحصلة فعلي�
 * **التحويل بين الخزن:** نموذج ذري يضمن خصم المبلغ من الخزنة المصدر وإضافته للوجهة دفعة واحدة.
 
 ### 9. الإعدادات والأمان (`/settings`):
-* التحقق من صلاحيات المدير المسجل حالياً، وحالة الاتصال بقاعدة البيانات المشفرة.
+* تعرض الصفحة بيانات الحساب وكلمة المرور ومؤشرات بنية تحتية ثابتة؛ نص «متصل وآمن» ليس فحصًا حيًا لحالة الاتصال أو RLS أو إعدادات Auth.
 
 ---
 
@@ -507,117 +444,108 @@ $$\text{صافي الربح} = \text{المقبوضات المحصلة فعلي�
 | رقم السند: REC-00000001               التاريخ: 2026-10-21     |
 | اسم المتدرب: أحمد خالد الفلاح         الدورة: System Admin G3 |
 | المبلغ المدفوع: 1,500.00 ج.م          الخزينة: الخزينة الرئيسية|
-| طريقة السداد: نقدي (Cash)             المرجع: REC-MANUAL-01   |
+| طريقة السداد: كاش نقديًا             المرجع الخارجي: BANK-REF-01   |
 | ------------------------------------------------------------- |
 | البيان: سداد القسط الأول من تكلفة الدورة المتفق عليها.        |
 |                                                               |
-|   توقيع المحاسب المستلم:                  اعتماد إدارة الأكاديمية: |
-|   ......................                  م/ محمد المصري       |
+|   توقيع المسؤول المالي / الخزينة:                                  |
+|   م/ أحمد الفلاح (كما في الواجهة الحالية)                           |
 +---------------------------------------------------------------+
 ```
 
 * **دعم الطباعة النظيفة (`@media print`):** إخفاء الهيدر والشيل الجانبي أثناء الطباعة ليخرج الإيصال فقط في منتصف الصفحة.
-* **العلامة المائية للسندات الملغاة:** في حال تم إلغاء السند عبر الـ Void، تظهر كلمة «ملغى» عريضة ومائلة باللون الأحمر مع توثيق سبب وتوقيت الإلغاء أسفل السند.
+* **السندات الملغاة:** الإلغاء موثق في قاعدة البيانات وتظهر حالة/سبب الإلغاء في صفحة الدفعات؛ نافذة الطباعة الحالية لا تعرض علامة مائية أو سبب/توقيت الإلغاء، ولا تتيح طباعة نسخة ملغاة. لا تدّعِ هذه الميزة قبل تنفيذها واختبارها.
 
 ---
 
-## 11. نظام البحث الفوري والقائمة المنزلقة (UI/UX Drawer & Search)
+## 11. البحث الفوري والقائمة الجانبية (UI/UX Search)
 
-* **زر الـ 3 شُرط والقائمة المنزلقة (Off-Canvas Drawer):** زر المنيو أعلى يمين الشاشة يتيح فتح وإغلاق القائمة الجانبية بنعومة تامة، مما يوفر 100% من مساحة الشاشة لعرض الجداول المالية والبيانات الكبيرة دون أي تزاحم بصري.
-* **البحث الفوري الذكي (Real-Time Global Search):**
-  - **البحث برقم الهاتف:** كتابة رقم هاتف المتدرب يظهر حسابه مباشرة.
-  - **البحث بالاسم:** البحث اللحظي في أسماء الطلاب والدورات التدريبية.
-  - **البحث برقم السند:** كتابة رقم السند (مثال: `1` أو `REC-00000001`) ينقلك فوراً للدفعات.
+- البحث العام يدعم اسم الطالب ورقم هاتفه ورقم الإيصال/المرجع الخارجي. يقبل رقم الإيصال بصيغة `REC-00000001` أو رقمًا جزئيًا وفق تنفيذ البحث الحالي.
+- البحث بصفحة الطلاب نفسها يدعم الاسم والهاتف.
+- القائمة الجانبية قابلة للفتح والإغلاق؛ تفاصيل العرض تعتمد على حجم الشاشة. لا يَعِد هذا الوصف بأن كل الجداول تستخدم العرض الكامل في كل المقاسات.
 
 ---
 
-## 12. سجل ترحيلات قاعدة البيانات (Database Migrations Log)
+## 12. ملفات migrations وحالة قاعدة البيانات (لقطة 21 أكتوبر 2026)
 
-<table dir="rtl" style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
-  <thead>
-    <tr style="background-color: #1E3A8A; color: white;">
-      <th style="padding: 10px; border: 1px solid #334155;">ملف الميجرشن</th>
-      <th style="padding: 10px; border: 1px solid #334155;">تاريخ الإنشاء والاعتماد</th>
-      <th style="padding: 10px; border: 1px solid #334155;">الوظيفة المعمارية</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="padding: 10px; border: 1px solid #334155;"><code>001_tables.sql</code></td>
-      <td style="padding: 10px; border: 1px solid #334155;">15 أكتوبر 2026</td>
-      <td style="padding: 10px; border: 1px solid #334155;">إنشاء الجداول الأساسية الثمانية والفهارس الأولية والمفاتيح الأجنبية.</td>
-    </tr>
-    <tr style="background-color: #0F172A;">
-      <td style="padding: 10px; border: 1px solid #334155;"><code>002_views.sql</code></td>
-      <td style="padding: 10px; border: 1px solid #334155;">15 أكتوبر 2026</td>
-      <td style="padding: 10px; border: 1px solid #334155;">إنشاء فيوهات الحسابات الأربعة للمؤشرات والأرصدة والخزن.</td>
-    </tr>
-    <tr>
-      <td style="padding: 10px; border: 1px solid #334155;"><code>003_functions.sql</code></td>
-      <td style="padding: 10px; border: 1px solid #334155;">15 أكتوبر 2026</td>
-      <td style="padding: 10px; border: 1px solid #334155;">إنشاء دوال التسجيل والتحصيل الأولي والتحويلات.</td>
-    </tr>
-    <tr style="background-color: #0F172A;">
-      <td style="padding: 10px; border: 1px solid #334155;"><code>004_rls.sql</code></td>
-      <td style="padding: 10px; border: 1px solid #334155;">15 أكتوبر 2026</td>
-      <td style="padding: 10px; border: 1px solid #334155;">تفعيل سياسات Row Level Security وضبط صلاحيات المديرين.</td>
-    </tr>
-    <tr style="background-color: #1E3A8A; color: white;">
-      <td style="padding: 10px; border: 1px solid #334155;"><strong><code>202610210005_production_hardening.sql</code></strong></td>
-      <td style="padding: 10px; border: 1px solid #334155;"><strong>21 أكتوبر 2026</strong></td>
-      <td style="padding: 10px; border: 1px solid #334155;"><strong>ميجرشن التقوية الإنتاجية المعتمد:</strong> تريجرز منع الحذف المالي، تسلسل السندات الرقمي، قفل الخزن لمنع Deadlocks، دالة سد ثغرة السعة <code>set_enrollment_status</code>، وسحب صلاحيات PostgREST المباشرة.</td>
-    </tr>
-  </tbody>
-</table>
+الملفات الموجودة في المستودع ليست دليلًا بذاتها على أنها سُجلت أو طُبقت في Supabase. الأسماء الفعلية في الفرع `feat/production-financial-hardening` هي:
+
+| الملف في المستودع | ملاحظة عن المحتوى/الحالة |
+|---|---|
+| `supabase/migrations/20261015024100_001_create_core_tables.sql` | migration أساسية قديمة؛ لا تعتبرها خط أساس مطابقًا للمخطط الحي دون تسوية. |
+| `supabase/migrations/20261015024134_002_create_database_views.sql` | ملف قديم للفيوهات؛ يلزم مقارنته بالتعريفات الحية. |
+| `supabase/migrations/20261015024155_003_create_rpc_functions.sql` | ملف قديم للدوال؛ لا تفترض أنه وحده يطابق الدوال الحية. |
+| `supabase/migrations/20261015024209_004_fix_constraint_and_seed.sql` | ملف قديم للقيود والبيانات الأولية. |
+| `supabase/migrations/202610210005_production_hardening.sql` | ملف موجود على فرع التقوية؛ لم يُعثر على Pull Request أو دمج للفرع وقت الفحص. |
+
+**حالة المخطط الحي:** عُثر في قاعدة TrainerPro على sequence `payment_receipt_number_seq`، وحقول أرقام الإيصالات والإلغاء، وتريجرز الدفعات/المصروفات، ودوال RPC والفيوهات ذات التصفية. **حالة سجل Supabase migrations:** أداة سجل migrations أعادت قائمة فارغة في الفحص. لذلك لا يمكن إثبات أن الملف `202610210005...` سُجل رسميًا كترحيل أو تحديد مسار نشره من سجل migrations، رغم وجود عناصره في المخطط. وثّق مصدر التنفيذ وتاريخ/بصمة الترحيل عبر إجراء تسوية رسمي قبل اعتماد سجل migrations.
+
+> لا تستخدم `supabase db push` أو `db reset` لتسوية هذا الاختلاف على الإنتاج قبل مراجعة baseline وخطة مصالحة. لا تضع migration قديمة على أنها مطبقة تخمينًا.
 
 ---
 
-## 13. دليل الصيانة واستكشاف الأخطاء (Troubleshooting & Ops)
+## 13. الصيانة واستكشاف الأخطاء والنسخ الاحتياطي
 
-### 1. استعادة التوازن المالي في حالة وجود فروقات نقدية:
-* في حال اكتشاف خطأ في تحصيل دفعة معينة: **لا تحذف الدفعة مطلقاً**؛ ادخل على شاشة الدفعات واضغط على أيقونة الإلغاء (Void) واكتب سبب الإلغاء، ثم أعد تسجيل الدفعة الصحيحة بالخزينة المناسبة.
-* النظام يقوم تلقائياً بخصم الدفعة الملغاة من رصيد الخزنة وحسابات الطالب دون المساس بالتسلسل الرقمي للسندات.
+### 1. تصحيح خطأ مالي
+- لا تحذف دفعة أو مصروفًا من التطبيق. استخدم عملية الإلغاء الموثقة مع السبب، ثم سجّل القيد الصحيح إذا لزم.
+- الفيوهات الحية التي فُحصت تستبعد الدفعات والمصروفات ذات `voided_at IS NOT NULL` من المجاميع ذات الصلة. تسلسل PostgreSQL قد يترك فجوات بعد فشل/تراجع معاملة؛ لا تعدّل sequence لمحاولة ملء رقم مفقود.
 
-### 2. النسخ الاحتياطي لقاعدة البيانات:
-* قاعدة البيانات مستضافة على Supabase مدعومة بنظام النسخ الاحتياطي التلقائي اليومي (Daily Automated Backups).
-* لأخذ نسخة احتياطية محلية يدوية عبر سطر الأوامر:
+### 2. النسخ الاحتياطي والاستعادة
+- لم يتم التحقق من خطة Supabase أو مستوى النسخ/الاحتفاظ/Point-in-Time Recovery لهذا المشروع. راجع إعدادات المشروع وخطته واختبر الاستعادة؛ لا تفترض نسخًا يوميًا اعتمادًا على اسم الخدمة فقط.
+- مثال لنسخة محلية عند توفير بيانات اتصال آمنة من مدير أسرار. لا تضع كلمة المرور في الملف أو سجل الأوامر:
   ```bash
-  pg_dump -h db.urmkcixqpoqkiosihhal.supabase.co -U postgres -d postgres -F c -b -v -f trainerpro_backup_$(date +%Y%m%d).dump
+  export PGSSLMODE=require
+  # هيئ PGPASSWORD من secret manager/متغير بيئة محمي، ولا تكتبه في المستند أو الشل.
+  : "${PGPASSWORD:?Set PGPASSWORD securely before running pg_dump}"
+  pg_dump -h db.urmkcixqpoqkiosihhal.supabase.co -p 5432 -U postgres -d postgres \
+    -Fc --no-owner --no-privileges \
+    -f "trainerpro_backup_$(date +%Y%m%d).dump"
+  unset PGPASSWORD PGSSLMODE
   ```
+- تأكد من أن النسخة قابلة للقراءة وأن الاستعادة جُربت في بيئة منفصلة قبل الاعتماد عليها.
 
 ---
 
-## 14. إرشادات الرفع والإنتاج (Production Deployment)
+## 14. إرشادات البناء والاستضافة والأمان
 
-### 1. بناء المشروع واختبار الإنتاج:
+### 1. فحوص البناء
 ```bash
-# التأكد من خلو المشروع من أخطاء الـ Types
 npm run typecheck
-
-# بناء حزم الإنتاج المحسنة
 npm run build
 ```
 
-### 2. إعدادات استضافة الـ SPA على Vercel أو Netlify:
-* لتفادي أخطاء 404 عند عمل Refresh لأي صفحة داخلية في تطبيق الـ Single Page Application، تم تضمين ملف `vercel.json` وملف `_redirects`:
-  ```json
-  {
-    "rewrites": [
-      { "source": "/(.*)", "destination": "/index.html" }
-    ]
-  }
-  ```
+هذه الفحوص لا تثبت سلامة SQL أو إعدادات الإنتاج، ويجب إضافة/تشغيل اختبارات قاعدة البيانات والتزامن على staging.
 
-### 3. ضوابط الأمان للمتغيرات البيئية:
-* **مفتاح `VITE_SUPABASE_URL` و `VITE_SUPABASE_ANON_KEY`:** يُسمح بتواجدهم في ملف `.env` الخاص بالواجهة الأمامية لأن كافة الجداول والدوال محمية بسياسات RLS وإجراءات PostgREST الصارمة.
-* **مفتاح `service_role`:** **محظور حظراً تاماً ونهائياً** وضعه في الواجهة الأمامية أو رفعه على مستودع GitHub؛ مكانه السيرفرات الخلفية الآمنة والمهام الإدارية السحابية فقط.
+### 2. إعداد إعادة توجيه SPA
+
+في لقطة المستودع لم يكن `vercel.json` أو `public/_redirects` موجودًا. أضف قاعدة إعادة توجيه مناسبة لموفر الاستضافة قبل النشر، مثل:
+
+`vercel.json` في جذر المشروع:
+```json
+{
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
+```
+
+أو `public/_redirects` لـ Netlify:
+```text
+/* /index.html 200
+```
+
+### 3. مفاتيح البيئة
+- `VITE_SUPABASE_URL` و`VITE_SUPABASE_ANON_KEY`/publishable key مصممان للاستخدام بالمتصفح؛ وجودهما لا يغني عن RLS وصلاحيات دقيقة ومراجعة RPC.
+- `service_role` مفتاح سري يتجاوز RLS؛ يمنع وضعه في الواجهة الأمامية أو GitHub. استخدمه فقط في بيئة خادم آمنة.
+
+### 4. إعدادات Auth والأمن
+- تحقق من إعداد التسجيل العام وMFA وسياسة كلمات المرور من لوحة Supabase؛ لم تثبتها هذه المراجعة.
+- فعّل حماية كلمات المرور المسرّبة؛ أظهر فحص Supabase أنها معطلة بتاريخ 21 أكتوبر 2026.
 
 ---
 
 ### 🏛️ حقوق الملكية والاعتماد الهندسية
 * **الجهة المشرفة والمالكة:** أكاديمية م/ محمد المصري للتدريب وهندسة النظم.
 * **التصميم والتنفيذ المعماري:** م/ أحمد الفلاح (Lead Software Engineer & System Architect).
-* **تاريخ الإصدار النهائي:** 21 أكتوبر 2026.
-* **الحالة:** معتمد وجاهز للتشغيل والإنتاج 100% (Production-Ready).
+* **تاريخ مراجعة المرجع:** 21 أكتوبر 2026.
+* **الحالة:** توثيق فني مطابق قدر الإمكان للّقطة التي فُحصت؛ ليس شهادة Production-Ready. تبقى مصالحة سجل migrations، تفعيل Leaked Password Protection، والتحقق من النسخ الاحتياطي واختبارات staging خطوات مطلوبة.
 
 </div>
