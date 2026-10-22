@@ -159,7 +159,7 @@ BEGIN
     NULL;
   END;
   BEGIN
-    TRUNCATE public.platform_audit_events;
+    TRUNCATE public.platform_audit_events, public.telegram_notification_outbox;
     RAISE EXCEPTION 'audit truncate unexpectedly succeeded';
   EXCEPTION WHEN insufficient_privilege THEN
     NULL;
