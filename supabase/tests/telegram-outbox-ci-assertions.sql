@@ -16,6 +16,10 @@ BEGIN
      OR has_table_privilege('authenticated', 'public.telegram_notification_outbox', 'SELECT') THEN
     RAISE EXCEPTION 'client roles unexpectedly have access to private notification records';
   END IF;
+  IF NOT has_table_privilege('service_role', 'public.login_alert_dedupe', 'SELECT')
+     OR NOT has_table_privilege('service_role', 'public.login_alert_dedupe', 'INSERT') THEN
+    RAISE EXCEPTION 'service_role must be able to deduplicate login sessions';
+  END IF;
   IF NOT has_function_privilege('service_role', 'public.enqueue_admin_login_notification(uuid,text)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'public.enqueue_admin_login_notification(uuid,text)', 'EXECUTE')
      OR has_function_privilege('anon', 'public.claim_telegram_notifications(integer,integer)', 'EXECUTE') THEN

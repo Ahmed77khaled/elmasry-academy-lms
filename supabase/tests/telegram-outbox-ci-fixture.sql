@@ -18,6 +18,10 @@ $$;
 CREATE TABLE public.login_alert_dedupe (
   session_hash text PRIMARY KEY
 );
+ALTER TABLE public.login_alert_dedupe ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.login_alert_dedupe FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.login_alert_dedupe FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, DELETE ON TABLE public.login_alert_dedupe TO service_role;
 
 CREATE TABLE public.admin_audit_log (
   audit_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

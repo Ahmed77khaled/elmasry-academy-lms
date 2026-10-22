@@ -49,6 +49,11 @@ BEGIN
      OR NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='cash_boxes' AND column_name='is_active') THEN
     RAISE EXCEPTION 'Preflight failed: the canonical RBAC and financial audit source tables/columns were not found.';
   END IF;
+
+  IF NOT has_table_privilege('service_role', 'public.login_alert_dedupe', 'SELECT')
+     OR NOT has_table_privilege('service_role', 'public.login_alert_dedupe', 'INSERT') THEN
+    RAISE EXCEPTION 'Preflight failed: service_role must be able to read and insert login session fingerprints.';
+  END IF;
 END
 $preflight$;
 
