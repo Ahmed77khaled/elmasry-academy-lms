@@ -1,0 +1,52 @@
+name: Telegram outbox migration contract test
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: lms_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lms_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGDATABASE: lms_ci
+      PGUSER: postgres
+      PGPASSWORD: ci-only-password
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Build synthetic disposable schema
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/telegram-outbox-ci-fixture.sql
+
+      - name: Apply local draft migration to disposable schema
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261023100000_platform_audit_and_telegram_outbox.sql
+
+      - name: Verify migration contract and event routing
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/telegram-outbox-ci-assertions.sql
+
+      - name: Verify concurrent claims skip a locked row
+        run: bash scripts/test-telegram-outbox-concurrency.sh
