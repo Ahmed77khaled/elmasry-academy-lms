@@ -1,3 +1,5 @@
+import { translate } from '@/lib/translations';
+import { translateTemplate } from '@/lib/translations';
 import { useState } from 'react';
 import { Search, Plus, Pencil, Eye, BookOpen, FileSpreadsheet, MessageCircle } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
@@ -10,6 +12,7 @@ import { QuickEnrollModal } from '@/components/forms/QuickEnrollModal';
 import { exportToCSV } from '@/lib/exportExcel';
 import { formatEgyptPhoneForWhatsApp } from '@/lib/whatsapp';
 import type { Student } from '@/types/database';
+import { useAuth } from '@/context/AuthContext';
 
 const EMPLOYMENT_LABELS: Record<string, string> = {
   Employed: 'يعمل',
@@ -25,6 +28,13 @@ const GRAD_LABELS: Record<string, string> = {
 
 export function StudentsPage() {
   const { navigate } = useRouter();
+  const { permissions } = useAuth();
+  const canCreateStudent = permissions.includes('students.create');
+  const canUpdateStudent = permissions.includes('students.update');
+  const canCreateEnrollment = permissions.includes('enrollments.create');
+  const canExportStudents = permissions.includes('students.export');
+  const canReadStudentPhones = permissions.includes('students.read_contact_phone');
+  const canReadStudentEmail = permissions.includes('students.email.read');
   const [search, setSearch] = useState('');
   const [empFilter, setEmpFilter] = useState('');
   const [gradFilter, setGradFilter] = useState('');
@@ -36,15 +46,17 @@ export function StudentsPage() {
   const [selectedStudentForEnroll, setSelectedStudentForEnroll] = useState<string | undefined>();
 
   const { data: students, loading, refetch } = useQuery<Student[]>(async () => {
-    let query = supabase.from('students').select('*').order('created_at', { ascending: false });
-    if (search.trim()) {
-      query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);
-    }
-    if (empFilter) query = query.eq('employment_status', empFilter);
-    if (gradFilter) query = query.eq('grad_status', gradFilter);
-    const { data, error } = await query;
-    return { data, error: error?.message ?? null };
-  });
+    const { data, error } = await supabase.rpc('rbac_list_students', {
+      p_search: search.trim() || null,
+      p_limit: 500,
+      p_offset: 0,
+    });
+    if (error) return { data: null, error: error.message };
+    const filtered = ((data ?? []) as Student[]).filter((student) =>
+      (!empFilter || student.employment_status === empFilter)
+      && (!gradFilter || student.grad_status === gradFilter));
+    return { data: filtered as Student[], error: null };
+  }, [search, empFilter, gradFilter]);
 
   const handleEdit = (student: Student) => {
     setEditing(student);
@@ -67,26 +79,26 @@ export function StudentsPage() {
 
   // Export to Excel handler
   const handleExportExcel = () => {
-    if (!students || students.length === 0) return;
+    if (!canExportStudents || !students || students.length === 0) return;
 
     const headers = [
-      'اسم الطالب',
-      'رقم الهاتف',
-      'البريد الإلكتروني',
-      'الحالة الوظيفية',
-      'حالة التخرج',
-      'الكلية / الجامعة',
-      'الدورات السابقة',
-      'تاريخ الإضافة',
-      'ملاحظات',
+      translate("اسم الطالب"),
+      translate("رقم الهاتف"),
+      translate("البريد الإلكتروني"),
+      translate("الحالة الوظيفية"),
+      translate("حالة التخرج"),
+      translate("الكلية / الجامعة"),
+      translate("الدورات السابقة"),
+      translate("تاريخ الإضافة"),
+      translate("ملاحظات"),
     ];
 
     const rows = students.map((s) => [
       s.name,
-      s.phone ?? '',
-      s.email ?? '',
-      s.employment_status ? EMPLOYMENT_LABELS[s.employment_status] ?? s.employment_status : '',
-      s.grad_status ? GRAD_LABELS[s.grad_status] ?? s.grad_status : '',
+      canReadStudentPhones ? s.phone ?? '' : '',
+      canReadStudentEmail ? s.email ?? '' : '',
+      s.employment_status ? translate(EMPLOYMENT_LABELS[s.employment_status] ?? s.employment_status) : '',
+      s.grad_status ? translate(GRAD_LABELS[s.grad_status] ?? s.grad_status) : '',
       s.grad_college ?? '',
       s.previous_courses ?? '',
       s.created_at?.slice(0, 10) ?? '',
@@ -95,7 +107,7 @@ export function StudentsPage() {
 
     const dateSuffix = new Date().toISOString().slice(0, 10);
     exportToCSV({
-      filename: `دليل_الطلاب_${dateSuffix}`,
+      filename: translateTemplate('دليل_الطلاب_{date}', { date: dateSuffix }),
       headers,
       rows,
     });
@@ -106,26 +118,23 @@ export function StudentsPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-white font-bold text-xl">إدارة الطلاب</h2>
-          <p className="text-obsidian-300 text-sm mt-1">دليل شامل بكل الطلاب والمتدربين المسجلين بالأكاديمية</p>
+          <h2 className="text-white font-bold text-xl">{translate("إدارة الطلاب")}</h2>
+          <p className="text-obsidian-300 text-sm mt-1">{translate("دليل شامل بكل الطلاب والمتدربين المسجلين بالأكاديمية")}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          {canExportStudents && <button
             onClick={handleExportExcel}
             className="btn-secondary flex items-center gap-2 text-sm bg-obsidian-700 hover:bg-obsidian-600 text-emerald-light border border-emerald-500/30"
-            title="تصدير بيانات الطلاب المعروضين لملف إكسيل"
+            title={translate("تصدير بيانات الطلاب المعروضين لملف إكسيل")}
           >
             <FileSpreadsheet size={16} />
-            تصدير إكسيل
-          </button>
-          <button onClick={() => { setSelectedStudentForEnroll(undefined); setEnrollModalOpen(true); }} className="btn-secondary">
+            {translate("تصدير إكسيل")}</button>}
+          {canCreateEnrollment && <button onClick={() => { setSelectedStudentForEnroll(undefined); setEnrollModalOpen(true); }} className="btn-secondary">
             <BookOpen size={17} />
-            تسجيل طالب في كورس
-          </button>
-          <button onClick={handleAdd} className="btn-primary">
+            {translate("تسجيل طالب في كورس")}</button>}
+          {canCreateStudent && <button onClick={handleAdd} className="btn-primary">
             <Plus size={18} />
-            إضافة طالب جديد
-          </button>
+            {translate("إضافة طالب جديد")}</button>}
         </div>
       </div>
 
@@ -136,7 +145,7 @@ export function StudentsPage() {
             <Search size={16} className="text-obsidian-300 shrink-0" />
             <input
               type="text"
-              placeholder="بحث بالاسم أو رقم الهاتف..."
+              placeholder={translate("بحث بالاسم أو رقم الهاتف...")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="bg-transparent text-sm text-obsidian-100 placeholder:text-obsidian-300 outline-none w-full"
@@ -147,26 +156,26 @@ export function StudentsPage() {
             onChange={(e) => setEmpFilter(e.target.value)}
             className="input-base w-auto"
           >
-            <option value="">كل الحالات الوظيفية</option>
-            <option value="Employed">يعمل</option>
-            <option value="Unemployed">لا يعمل</option>
-            <option value="Student">طالب</option>
-            <option value="Freelancer">مستقل</option>
+            <option value="">{translate("كل الحالات الوظيفية")}</option>
+            <option value="Employed">{translate("يعمل")}</option>
+            <option value="Unemployed">{translate("لا يعمل")}</option>
+            <option value="Student">{translate("طالب")}</option>
+            <option value="Freelancer">{translate("مستقل")}</option>
           </select>
           <select
             value={gradFilter}
             onChange={(e) => setGradFilter(e.target.value)}
             className="input-base w-auto"
           >
-            <option value="">كل حالات التخرج</option>
-            <option value="Graduate">خريج</option>
-            <option value="Undergrad">جامعي</option>
+            <option value="">{translate("كل حالات التخرج")}</option>
+            <option value="Graduate">{translate("خريج")}</option>
+            <option value="Undergrad">{translate("جامعي")}</option>
           </select>
         </div>
 
         {students && (
           <div className="text-xs text-obsidian-300 pt-1">
-            إجمالي الطلاب المعروضين: <span className="font-num text-white font-semibold">{students.length}</span>
+            {translate("إجمالي الطلاب المعروضين:")}{' '}<span className="font-num text-white font-semibold">{students.length}</span>
           </div>
         )}
       </div>
@@ -177,21 +186,21 @@ export function StudentsPage() {
           <PageLoader />
         ) : !students || students.length === 0 ? (
           <EmptyState
-            message="لا يوجد طلاب مسجلين — اضغط على زر إضافة طالب جديد للبدء"
-            action={<button onClick={handleAdd} className="btn-primary"><Plus size={16} /> إضافة طالب</button>}
+            message={translate("لا يوجد طلاب مسجلين — اضغط على زر إضافة طالب جديد للبدء")}
+            action={<button onClick={handleAdd} className="btn-primary"><Plus size={16} /> {translate("إضافة طالب")}</button>}
           />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-obsidian-300 text-xs border-b border-obsidian-500/30">
-                  <th className="text-right font-medium px-4 py-3">الاسم</th>
-                  <th className="text-right font-medium px-4 py-3 hidden md:table-cell">الهاتف</th>
-                  <th className="text-right font-medium px-4 py-3 hidden lg:table-cell">البريد</th>
-                  <th className="text-right font-medium px-4 py-3">وظيفي</th>
-                  <th className="text-right font-medium px-4 py-3 hidden sm:table-cell">تخرج</th>
-                  <th className="text-right font-medium px-4 py-3 hidden lg:table-cell">الكلية</th>
-                  <th className="text-right font-medium px-4 py-3">إجراءات</th>
+                  <th className="text-right font-medium px-4 py-3">{translate("الاسم")}</th>
+                  <th className="text-right font-medium px-4 py-3 hidden md:table-cell">{translate("الهاتف")}</th>
+                  <th className="text-right font-medium px-4 py-3 hidden lg:table-cell">{translate("البريد")}</th>
+                  <th className="text-right font-medium px-4 py-3">{translate("وظيفي")}</th>
+                  <th className="text-right font-medium px-4 py-3 hidden sm:table-cell">{translate("تخرج")}</th>
+                  <th className="text-right font-medium px-4 py-3 hidden lg:table-cell">{translate("الكلية")}</th>
+                  <th className="text-right font-medium px-4 py-3">{translate("إجراءات")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -209,46 +218,45 @@ export function StudentsPage() {
                       </td>
                       <td className="px-4 py-3 text-obsidian-200 font-num hidden md:table-cell">
                         <div className="flex items-center gap-1.5">
-                          <span>{s.phone ?? '—'}</span>
-                          {formattedWa && (
+                          <span>{canReadStudentPhones ? s.phone ?? '—' : '—'}</span>
+                          {canReadStudentPhones && formattedWa && (
                             <a
                               href={`https://wa.me/${formattedWa}`}
                               target="_blank"
                               rel="noreferrer"
                               className="text-emerald-400 hover:text-emerald-300 p-0.5"
-                              title="محادثة واتساب مباشرة مع المتدرب"
+                              title={translate("محادثة واتساب مباشرة مع المتدرب")}
                             >
                               <MessageCircle size={14} />
                             </a>
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-obsidian-200 hidden lg:table-cell">{s.email ?? '—'}</td>
+                      <td className="px-4 py-3 text-obsidian-200 hidden lg:table-cell">{canReadStudentEmail ? s.email ?? '—' : '—'}</td>
                       <td className="px-4 py-3">
                         <Badge variant={s.employment_status === 'Employed' ? 'emerald' : 'gray'}>
-                          {s.employment_status ? EMPLOYMENT_LABELS[s.employment_status] : '—'}
+                          {s.employment_status ? translate(EMPLOYMENT_LABELS[s.employment_status] ?? s.employment_status) : '—'}
                         </Badge>
                       </td>
                       <td className="px-4 py-3 hidden sm:table-cell">
                         <Badge variant={s.grad_status === 'Graduate' ? 'blue' : 'gray'}>
-                          {s.grad_status ? GRAD_LABELS[s.grad_status] : '—'}
+                          {s.grad_status ? translate(GRAD_LABELS[s.grad_status] ?? s.grad_status) : '—'}
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-obsidian-200 hidden lg:table-cell">{s.grad_college ?? '—'}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
-                          <button
+                          {canCreateEnrollment && <button
                             onClick={() => handleQuickEnroll(s.student_id)}
                             className="btn-primary text-xs py-1 px-2.5 flex items-center gap-1"
-                            title="تسجيل في كورس"
+                            title={translate("تسجيل في كورس")}
                           >
                             <BookOpen size={13} />
-                            تسجيل بكورس
-                          </button>
-                          <button onClick={() => handleEdit(s)} className="btn-ghost p-1.5" title="تعديل">
+                            {translate("تسجيل بكورس")}</button>}
+                          {canUpdateStudent && <button onClick={() => handleEdit(s)} className="btn-ghost p-1.5" title={translate("تعديل")}>
                             <Pencil size={15} />
-                          </button>
-                          <button onClick={() => navigate('student-details', { id: s.student_id })} className="btn-ghost p-1.5" title="عرض الملف">
+                          </button>}
+                          <button onClick={() => navigate('student-details', { id: s.student_id })} className="btn-ghost p-1.5" title={translate("عرض الملف")}>
                             <Eye size={15} />
                           </button>
                         </div>

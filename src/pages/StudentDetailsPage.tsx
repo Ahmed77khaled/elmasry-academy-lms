@@ -1,3 +1,4 @@
+import { translate } from '@/lib/translations';
 import { useState } from 'react';
 import {
   ArrowRight,
@@ -22,6 +23,7 @@ import { StudentForm } from '@/components/forms/StudentForm';
 import { PaymentForm } from '@/components/forms/PaymentForm';
 import type { Student, EnrollmentBalance } from '@/types/database';
 import { Alert } from '@/components/ui/Alert';
+import { useAuth } from '@/context/AuthContext';
 
 const EMPLOYMENT_LABELS: Record<string, string> = {
   Employed: 'يعمل',
@@ -32,6 +34,14 @@ const EMPLOYMENT_LABELS: Record<string, string> = {
 
 export function StudentDetailsPage({ studentId }: { studentId: string }) {
   const { navigate } = useRouter();
+  const { permissions } = useAuth();
+  const canReadEnrollments = permissions.includes('enrollments.read');
+  const canReadEnrollmentFinance = permissions.includes('enrollments.financial.read');
+  const canReadStudentEmail = permissions.includes('students.email.read');
+  const canCreateEnrollment = permissions.includes('enrollments.create');
+  const canUpdateStudent = permissions.includes('students.update');
+  const canUpdateEnrollmentStatus = permissions.includes('enrollments.update_status');
+  const canRecordPayments = permissions.includes('finance.payments.record');
 
   // Modals state
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
@@ -42,19 +52,22 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
 
   const { data: student, loading: studentLoading, refetch: refetchStudent } = useQuery<Student>(async () => {
     if (!studentId) return { data: null, error: null };
-    const { data, error } = await supabase.from('students').select('*').eq('student_id', studentId).maybeSingle();
-    return { data, error: error?.message ?? null };
+    const { data, error } = await supabase.rpc('rbac_list_students', {
+      p_search: null,
+      p_limit: 1,
+      p_offset: 0,
+      p_student_id: studentId,
+    });
+    return { data: data?.[0] as Student | undefined ?? null, error: error?.message ?? null };
   }, [studentId]);
 
   const { data: enrollments, loading: enrollLoading, refetch: refetchEnrollments } = useQuery<EnrollmentBalance[]>(async () => {
-    if (!studentId) return { data: [], error: null };
-    const { data, error } = await supabase
-      .from('enrollment_balances')
-      .select('*')
-      .eq('student_id', studentId)
-      .order('enrolled_at', { ascending: false });
-    return { data, error: error?.message ?? null };
-  }, [studentId]);
+    if (!studentId || !canReadEnrollments) return { data: [], error: null };
+    const { data, error } = await supabase.rpc('rbac_list_enrollments', {
+      p_search: null, p_limit: 500, p_offset: 0, p_student_id: studentId,
+    });
+    return { data: data as EnrollmentBalance[] | null, error: error?.message ?? null };
+  }, [studentId, canReadEnrollments]);
 
   const refetchAll = () => {
     refetchStudent();
@@ -62,8 +75,9 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
   };
 
   const handleUpdateStatus = async (enrId: string, newStatus: string) => {
+    if (!canUpdateEnrollmentStatus) return;
     setStatusError(null);
-    const { error } = await supabase.rpc('set_enrollment_status', {
+    const { error } = await supabase.rpc('rbac_set_enrollment_status', {
       p_enrollment_id: enrId,
       p_status: newStatus,
     });
@@ -72,6 +86,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
   };
 
   const handleRecordPayment = (enrId: string) => {
+    if (!canRecordPayments) return;
     setPreselectedEnrollmentId(enrId);
     setPaymentFormOpen(true);
   };
@@ -82,9 +97,8 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
     return (
       <div className="space-y-4">
         <button onClick={() => navigate('students')} className="btn-ghost">
-          <ArrowRight size={18} /> العودة للطلاب
-        </button>
-        <EmptyState message="الطالب غير موجود" />
+          <ArrowRight size={18} /> {translate("العودة للطلاب")}</button>
+        <EmptyState message={translate("الطالب غير موجود")} />
       </div>
     );
   }
@@ -96,20 +110,17 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
       {/* Top Header & Quick Actions */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <button onClick={() => navigate('students')} className="btn-ghost">
-          <ArrowRight size={18} /> العودة لقائمة الطلاب
-        </button>
+          <ArrowRight size={18} /> {translate("العودة لقائمة الطلاب")}</button>
         <div className="flex items-center gap-2 flex-wrap">
-          <button
+          {canCreateEnrollment && <button
             onClick={() => setEnrollModalOpen(true)}
             className="btn-primary flex items-center gap-2 shadow-lg shadow-emerald-brand/20"
           >
             <Plus size={18} />
-            تسجيل الطالب في كورس جديد
-          </button>
-          <button onClick={() => setStudentFormOpen(true)} className="btn-secondary flex items-center gap-2">
+            {translate("تسجيل الطالب في كورس جديد")}</button>}
+          {canUpdateStudent && <button onClick={() => setStudentFormOpen(true)} className="btn-secondary flex items-center gap-2">
             <Pencil size={16} />
-            تعديل بيانات الطالب
-          </button>
+            {translate("تعديل بيانات الطالب")}</button>}
         </div>
       </div>
 
@@ -124,10 +135,10 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
               <h2 className="text-2xl font-bold text-white font-arabic">{student.name}</h2>
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <Badge variant={student.employment_status === 'Employed' ? 'emerald' : 'gray'}>
-                  {student.employment_status ? EMPLOYMENT_LABELS[student.employment_status] : '—'}
+                  {student.employment_status ? translate(EMPLOYMENT_LABELS[student.employment_status] ?? student.employment_status) : '—'}
                 </Badge>
                 <Badge variant={student.grad_status === 'Graduate' ? 'blue' : 'gray'}>
-                  {student.grad_status === 'Graduate' ? 'خريج' : 'جامعي'}
+                  {student.grad_status === 'Graduate' ? translate("خريج") : translate("جامعي")}
                 </Badge>
                 {student.grad_college && (
                   <span className="text-xs text-obsidian-300 font-medium">{student.grad_college}</span>
@@ -144,7 +155,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
               <div className="flex items-center gap-2.5">
                 <Phone size={16} className="text-emerald-light shrink-0" />
                 <div>
-                  <p className="text-[11px] text-obsidian-300">رقم الهاتف</p>
+                  <p className="text-[11px] text-obsidian-300">{translate("رقم الهاتف")}</p>
                   <p className="text-obsidian-100 font-num font-semibold">{student.phone}</p>
                 </div>
               </div>
@@ -154,7 +165,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
                   target="_blank"
                   rel="noreferrer"
                   className="text-emerald-400 hover:text-emerald-300 p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
-                  title="محادثة واتساب مباشرة مع المتدرب"
+                  title={translate("محادثة واتساب مباشرة مع المتدرب")}
                 >
                   <MessageCircle size={16} />
                 </a>
@@ -162,11 +173,11 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
             </div>
           ) : null}
 
-          {student.email ? (
+          {canReadStudentEmail && student.email ? (
             <div className="flex items-center gap-2.5 text-sm p-2.5 bg-obsidian-700/40 rounded-xl">
               <Mail size={16} className="text-azure-brand shrink-0" />
               <div>
-                <p className="text-[11px] text-obsidian-300">البريد الإلكتروني</p>
+                <p className="text-[11px] text-obsidian-300">{translate("البريد الإلكتروني")}</p>
                 <p className="text-obsidian-100 font-medium">{student.email}</p>
               </div>
             </div>
@@ -176,7 +187,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
             <div className="flex items-center gap-2.5 text-sm p-2.5 bg-obsidian-700/40 rounded-xl">
               <GraduationCap size={16} className="text-violet-400 shrink-0" />
               <div>
-                <p className="text-[11px] text-obsidian-300">الكلية / الجامعة</p>
+                <p className="text-[11px] text-obsidian-300">{translate("الكلية / الجامعة")}</p>
                 <p className="text-obsidian-100 font-medium">{student.grad_college}</p>
               </div>
             </div>
@@ -186,7 +197,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
         {/* Previous Courses */}
         {student.previous_courses && (
           <div className="p-3 bg-obsidian-700/30 rounded-xl border border-obsidian-500/20 text-xs">
-            <span className="text-obsidian-300 font-semibold ml-2">الكورسات السابقة:</span>
+            <span className="text-obsidian-300 font-semibold ml-2">{translate("الكورسات السابقة:")}</span>
             <span className="text-obsidian-100">{student.previous_courses}</span>
           </div>
         )}
@@ -194,7 +205,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
         {/* Notes */}
         {student.notes && (
           <div className="p-3 bg-obsidian-700/30 rounded-xl border border-obsidian-500/20 text-xs">
-            <span className="text-obsidian-300 font-semibold ml-2">ملاحظات إضافية:</span>
+            <span className="text-obsidian-300 font-semibold ml-2">{translate("ملاحظات إضافية:")}</span>
             <span className="text-obsidian-100">{student.notes}</span>
           </div>
         )}
@@ -202,133 +213,53 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
 
       {statusError && <Alert variant="error">{statusError}</Alert>}
 
-      {/* Enrolled Courses Cards */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-white font-bold text-lg">سجل الكورسات والاشتراكات</h3>
-          <button onClick={() => setEnrollModalOpen(true)} className="btn-primary text-xs py-1.5 px-3">
-            <Plus size={15} /> إضافة كورس للطالب
-          </button>
-        </div>
-
-        {enrollLoading ? (
-          <PageLoader />
-        ) : !enrollments || enrollments.length === 0 ? (
-          <div className="card-surface">
-            <EmptyState
-              message="الطالب غير مسجل في أي كورس بعد"
-              action={
-                <button onClick={() => setEnrollModalOpen(true)} className="btn-primary">
-                  <Plus size={16} /> تسجيل في أول كورس
-                </button>
-              }
-            />
+      {canReadEnrollments && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-white font-bold text-lg">{translate("تسجيلات الطالب")}</h3>
+            {canCreateEnrollment && <button onClick={() => setEnrollModalOpen(true)} className="btn-primary text-xs py-1.5 px-3"><Plus size={15} /> {translate("إضافة دورة")}</button>}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {enrollments.map((enr) => {
-              const ps = paymentStatusBadge(enr.payment_status);
-              const reminderUrl =
-                student.phone && enr.remaining_balance > 0
-                  ? generatePaymentReminderUrl({
-                      phone: student.phone,
-                      studentName: student.name,
-                      courseName: enr.course_name,
-                      remainingAmount: enr.remaining_balance,
-                    })
+          {enrollLoading ? <PageLoader /> : !enrollments || enrollments.length === 0 ? (
+            <div className="card-surface"><EmptyState message={translate("لا توجد تسجيلات لهذا الطالب بعد.")} /></div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {enrollments.map((enr) => {
+                const ps = canReadEnrollmentFinance ? paymentStatusBadge(enr.payment_status ?? 'Unpaid') : null;
+                const reminderUrl = canReadEnrollmentFinance && student.phone && enr.remaining_balance != null && enr.remaining_balance > 0
+                  ? generatePaymentReminderUrl({ phone: student.phone, studentName: student.name, courseName: enr.course_name, remainingAmount: enr.remaining_balance })
                   : null;
-
-              return (
-                <div key={enr.enrollment_id} className="card-surface p-4 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <h4 className="text-white font-bold text-base">{enr.course_name}</h4>
-                      <Badge variant={ps.variant}>{ps.label}</Badge>
+                return (
+                  <div key={enr.enrollment_id} className="card-surface p-4 flex flex-col justify-between gap-4">
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <h4 className="text-white font-bold text-base">{enr.course_name}</h4>
+                        {ps && <Badge variant={ps.variant}>{ps.label}</Badge>}
+                      </div>
+                      {canReadEnrollmentFinance && <div className="grid grid-cols-2 gap-3 text-xs bg-obsidian-700/40 p-3 rounded-xl">
+                        <div><p className="text-obsidian-300">{translate("المبلغ المتفق عليه")}</p><p className="text-white font-num font-bold">{enr.agreed_cost == null ? '—' : formatEGP(enr.agreed_cost)}</p></div>
+                        <div><p className="text-obsidian-300">{translate("المدفوع")}</p><p className="text-emerald-light font-num font-bold">{formatEGP(enr.total_paid ?? 0)}</p></div>
+                        <div><p className="text-obsidian-300">{translate("المتبقي")}</p><p className="text-amber-400 font-num font-bold">{formatEGP(enr.remaining_balance ?? 0)}</p></div>
+                        <div><p className="text-obsidian-300">{translate("تاريخ التسجيل")}</p><p className="text-obsidian-100 font-num">{formatDate(enr.enrolled_at)}</p></div>
+                      </div>}
+                      {!canReadEnrollmentFinance && <p className="text-xs text-obsidian-300">{translate("مسجل بتاريخ")} {formatDate(enr.enrolled_at)}</p>}
                     </div>
-
-                    <div className="grid grid-cols-2 gap-3 text-xs bg-obsidian-700/40 p-3 rounded-xl mb-4">
-                      <div>
-                        <p className="text-obsidian-300">المبلغ المتفق عليه</p>
-                        <p className="text-white font-num font-bold text-sm mt-0.5">{formatEGP(enr.agreed_cost)}</p>
-                      </div>
-                      <div>
-                        <p className="text-obsidian-300">إجمالي المدفوع</p>
-                        <p className="text-emerald-light font-num font-bold text-sm mt-0.5">{formatEGP(enr.total_paid)}</p>
-                      </div>
-                      <div>
-                        <p className="text-obsidian-300">المتبقي المطلوب</p>
-                        <p
-                          className={`font-num font-bold text-sm mt-0.5 ${
-                            enr.remaining_balance < 0
-                              ? 'text-violet-400'
-                              : enr.remaining_balance > 0
-                              ? 'text-amber-400'
-                              : 'text-emerald-light'
-                          }`}
-                        >
-                          {formatEGP(enr.remaining_balance)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-obsidian-300">تاريخ التسجيل</p>
-                        <p className="text-obsidian-100 font-num font-semibold mt-0.5">{formatDate(enr.enrolled_at)}</p>
+                    <div className="flex items-center justify-between gap-2 pt-3 border-t border-obsidian-500/30 flex-wrap">
+                      {canUpdateEnrollmentStatus ? <select value={enr.enrollment_status} onChange={(e) => handleUpdateStatus(enr.enrollment_id, e.target.value)} className="bg-obsidian-700 text-xs text-obsidian-100 rounded-lg px-2 py-1 border border-obsidian-500/30 outline-none">
+                        <option value="Active">{translate("نشط")}</option><option value="Completed">{translate("مكتمل")}</option><option value="Dropped">{translate("منسحب")}</option>
+                      </select> : <span className="text-xs text-obsidian-300">{translate(enr.enrollment_status === 'Active' ? "نشط" : enr.enrollment_status === 'Completed' ? "مكتمل" : "منسحب")}</span>}
+                      <div className="flex items-center gap-1.5">
+                        {canRecordPayments && enr.remaining_balance != null && enr.remaining_balance > 0 && <button onClick={() => handleRecordPayment(enr.enrollment_id)} className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5"><CreditCard size={14} /> {translate("تسجيل دفعة")}</button>}
+                        {reminderUrl && <a href={reminderUrl} target="_blank" rel="noreferrer" className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1.5"><MessageCircle size={14} /> {translate("إرسال تذكير واتساب")}</a>}
+                        <button onClick={() => navigate('course-details', { id: enr.course_id })} className="btn-ghost p-1.5" title={translate("تفاصيل الدورة")}><Eye size={16} /></button>
                       </div>
                     </div>
                   </div>
-
-                  {/* Actions Bar */}
-                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-obsidian-500/30 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-obsidian-300">الحالة:</span>
-                      <select
-                        value={enr.enrollment_status}
-                        onChange={(e) => handleUpdateStatus(enr.enrollment_id, e.target.value)}
-                        className="bg-obsidian-700 text-xs text-obsidian-100 rounded-lg px-2 py-1 border border-obsidian-500/30 outline-none"
-                      >
-                        <option value="Active">نشط</option>
-                        <option value="Completed">مكتمل</option>
-                        <option value="Dropped">منسحب</option>
-                      </select>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      {enr.remaining_balance > 0 && (
-                        <button
-                          onClick={() => handleRecordPayment(enr.enrollment_id)}
-                          className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5 shadow-sm"
-                        >
-                          <CreditCard size={14} />
-                          دفع قسط
-                        </button>
-                      )}
-                      {reminderUrl && (
-                        <a
-                          href={reminderUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-light border border-emerald-500/30"
-                          title="تذكير المتدرب بالقسط المتبقي عبر واتساب"
-                        >
-                          <MessageCircle size={14} />
-                          تذكير واتساب
-                        </a>
-                      )}
-                      <button
-                        onClick={() => navigate('course-details', { id: enr.course_id })}
-                        className="btn-ghost p-1.5"
-                        title="تفاصيل الكورس"
-                      >
-                        <Eye size={16} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
       {/* Modals */}
       <QuickEnrollModal
         open={enrollModalOpen}

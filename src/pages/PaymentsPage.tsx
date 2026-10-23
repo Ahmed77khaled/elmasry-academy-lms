@@ -1,3 +1,5 @@
+import { translate } from '@/lib/translations';
+import { translateTemplate } from '@/lib/translations';
 import { useState } from 'react';
 import { Plus, Search, Printer, Ban, FileSpreadsheet, MessageCircle, Calendar } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
@@ -13,6 +15,7 @@ import { formatEGP, formatDate } from '@/lib/format';
 import { exportToCSV } from '@/lib/exportExcel';
 import { isDateInRange, DateRangePreset } from '@/lib/dateRange';
 import { formatEgyptPhoneForWhatsApp } from '@/lib/whatsapp';
+import { useAuth } from '@/context/AuthContext';
 
 const METHOD_LABELS: Record<string, string> = {
   Cash: 'كاش',
@@ -43,6 +46,10 @@ interface RawPaymentRow {
 }
 
 export function PaymentsPage() {
+  const { permissions } = useAuth();
+  const canRecordPayments = permissions.includes('finance.payments.record');
+  const canVoidPayments = permissions.includes('finance.payments.void');
+  const canExportPayments = permissions.includes('finance.payments.export');
   const [formOpen, setFormOpen] = useState(false);
   const [voidTarget, setVoidTarget] = useState<RawPaymentRow | null>(null);
   const [voiding, setVoiding] = useState(false);
@@ -72,46 +79,27 @@ export function PaymentsPage() {
   } | null>(null);
 
   const { data: payments, loading, refetch } = useQuery<RawPaymentRow[]>(async () => {
-    let query = supabase
-      .from('payments')
-      .select(`
-        payment_id,
-        receipt_number,
-        enrollment_id,
-        cash_box_id,
-        amount,
-        payment_date,
-        method,
-        receipt_ref,
-        notes,
-        voided_at,
-        voided_by,
-        void_reason,
-        created_at,
-        enrollments ( students ( name, phone ), courses ( course_name ) ),
-        cash_boxes ( name )
-      `)
-      .order('payment_date', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(200);
-
-    if (methodFilter) {
-      query = query.eq('method', methodFilter);
-    }
-    const { data, error } = await query;
-    return { data: (data ?? []) as unknown as RawPaymentRow[], error: error?.message ?? null };
-  });
+    const { data, error } = await supabase.rpc('rbac_list_payments', { p_limit: 500, p_offset: 0 });
+    if (error) return { data: null, error: error.message };
+    const rows = ((data ?? []) as unknown as (RawPaymentRow & { student_name: string; student_phone: string | null; course_name: string; cash_box_name: string })[]).map((payment) => ({
+      ...payment,
+      enrollments: { students: { name: payment.student_name, phone: payment.student_phone }, courses: { course_name: payment.course_name } },
+      cash_boxes: { name: payment.cash_box_name },
+    })) as unknown as RawPaymentRow[];
+    const filtered = methodFilter ? rows.filter((payment) => payment.method === methodFilter) : rows;
+    return { data: filtered, error: null };
+  }, [methodFilter]);
 
   const handleVoid = async () => {
-    if (!voidTarget) return;
+    if (!voidTarget || !canVoidPayments) return;
     const reason = voidReason.trim();
     if (reason.length < 5) {
-      setVoidError('اكتب سبب الإلغاء (5 أحرف على الأقل).');
+      setVoidError(translate("اكتب سبب الإلغاء (5 أحرف على الأقل)."));
       return;
     }
     setVoiding(true);
     setVoidError(null);
-    const { error } = await supabase.rpc('void_payment', {
+    const { error } = await supabase.rpc('rbac_void_payment', {
       p_payment_id: voidTarget.payment_id,
       p_void_reason: reason,
     });
@@ -129,9 +117,9 @@ export function PaymentsPage() {
     setReceiptTarget({
       payment_id: p.payment_id,
       receipt_number: p.receipt_number,
-      student_name: p.enrollments?.students?.name ?? 'طالب بالأكاديمية',
+      student_name: p.enrollments?.students?.name ?? translate("طالب بالأكاديمية"),
       student_phone: p.enrollments?.students?.phone,
-      course_name: p.enrollments?.courses?.course_name ?? 'كورس تدريبي',
+      course_name: p.enrollments?.courses?.course_name ?? translate("كورس تدريبي"),
       amount: p.amount,
       payment_date: p.payment_date,
       method: p.method,
@@ -166,18 +154,19 @@ export function PaymentsPage() {
 
   // Export to Excel handler
   const handleExportExcel = () => {
+    if (!canExportPayments) return;
     const headers = [
-      'رقم السند',
-      'تاريخ السداد',
-      'اسم المتدرب',
-      'الدورة التدريبية',
-      'المبلغ (ج.م)',
-      'الخزينة',
-      'طريقة الدفع',
-      'المرجع الخارجي',
-      'حالة السند',
-      'سبب الإلغاء',
-      'ملاحظات',
+      translate("رقم السند"),
+      translate("تاريخ السداد"),
+      translate("اسم المتدرب"),
+      translate("الدورة التدريبية"),
+      translate("المبلغ (ج.م)"),
+      translate("الخزينة"),
+      translate("طريقة الدفع"),
+      translate("المرجع الخارجي"),
+      translate("حالة السند"),
+      translate("سبب الإلغاء"),
+      translate("ملاحظات"),
     ];
 
     const rows = filteredPayments.map((p) => [
@@ -187,16 +176,16 @@ export function PaymentsPage() {
       p.enrollments?.courses?.course_name ?? '—',
       p.amount,
       p.cash_boxes?.name ?? '—',
-      METHOD_LABELS[p.method] ?? p.method,
+      translate(METHOD_LABELS[p.method] ?? p.method),
       p.receipt_ref ?? '',
-      p.voided_at ? 'ملغاة' : 'معتمدة',
+      p.voided_at ? translate("ملغاة") : translate("معتمدة"),
       p.void_reason ?? '',
       p.notes ?? '',
     ]);
 
     const dateSuffix = new Date().toISOString().slice(0, 10);
     exportToCSV({
-      filename: `تقرير_المقبوضات_${dateSuffix}`,
+      filename: translateTemplate('تقرير_المقبوضات_{date}', { date: dateSuffix }),
       headers,
       rows,
     });
@@ -206,22 +195,20 @@ export function PaymentsPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-white font-bold text-xl">الدفعات والمقبوضات</h2>
-          <p className="text-obsidian-300 text-sm mt-1">كل المعاملات المالية وسندات القبض الواردة</p>
+          <h2 className="text-white font-bold text-xl">{translate("الدفعات والمقبوضات")}</h2>
+          <p className="text-obsidian-300 text-sm mt-1">{translate("كل المعاملات المالية وسندات القبض الواردة")}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          {canExportPayments && <button
             onClick={handleExportExcel}
             className="btn-secondary flex items-center gap-2 text-sm bg-obsidian-700 hover:bg-obsidian-600 text-emerald-light border border-emerald-500/30"
-            title="تصدير السجلات المعروضة لملف إكسيل"
+            title={translate("تصدير السجلات المعروضة لملف إكسيل")}
           >
             <FileSpreadsheet size={16} />
-            تصدير إكسيل
-          </button>
-          <button onClick={() => setFormOpen(true)} className="btn-primary">
+            {translate("تصدير إكسيل")}</button>}
+          {canRecordPayments && <button onClick={() => setFormOpen(true)} className="btn-primary">
             <Plus size={18} />
-            تسجيل دفعة جديدة
-          </button>
+            {translate("تسجيل دفعة جديدة")}</button>}
         </div>
       </div>
 
@@ -233,7 +220,7 @@ export function PaymentsPage() {
             <Search size={16} className="text-obsidian-300 shrink-0" />
             <input
               type="text"
-              placeholder="بحث بالمتدرب، الكورس، أو رقم السند..."
+              placeholder={translate("بحث بالمتدرب، الكورس، أو رقم السند...")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="bg-transparent text-sm text-obsidian-100 placeholder:text-obsidian-300 outline-none w-full"
@@ -246,11 +233,11 @@ export function PaymentsPage() {
             onChange={(e) => setMethodFilter(e.target.value)}
             className="input-base w-auto text-sm"
           >
-            <option value="">كل طرق الدفع</option>
-            <option value="Cash">كاش</option>
-            <option value="Vodafone Cash">فودافون كاش</option>
-            <option value="InstaPay">إنستاباي</option>
-            <option value="Bank Transfer">تحويل بنكي</option>
+            <option value="">{translate("كل طرق الدفع")}</option>
+            <option value="Cash">{translate("كاش")}</option>
+            <option value="Vodafone Cash">{translate("فودافون كاش")}</option>
+            <option value="InstaPay">{translate("إنستاباي")}</option>
+            <option value="Bank Transfer">{translate("تحويل بنكي")}</option>
           </select>
 
           {/* Date Range Preset Selector */}
@@ -261,11 +248,11 @@ export function PaymentsPage() {
               onChange={(e) => setDatePreset(e.target.value as DateRangePreset)}
               className="bg-transparent text-sm text-obsidian-100 outline-none py-1 cursor-pointer"
             >
-              <option value="all" className="bg-obsidian-800 text-white">كل الفترات</option>
-              <option value="today" className="bg-obsidian-800 text-white">اليوم</option>
-              <option value="this_week" className="bg-obsidian-800 text-white">هذا الأسبوع</option>
-              <option value="this_month" className="bg-obsidian-800 text-white">هذا الشهر</option>
-              <option value="custom" className="bg-obsidian-800 text-white">فترة مخصصة...</option>
+              <option value="all" className="bg-obsidian-800 text-white">{translate("كل الفترات")}</option>
+              <option value="today" className="bg-obsidian-800 text-white">{translate("اليوم")}</option>
+              <option value="this_week" className="bg-obsidian-800 text-white">{translate("هذا الأسبوع")}</option>
+              <option value="this_month" className="bg-obsidian-800 text-white">{translate("هذا الشهر")}</option>
+              <option value="custom" className="bg-obsidian-800 text-white">{translate("فترة مخصصة...")}</option>
             </select>
           </div>
         </div>
@@ -273,14 +260,14 @@ export function PaymentsPage() {
         {/* Custom Date Inputs if 'custom' is selected */}
         {datePreset === 'custom' && (
           <div className="flex items-center gap-3 pt-2 border-t border-obsidian-500/20 text-xs">
-            <span className="text-obsidian-300 font-medium">من تاريخ:</span>
+            <span className="text-obsidian-300 font-medium">{translate("من تاريخ:")}</span>
             <input
               type="date"
               value={customStart}
               onChange={(e) => setCustomStart(e.target.value)}
               className="input-base w-auto py-1 px-2 text-xs"
             />
-            <span className="text-obsidian-300 font-medium">إلى تاريخ:</span>
+            <span className="text-obsidian-300 font-medium">{translate("إلى تاريخ:")}</span>
             <input
               type="date"
               value={customEnd}
@@ -293,10 +280,10 @@ export function PaymentsPage() {
         {/* Filter Summary Badge */}
         <div className="flex items-center justify-between text-xs text-obsidian-300 pt-1">
           <div>
-            عدد السندات المعروضة: <span className="font-num text-white font-semibold">{filteredPayments.length}</span>
+            {translate("عدد السندات المعروضة:")}{' '}<span className="font-num text-white font-semibold">{filteredPayments.length}</span>
           </div>
           <div>
-            إجمالي المقبوضات المعتمدة: <span className="font-num text-emerald-light font-bold text-sm">{formatEGP(activeFilteredTotal)}</span>
+            {translate("إجمالي المقبوضات المعتمدة:")}{' '}<span className="font-num text-emerald-light font-bold text-sm">{formatEGP(activeFilteredTotal)}</span>
           </div>
         </div>
       </div>
@@ -306,22 +293,22 @@ export function PaymentsPage() {
           <PageLoader />
         ) : filteredPayments.length === 0 ? (
           <EmptyState
-            message="لا توجد دفعات مطابقة للفترة المحددة — اضغط على زر تسجيل دفعة للبدء"
-            action={<button onClick={() => setFormOpen(true)} className="btn-primary"><Plus size={16} /> تسجيل دفعة</button>}
+            message={translate("لا توجد دفعات مطابقة للفترة المحددة — اضغط على زر تسجيل دفعة للبدء")}
+            action={canRecordPayments ? <button onClick={() => setFormOpen(true)} className="btn-primary"><Plus size={16} /> {translate("تسجيل دفعة")}</button> : undefined}
           />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-obsidian-300 text-xs border-b border-obsidian-500/30">
-                  <th className="text-right font-medium px-4 py-3">رقم السند</th>
-                  <th className="text-right font-medium px-4 py-3">المتدرب</th>
-                  <th className="text-right font-medium px-4 py-3">الدورة التدريبية</th>
-                  <th className="text-right font-medium px-4 py-3 hidden sm:table-cell">التاريخ</th>
-                  <th className="text-right font-medium px-4 py-3 hidden lg:table-cell">الخزينة</th>
-                  <th className="text-right font-medium px-4 py-3">المبلغ</th>
-                  <th className="text-right font-medium px-4 py-3 hidden md:table-cell">طريقة الدفع</th>
-                  <th className="text-right font-medium px-4 py-3">إجراءات</th>
+                  <th className="text-right font-medium px-4 py-3">{translate("رقم السند")}</th>
+                  <th className="text-right font-medium px-4 py-3">{translate("المتدرب")}</th>
+                  <th className="text-right font-medium px-4 py-3">{translate("الدورة التدريبية")}</th>
+                  <th className="text-right font-medium px-4 py-3 hidden sm:table-cell">{translate("التاريخ")}</th>
+                  <th className="text-right font-medium px-4 py-3 hidden lg:table-cell">{translate("الخزينة")}</th>
+                  <th className="text-right font-medium px-4 py-3">{translate("المبلغ")}</th>
+                  <th className="text-right font-medium px-4 py-3 hidden md:table-cell">{translate("طريقة الدفع")}</th>
+                  <th className="text-right font-medium px-4 py-3">{translate("إجراءات")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -341,11 +328,11 @@ export function PaymentsPage() {
                           <span>{p.enrollments?.students?.name ?? '—'}</span>
                           {formattedWa && !isVoided && (
                             <a
-                              href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(`مرحباً أستاذ ${p.enrollments?.students?.name}، نود تأكيد استلام دفعة بقيمة ${formatEGP(p.amount)} لدورة (${p.enrollments?.courses?.course_name}) برقم سند ${receiptLabel}. شكراً لكم!`)}`}
+                              href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(translateTemplate('مرحباً أستاذ {student}، نود تأكيد استلام دفعة بقيمة {amount} لدورة ({course}) برقم سند {receipt}. شكراً لكم!', { student: p.enrollments?.students?.name ?? '', amount: formatEGP(p.amount), course: p.enrollments?.courses?.course_name ?? '', receipt: receiptLabel }))}`}
                               target="_blank"
                               rel="noreferrer"
                               className="text-emerald-400 hover:text-emerald-300 p-0.5"
-                              title="إرسال تأكيد السند للمتدرب على واتساب"
+                              title={translate("إرسال تأكيد السند للمتدرب على واتساب")}
                             >
                               <MessageCircle size={14} />
                             </a>
@@ -367,33 +354,32 @@ export function PaymentsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
-                        <Badge variant="blue">{METHOD_LABELS[p.method] ?? p.method}</Badge>
+                        <Badge variant="blue">{translate(METHOD_LABELS[p.method] ?? p.method)}</Badge>
                       </td>
                       <td className="px-4 py-3">
                         {isVoided ? (
-                          <span title={p.void_reason ?? 'سبب الإلغاء غير متاح'}>
-                            <Badge variant="rose">ملغاة</Badge>
+                          <span title={p.void_reason ?? translate("سبب الإلغاء غير متاح")}>
+                            <Badge variant="rose">{translate("ملغاة")}</Badge>
                           </span>
                         ) : (
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => handleOpenReceipt(p)}
                               className="btn-ghost p-1.5 text-obsidian-200 hover:text-emerald-light"
-                              title="طباعة إيصال السداد"
+                              title={translate("طباعة إيصال السداد")}
                             >
                               <Printer size={16} />
                             </button>
-                            <button
+                            {canVoidPayments && <button
                               onClick={() => {
                                 setVoidError(null);
                                 setVoidReason('');
                                 setVoidTarget(p);
                               }}
                               className="btn-danger px-2 py-1 text-xs"
-                              title="إلغاء المعاملة"
+                              title={translate("إلغاء المعاملة")}
                             >
-                              <Ban size={13} /> إلغاء
-                            </button>
+                              <Ban size={13} /> {translate("إلغاء")}</button>}
                           </div>
                         )}
                       </td>
@@ -406,10 +392,10 @@ export function PaymentsPage() {
         )}
       </div>
 
-      <PaymentForm open={formOpen} onClose={() => setFormOpen(false)} onSaved={refetch} />
+      {canRecordPayments && <PaymentForm open={formOpen} onClose={() => setFormOpen(false)} onSaved={refetch} />}
 
       <ConfirmDialog
-        open={!!voidTarget}
+        open={canVoidPayments && !!voidTarget}
         onClose={() => {
           if (voiding) return;
           setVoidTarget(null);
@@ -417,16 +403,16 @@ export function PaymentsPage() {
           setVoidError(null);
         }}
         onConfirm={handleVoid}
-        title="إلغاء الدفعة"
-        message={`سيتم إلغاء الدفعة بقيمة ${formatEGP(voidTarget?.amount ?? 0)} مع الاحتفاظ بسجلها. لا يمكن التراجع عن هذا الإجراء.`}
-        confirmLabel="إلغاء الدفعة"
+        title={translate("إلغاء الدفعة")}
+        message={translateTemplate('سيتم إلغاء الدفعة بقيمة {amount} مع الاحتفاظ بسجلها. لا يمكن التراجع عن هذا الإجراء.', { amount: formatEGP(voidTarget?.amount ?? 0) })}
+        confirmLabel={translate("إلغاء الدفعة")}
         loading={voiding}
         confirmDisabled={voidReason.trim().length < 5}
         danger
       >
         <Textarea
-          label="سبب الإلغاء (إلزامي)"
-          placeholder="مثال: تم إدخال المبلغ أو الطالب بالخطأ"
+          label={translate("سبب الإلغاء (إلزامي)")}
+          placeholder={translate("مثال: تم إدخال المبلغ أو الطالب بالخطأ")}
           rows={3}
           minLength={5}
           maxLength={500}

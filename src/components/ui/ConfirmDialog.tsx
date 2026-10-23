@@ -1,3 +1,4 @@
+import { translate } from '@/lib/translations';
 import type { ReactNode } from 'react';
 import { Modal } from './Modal';
 import { AlertTriangle } from 'lucide-react';
@@ -22,8 +23,8 @@ export function ConfirmDialog({
   onConfirm,
   title,
   message,
-  confirmLabel = 'تأكيد',
-  cancelLabel = 'إلغاء',
+  confirmLabel = translate("تأكيد"),
+  cancelLabel = translate("إلغاء"),
   loading = false,
   danger = true,
   confirmDisabled = false,
@@ -48,7 +49,7 @@ export function ConfirmDialog({
             disabled={loading || confirmDisabled}
             className={`inline-flex items-center justify-center gap-2 font-semibold px-4 py-2.5 rounded-lg text-sm transition-all active:scale-95 disabled:opacity-50 ${danger ? 'bg-rose-500 hover:bg-rose-600 text-white' : 'bg-amber-500 hover:bg-amber-600 text-white'}`}
           >
-            {loading ? 'جاري...' : confirmLabel}
+            {loading ? translate("جاري...") : confirmLabel}
           </button>
         </div>
       </div>

@@ -1,0 +1,12 @@
+# These functions perform handler-level authentication. The user-facing
+# functions validate user JWTs; telegram-group-dispatch uses @supabase/server
+# to require a Supabase secret API key plus its dedicated dispatch secret.
+# Keep gateway JWT verification disabled for compatibility with asymmetric JWTs.
+[functions.admin-invite]
+verify_jwt = false
+
+[functions.login-alert]
+verify_jwt = false
+
+[functions.telegram-group-dispatch]
+verify_jwt = false

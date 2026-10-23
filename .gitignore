@@ -10,6 +10,7 @@ node_modules
 dist
 dist-ssr
 *.local
+supabase/.temp/
 
 .vscode/*
 !.vscode/extensions.json
@@ -21,3 +22,7 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.vercel/
+
+.vercel
+.env*

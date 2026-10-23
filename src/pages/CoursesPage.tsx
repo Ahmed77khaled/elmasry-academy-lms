@@ -1,3 +1,5 @@
+import { translate } from '@/lib/translations';
+import { translateTemplate } from '@/lib/translations';
 import { useState } from 'react';
 import { Search, Plus, Pencil, Eye, MessageCircle, ListTodo, HardDrive, BookMarked, MoreVertical, Lock } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
@@ -8,7 +10,8 @@ import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { CourseForm } from '@/components/forms/CourseForm';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { formatEGP } from '@/lib/format';
-import type { Course } from '@/types/database';
+import type { Course, EnrollmentBalance } from '@/types/database';
+import { useAuth } from '@/context/AuthContext';
 
 const LEVEL_LABELS: Record<string, string> = {
   'Beginner': 'مبتدئ', 'Intermediate': 'متوسط', 'Advanced': 'متقدم',
@@ -16,6 +19,12 @@ const LEVEL_LABELS: Record<string, string> = {
 
 export function CoursesPage() {
   const { navigate } = useRouter();
+  const { permissions } = useAuth();
+  const canCreateCourse = permissions.includes('courses.create');
+  const canUpdateCourse = permissions.includes('courses.update');
+  const canCloseCourse = permissions.includes('courses.close');
+  const canReadCoursePricing = permissions.includes('courses.pricing.read');
+  const canReadEnrollments = permissions.includes('enrollments.read');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -25,27 +34,27 @@ export function CoursesPage() {
   const [closing, setClosing] = useState(false);
 
   const { data: courses, loading, refetch } = useQuery<Course[]>(async () => {
-    let query = supabase.from('courses').select('*').order('created_at', { ascending: false });
-    if (search.trim()) {
-      query = query.ilike('course_name', `%${search}%`);
-    }
-    if (statusFilter) query = query.eq('availability_status', statusFilter);
-    const { data, error } = await query;
-    return { data, error: error?.message ?? null };
-  });
+    const { data, error } = await supabase.rpc('rbac_list_courses', { p_limit: 500, p_offset: 0 });
+    if (error) return { data: null, error: error.message };
+    const normalizedSearch = search.trim().toLocaleLowerCase();
+    const filtered = ((data ?? []) as Course[]).filter((course) =>
+      (!normalizedSearch || course.course_name.toLocaleLowerCase().includes(normalizedSearch))
+      && (!statusFilter || course.availability_status === statusFilter));
+    return { data: filtered as Course[], error: null };
+  }, [search, statusFilter]);
 
   const { data: enrollmentCounts } = useQuery<{ course_id: string; count: number }[]>(async () => {
-    const { data, error } = await supabase
-      .from('enrollments')
-      .select('course_id')
-      .eq('status', 'Active');
+    if (!canReadEnrollments) return { data: [], error: null };
+    const { data, error } = await supabase.rpc('rbac_list_enrollments', {
+      p_search: null, p_limit: 500, p_offset: 0,
+    });
     if (error) return { data: null, error: error.message };
     const counts: Record<string, number> = {};
-    for (const row of data ?? []) {
-      counts[row.course_id] = (counts[row.course_id] ?? 0) + 1;
+    for (const row of (data ?? []) as EnrollmentBalance[]) {
+      if (row.enrollment_status === 'Active') counts[row.course_id] = (counts[row.course_id] ?? 0) + 1;
     }
     return { data: Object.entries(counts).map(([course_id, count]) => ({ course_id, count })), error: null };
-  });
+  }, [canReadEnrollments]);
 
   const handleEdit = (course: Course) => {
     setEditing(course);
@@ -61,7 +70,7 @@ export function CoursesPage() {
   const handleCloseCourse = async () => {
     if (!closeTarget) return;
     setClosing(true);
-    const { error } = await supabase.from('courses').update({ availability_status: 'Closed' }).eq('course_id', closeTarget.course_id);
+    const { error } = await supabase.rpc('rbac_close_course', { p_course_id: closeTarget.course_id });
     setClosing(false);
     if (!error) {
       setCloseTarget(null);
@@ -78,13 +87,12 @@ export function CoursesPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-white font-bold text-xl">إدارة الكورسات</h2>
-          <p className="text-obsidian-300 text-sm mt-1">كل الدورات التدريبية المتاحة بالأكاديمية</p>
+          <h2 className="text-white font-bold text-xl">{translate("إدارة الكورسات")}</h2>
+          <p className="text-obsidian-300 text-sm mt-1">{translate("كل الدورات التدريبية المتاحة بالأكاديمية")}</p>
         </div>
-        <button onClick={handleAdd} className="btn-primary">
+        {canCreateCourse && <button onClick={handleAdd} className="btn-primary">
           <Plus size={18} />
-          إنشاء كورس جديد
-        </button>
+          {translate("إنشاء كورس جديد")}</button>}
       </div>
 
       {/* Filters */}
@@ -93,17 +101,17 @@ export function CoursesPage() {
           <Search size={16} className="text-obsidian-300 shrink-0" />
           <input
             type="text"
-            placeholder="بحث باسم الكورس..."
+            placeholder={translate("بحث باسم الكورس...")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="bg-transparent text-sm text-obsidian-100 placeholder:text-obsidian-300 outline-none w-full"
           />
         </div>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-base w-auto">
-          <option value="">كل الحالات</option>
-          <option value="Active">نشط</option>
-          <option value="Upcoming">قادم</option>
-          <option value="Closed">مغلق</option>
+          <option value="">{translate("كل الحالات")}</option>
+          <option value="Active">{translate("نشط")}</option>
+          <option value="Upcoming">{translate("قادم")}</option>
+          <option value="Closed">{translate("مغلق")}</option>
         </select>
       </div>
 
@@ -113,8 +121,8 @@ export function CoursesPage() {
       ) : !courses || courses.length === 0 ? (
         <div className="card-surface">
           <EmptyState
-            message="لا توجد كورسات منشأة — اضغط على زر إنشاء كورس جديد للبدء"
-            action={<button onClick={handleAdd} className="btn-primary"><Plus size={16} /> إنشاء كورس</button>}
+            message={translate("لا توجد كورسات منشأة — اضغط على زر إنشاء كورس جديد للبدء")}
+            action={canCreateCourse ? <button onClick={handleAdd} className="btn-primary"><Plus size={16} /> {translate("إنشاء كورس")}</button> : undefined}
           />
         </div>
       ) : (
@@ -125,10 +133,10 @@ export function CoursesPage() {
             const capacity = course.max_students;
             const fillPct = capacity ? Math.min((enrolled / capacity) * 100, 100) : 0;
             const links = [
-              { url: course.link_whatsapp, icon: MessageCircle, label: 'واتساب' },
-              { url: course.link_tasks, icon: ListTodo, label: 'المهام' },
-              { url: course.link_drive, icon: HardDrive, label: 'درايف' },
-              { url: course.link_sources, icon: BookMarked, label: 'المصادر' },
+              { url: course.link_whatsapp, icon: MessageCircle, label: translate("واتساب") },
+              { url: course.link_tasks, icon: ListTodo, label: translate("المهام") },
+              { url: course.link_drive, icon: HardDrive, label: translate("درايف") },
+              { url: course.link_sources, icon: BookMarked, label: translate("المصادر") },
             ].filter((l) => l.url);
 
             return (
@@ -138,28 +146,25 @@ export function CoursesPage() {
                     <h3 className="text-white font-bold text-base truncate">{course.course_name}</h3>
                     <div className="flex items-center gap-2 mt-1.5">
                       <Badge variant={sb.variant}>{sb.label}</Badge>
-                      <Badge variant="gray">{course.level ? LEVEL_LABELS[course.level] : '—'}</Badge>
-                      <span className="text-obsidian-300 text-xs">{course.duration_weeks ?? 0} أسبوع</span>
+                      <Badge variant="gray">{course.level ? translate(LEVEL_LABELS[course.level] ?? course.level) : '—'}</Badge>
+                      <span className="text-obsidian-300 text-xs">{course.duration_weeks ?? 0} {translate("أسبوع")}</span>
                     </div>
                   </div>
                   <div className="relative shrink-0">
-                    <button onClick={() => setMenuOpen(menuOpen === course.course_id ? null : course.course_id)} className="btn-ghost p-1.5">
+                    {(canUpdateCourse || canCloseCourse) && <button onClick={() => setMenuOpen(menuOpen === course.course_id ? null : course.course_id)} className="btn-ghost p-1.5">
                       <MoreVertical size={18} />
-                    </button>
+                    </button>}
                     {menuOpen === course.course_id && (
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
                         <div className="absolute top-full left-0 z-20 bg-obsidian-600 border border-obsidian-500/50 rounded-lg shadow-xl py-1 w-44">
                           <button onClick={() => navigate('course-details', { id: course.course_id })} className="w-full text-right px-3 py-2 text-sm text-obsidian-100 hover:bg-obsidian-500/40 flex items-center gap-2">
-                            <Eye size={15} /> التفاصيل والمالية
-                          </button>
-                          <button onClick={() => handleEdit(course)} className="w-full text-right px-3 py-2 text-sm text-obsidian-100 hover:bg-obsidian-500/40 flex items-center gap-2">
-                            <Pencil size={15} /> تعديل
-                          </button>
-                          {course.availability_status !== 'Closed' && (
+                            <Eye size={15} /> {translate("التفاصيل والمالية")}</button>
+                          {canUpdateCourse && <button onClick={() => handleEdit(course)} className="w-full text-right px-3 py-2 text-sm text-obsidian-100 hover:bg-obsidian-500/40 flex items-center gap-2">
+                            <Pencil size={15} /> {translate("تعديل")}</button>}
+                          {canCloseCourse && course.availability_status !== 'Closed' && (
                             <button onClick={() => { setCloseTarget(course); setMenuOpen(null); }} className="w-full text-right px-3 py-2 text-sm text-rose-400 hover:bg-rose-500/10 flex items-center gap-2">
-                              <Lock size={15} /> إغلاق الكورس
-                            </button>
+                              <Lock size={15} /> {translate("إغلاق الكورس")}</button>
                           )}
                         </div>
                       </>
@@ -167,27 +172,31 @@ export function CoursesPage() {
                   </div>
                 </div>
 
-                {/* Seat gauge */}
-                <div className="mb-3">
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="text-obsidian-300">المقاعد</span>
-                    <span className="text-obsidian-100 font-num">
-                      {enrolled}{capacity ? ` / ${capacity}` : ' (غير محدود)'}
-                    </span>
-                  </div>
-                  {capacity && (
-                    <div className="h-2 bg-obsidian-700 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${fillPct >= 100 ? 'bg-rose-500' : fillPct >= 75 ? 'bg-amber-500' : 'bg-emerald-brand'}`}
-                        style={{ width: `${fillPct}%` }}
-                      />
+                {canReadEnrollments && (
+                  <>
+                    {/* Seat gauge */}
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between text-xs mb-1.5">
+                        <span className="text-obsidian-300">{translate("المقاعد")}</span>
+                        <span className="text-obsidian-100 font-num">
+                          {enrolled}{capacity ? ` / ${capacity}` : translate(" (غير محدود)")}
+                        </span>
+                      </div>
+                      {capacity && (
+                        <div className="h-2 bg-obsidian-700 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${fillPct >= 100 ? 'bg-rose-500' : fillPct >= 75 ? 'bg-amber-500' : 'bg-emerald-brand'}`}
+                            style={{ width: `${fillPct}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
 
                 <div className="text-sm mb-3">
-                  <span className="text-obsidian-300">التكلفة: </span>
-                  <span className="text-emerald-light font-num font-bold">{formatEGP(course.default_cost)}</span>
+                  <span className="text-obsidian-300">{translate("التكلفة:")}{' '}</span>
+                  {canReadCoursePricing && course.default_cost != null && <span className="text-emerald-light font-num font-bold">{formatEGP(course.default_cost)}</span>}
                 </div>
 
                 {/* Links */}
@@ -220,9 +229,9 @@ export function CoursesPage() {
         open={!!closeTarget}
         onClose={() => setCloseTarget(null)}
         onConfirm={handleCloseCourse}
-        title="إغلاق الكورس"
-        message={`هل أنت متأكد من إغلاق كورس "${closeTarget?.course_name}"؟ سيتم منع التسجيل الجديد ولكن لن يتم حذف أي بيانات مالية.`}
-        confirmLabel="إغلاق الكورس"
+        title={translate("إغلاق الكورس")}
+        message={translateTemplate('هل أنت متأكد من إغلاق كورس "{course}"؟ سيتم منع التسجيل الجديد ولكن لن يتم حذف أي بيانات مالية.', { course: closeTarget?.course_name ?? '' })}
+        confirmLabel={translate("إغلاق الكورس")}
         loading={closing}
         danger={false}
       />

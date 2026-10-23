@@ -1,10 +1,12 @@
+import { translate, translateTemplate } from '@/lib/translations';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Form';
 import { Alert } from '@/components/ui/Alert';
 import { formatEGP } from '@/lib/format';
-import type { Course, Student } from '@/types/database';
+import type { Course, Student, EnrollmentBalance } from '@/types/database';
+import { useAuth } from '@/context/AuthContext';
 
 interface EnrollFormProps {
   open: boolean;
@@ -13,6 +15,8 @@ interface EnrollFormProps {
 }
 
 export function EnrollForm({ open, onClose, onSaved }: EnrollFormProps) {
+  const { permissions } = useAuth();
+  const canOverridePrice = permissions.includes('enrollments.pricing.override');
   const [step, setStep] = useState(1);
   const [courses, setCourses] = useState<Course[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -31,20 +35,21 @@ export function EnrollForm({ open, onClose, onSaved }: EnrollFormProps) {
       setAgreedCost('');
       setError(null);
       Promise.all([
-        supabase.from('courses').select('*').neq('availability_status', 'Closed').order('course_name'),
-        supabase.from('students').select('*').order('name'),
-        supabase.from('enrollment_balances').select('student_id, course_id'),
+        supabase.rpc('rbac_list_courses', { p_limit: 500, p_offset: 0 }),
+        supabase.rpc('rbac_list_students', { p_search: null, p_limit: 500, p_offset: 0 }),
+        supabase.rpc('rbac_list_enrollments', { p_search: null, p_limit: 500, p_offset: 0 }),
       ]).then(([coursesRes, studentsRes, enrollRes]) => {
-        setCourses(coursesRes.data ?? []);
-        setStudents(studentsRes.data ?? []);
-        setExistingEnrollments(enrollRes.data ?? []);
+        const courses = (coursesRes.data ?? []) as Course[];
+        setCourses(courses.filter((course) => course.availability_status !== 'Closed'));
+        setStudents((studentsRes.data ?? []) as Student[]);
+        setExistingEnrollments(((enrollRes.data ?? []) as EnrollmentBalance[]).map(({ student_id, course_id }) => ({ student_id, course_id })));
       });
     }
   }, [open]);
 
   const handleCourseSelect = (course: Course) => {
     setSelectedCourse(course);
-    setAgreedCost(String(course.default_cost));
+    setAgreedCost(course.default_cost == null ? '' : String(course.default_cost));
     setStep(2);
   };
 
@@ -59,16 +64,16 @@ export function EnrollForm({ open, onClose, onSaved }: EnrollFormProps) {
 
   const handleSubmit = async () => {
     if (!selectedCourse || !selectedStudentId) {
-      setError('يرجى اختيار الطالب');
+      setError(translate("يرجى اختيار الطالب"));
       return;
     }
     setSaving(true);
     setError(null);
 
-    const { error: rpcError } = await supabase.rpc('enroll_student', {
+    const { error: rpcError } = await supabase.rpc('rbac_enroll_student', {
       p_student_id: selectedStudentId,
       p_course_id: selectedCourse.course_id,
-      p_agreed_cost: agreedCost ? parseFloat(agreedCost) : null,
+      p_agreed_cost: canOverridePrice && agreedCost ? parseFloat(agreedCost) : null,
     });
 
     if (rpcError) {
@@ -83,15 +88,15 @@ export function EnrollForm({ open, onClose, onSaved }: EnrollFormProps) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="تسجيل طالب في كورس" subtitle={`الخطوة ${step} من 3`}>
+    <Modal open={open} onClose={onClose} title={translate("تسجيل طالب في كورس")} subtitle={translateTemplate('الخطوة {step} من 3', { step })}>
       <div className="space-y-4">
         {error && <Alert variant="error">{error}</Alert>}
 
         {step === 1 && (
           <div className="space-y-2">
-            <p className="text-sm text-obsidian-200 mb-3">اختر الكورس</p>
+            <p className="text-sm text-obsidian-200 mb-3">{translate("اختر الكورس")}</p>
             {courses.length === 0 ? (
-              <Alert variant="info">لا توجد كورسات متاحة للتسجيل</Alert>
+              <Alert variant="info">{translate("لا توجد كورسات متاحة للتسجيل")}</Alert>
             ) : (
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {courses.map((course) => {
@@ -107,10 +112,10 @@ export function EnrollForm({ open, onClose, onSaved }: EnrollFormProps) {
                       <div className="flex items-center justify-between">
                         <span className="text-white font-medium text-sm">{course.course_name}</span>
                         <span className="text-obsidian-300 text-xs font-num">
-                          {seats !== null ? `${seats} مقاعد متاحة` : 'غير محدود'}
+                          {seats !== null ? translateTemplate('{seats} مقاعد متاحة', { seats }) : translate("غير محدود")}
                         </span>
                       </div>
-                      <p className="text-obsidian-300 text-xs mt-1 font-num">{formatEGP(course.default_cost)}</p>
+                      {course.default_cost != null && <p className="text-obsidian-300 text-xs mt-1 font-num">{formatEGP(course.default_cost)}</p>}
                     </button>
                   );
                 })}
@@ -122,15 +127,15 @@ export function EnrollForm({ open, onClose, onSaved }: EnrollFormProps) {
         {step === 2 && selectedCourse && (
           <div className="space-y-4">
             <div className="bg-obsidian-700/60 rounded-lg p-3 border border-obsidian-500/30">
-              <p className="text-obsidian-300 text-xs">الكورس المختار</p>
+              <p className="text-obsidian-300 text-xs">{translate("الكورس المختار")}</p>
               <p className="text-white font-medium">{selectedCourse.course_name}</p>
               <p className="text-obsidian-300 text-xs mt-1 font-num">
-                {remainingSeats !== null ? `${remainingSeats} مقاعد متاحة` : 'سعة غير محدودة'}
+                {remainingSeats !== null ? translateTemplate('{remainingSeats} مقاعد متاحة', { remainingSeats }) : translate("سعة غير محدودة")}
               </p>
             </div>
-            <p className="text-sm text-obsidian-200">اختر الطالب</p>
+            <p className="text-sm text-obsidian-200">{translate("اختر الطالب")}</p>
             {availableStudents.length === 0 ? (
-              <Alert variant="info">لا يوجد طلاب متاحون للتسجيل — جميع الطلاب مسجلون بالفعل</Alert>
+              <Alert variant="info">{translate("لا يوجد طلاب متاحون للتسجيل — جميع الطلاب مسجلون بالفعل")}</Alert>
             ) : (
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {availableStudents.map((student) => (
@@ -145,7 +150,7 @@ export function EnrollForm({ open, onClose, onSaved }: EnrollFormProps) {
                 ))}
               </div>
             )}
-            <button onClick={() => setStep(1)} className="btn-ghost text-xs">العودة</button>
+            <button onClick={() => setStep(1)} className="btn-ghost text-xs">{translate("العودة")}</button>
           </div>
         )}
 
@@ -153,26 +158,28 @@ export function EnrollForm({ open, onClose, onSaved }: EnrollFormProps) {
           <div className="space-y-4">
             <div className="bg-obsidian-700/60 rounded-lg p-3 border border-obsidian-500/30">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-obsidian-300">الكورس:</span>
+                <span className="text-obsidian-300">{translate("الكورس:")}</span>
                 <span className="text-white font-medium">{selectedCourse.course_name}</span>
               </div>
               <div className="flex items-center justify-between text-sm mt-2">
-                <span className="text-obsidian-300">الطالب:</span>
+                <span className="text-obsidian-300">{translate("الطالب:")}</span>
                 <span className="text-white font-medium">{students.find((s) => s.student_id === selectedStudentId)?.name}</span>
               </div>
             </div>
-            <Input
-              label="المبلغ المتفق عليه (ج.م)"
-              type="number"
-              step="0.01"
-              value={agreedCost}
-              onChange={(e) => setAgreedCost(e.target.value)}
-              hint={`التكلفة الافتراضية: ${formatEGP(selectedCourse.default_cost)}`}
-            />
+            {canOverridePrice ? (
+              <Input
+                label={translate("المبلغ المتفق عليه (ج.م)")}
+                type="number"
+                step="0.01"
+                value={agreedCost}
+                onChange={(e) => setAgreedCost(e.target.value)}
+                hint={selectedCourse.default_cost == null ? translate("سيُستخدم السعر الافتراضي إن تركته فارغاً.") : translateTemplate('التكلفة الافتراضية: {amount}', { amount: formatEGP(selectedCourse.default_cost) })}
+              />
+            ) : <Alert variant="info">{translate("سيُحدد السعر من إعدادات الكورس داخل النظام، ولا يمكنك تغييره من هذا الحساب.")}</Alert>}
             <div className="flex gap-3 justify-between">
-              <button onClick={() => setStep(2)} className="btn-secondary">العودة</button>
+              <button onClick={() => setStep(2)} className="btn-secondary">{translate("العودة")}</button>
               <button onClick={handleSubmit} disabled={saving} className="btn-primary">
-                {saving ? 'جاري التسجيل...' : 'تأكيد التسجيل'}
+                {saving ? translate("جاري التسجيل...") : translate("تأكيد التسجيل")}
               </button>
             </div>
           </div>

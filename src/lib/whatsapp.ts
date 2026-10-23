@@ -3,11 +3,13 @@
  * Generates direct wa.me URLs for trainee payment reminders and communications.
  * No external API or bots needed — 100% free and safe.
  */
+import { getLocale } from '@/context/LocaleContext';
+import { translateTemplate } from '@/lib/translations';
 
 export function formatEgyptPhoneForWhatsApp(phone: string | null | undefined): string | null {
   if (!phone) return null;
   // Remove spaces, dashes, parentheses
-  let cleaned = phone.replace(/[\s\-\(\)\+]/g, '');
+  const cleaned = phone.replace(/[\s()+-]/g, '');
   
   // If starts with 01, convert to 201
   if (cleaned.startsWith('01') && cleaned.length === 11) {
@@ -39,7 +41,14 @@ export function generatePaymentReminderUrl({
   const formattedPhone = formatEgyptPhoneForWhatsApp(phone);
   if (!formattedPhone) return null;
 
-  const message = `مرحباً أستاذ ${studentName}،\nنود تذكيركم من أكاديمية م/ محمد المصري بمتبقي قسط دورة (${courseName}) وقدره ${remainingAmount.toLocaleString('ar-EG')} ج.م.\n\nنتمنى لكم دوام التوفيق والتميز! 🎓`;
+  const locale = getLocale();
+  const amount = new Intl.NumberFormat(locale === 'ar' ? 'ar-EG' : 'en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(remainingAmount);
+  const currencyAmount = locale === 'ar' ? `${amount} ج.م` : `EGP ${amount}`;
+  const message = translateTemplate(
+    'مرحباً أستاذ {student}،\nنود تذكيركم من أكاديمية المصري بمتبقي قسط الدورة التدريبية «{course}» وقدره {amount}.\n\nنتمنى لكم دوام التوفيق والتميز! 🎓',
+    { student: studentName, course: courseName, amount: currencyAmount },
+    locale,
+  );
 
   return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
 }

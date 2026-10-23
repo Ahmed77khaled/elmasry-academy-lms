@@ -1,3 +1,4 @@
+import { translate } from '@/lib/translations';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Modal } from '@/components/ui/Modal';
@@ -29,14 +30,20 @@ export function CourseForm({ open, onClose, onSaved, course }: CourseFormProps) 
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [canEditPrice, setCanEditPrice] = useState(false);
 
   useEffect(() => {
     if (open) {
       setError(null);
+      void supabase.rpc('get_my_authorization').then(({ data, error: authError }) => {
+        const authorization = Array.isArray(data) ? data[0] : data;
+        const permissions = Array.isArray(authorization?.permissions) ? authorization.permissions : [];
+        setCanEditPrice(!authError && permissions.includes('courses.pricing.update'));
+      }, () => setCanEditPrice(false));
       if (course) {
         setForm({
           course_name: course.course_name,
-          default_cost: String(course.default_cost),
+          default_cost: course.default_cost == null ? '' : String(course.default_cost),
           availability_status: course.availability_status,
           level: course.level ?? 'Beginner',
           duration_weeks: course.duration_weeks ? String(course.duration_weeks) : '4',
@@ -61,88 +68,93 @@ export function CourseForm({ open, onClose, onSaved, course }: CourseFormProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.course_name.trim()) {
-      setError('اسم الكورس مطلوب');
+      setError(translate("اسم الكورس مطلوب"));
       return;
     }
     setSaving(true);
     setError(null);
 
     const payload = {
-      course_name: form.course_name.trim(),
-      default_cost: form.default_cost ? parseFloat(form.default_cost) : 0,
-      availability_status: form.availability_status,
-      level: form.level,
-      duration_weeks: parseInt(form.duration_weeks) || 4,
-      max_students: form.max_students ? parseInt(form.max_students) : null,
-      prerequisite_courses: form.prerequisite_courses.trim() || null,
-      description: form.description.trim() || null,
-      link_whatsapp: form.link_whatsapp.trim() || null,
-      link_tasks: form.link_tasks.trim() || null,
-      link_drive: form.link_drive.trim() || null,
-      link_sources: form.link_sources.trim() || null,
+      p_course_name: form.course_name.trim(),
+      p_description: form.description.trim() || null,
+      p_level: form.level,
+      p_duration_weeks: parseInt(form.duration_weeks) || 4,
+      p_prerequisite_courses: form.prerequisite_courses.trim() || null,
+      p_start_date: course?.start_date ?? null,
+      p_end_date: course?.end_date ?? null,
+      p_max_students: form.max_students ? parseInt(form.max_students) : null,
+      p_default_cost: canEditPrice && form.default_cost ? parseFloat(form.default_cost) : null,
+      p_availability_status: form.availability_status,
+      p_link_whatsapp: form.link_whatsapp.trim() || null,
+      p_link_tasks: form.link_tasks.trim() || null,
+      p_link_drive: form.link_drive.trim() || null,
+      p_link_sources: form.link_sources.trim() || null,
     };
 
     try {
       if (course) {
-        const { error: err } = await supabase.from('courses').update(payload).eq('course_id', course.course_id);
+        const { error: err } = await supabase.rpc('rbac_update_course', {
+          p_course_id: course.course_id,
+          ...payload,
+        });
         if (err) throw err;
       } else {
-        const { error: err } = await supabase.from('courses').insert(payload);
+        const { error: err } = await supabase.rpc('rbac_create_course', payload);
         if (err) throw err;
       }
       onSaved();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'حدث خطأ أثناء الحفظ');
+      setError(err instanceof Error ? err.message : translate("حدث خطأ أثناء الحفظ"));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={course ? 'تعديل الكورس' : 'إنشاء كورس جديد'} subtitle="أدخل تفاصيل الكورس والموارد" size="lg">
+    <Modal open={open} onClose={onClose} title={course ? translate("تعديل الكورس") : translate("إنشاء كورس جديد")} subtitle={translate("أدخل تفاصيل الكورس والموارد")} size="lg">
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <Alert variant="error">{error}</Alert>}
-        <Input label="اسم الكورس" placeholder="اسم الكورس التدريبي" required value={form.course_name} onChange={(e) => setForm({ ...form, course_name: e.target.value })} />
+        <Input label={translate("اسم الكورس")} placeholder={translate("اسم الكورس التدريبي")} required value={form.course_name} onChange={(e) => setForm({ ...form, course_name: e.target.value })} />
         <div className="grid grid-cols-2 gap-4">
-          <Input label="التكلفة الافتراضية (ج.م)" type="number" step="0.01" placeholder="1500" value={form.default_cost} onChange={(e) => setForm({ ...form, default_cost: e.target.value })} />
-          <Input label="المدة (أسابيع)" type="number" placeholder="4" value={form.duration_weeks} onChange={(e) => setForm({ ...form, duration_weeks: e.target.value })} />
+          {canEditPrice && <Input label={translate("التكلفة الافتراضية (ج.م)")} type="number" step="0.01" placeholder="1500" value={form.default_cost} onChange={(e) => setForm({ ...form, default_cost: e.target.value })} />}
+          <Input label={translate("المدة (أسابيع)")} type="number" placeholder="4" value={form.duration_weeks} onChange={(e) => setForm({ ...form, duration_weeks: e.target.value })} />
         </div>
         <div className="grid grid-cols-3 gap-4">
           <Select
-            label="الحالة"
+            label={translate("الحالة")}
             value={form.availability_status}
             onChange={(e) => setForm({ ...form, availability_status: e.target.value })}
             options={[
-              { value: 'Upcoming', label: 'قادم' },
-              { value: 'Active', label: 'نشط' },
-              { value: 'Closed', label: 'مغلق' },
+              { value: 'Upcoming', label: translate("قادم") },
+              { value: 'Active', label: translate("نشط") },
+              { value: 'Closed', label: translate("مغلق") },
             ]}
           />
           <Select
-            label="المستوى"
+            label={translate("المستوى")}
             value={form.level}
             onChange={(e) => setForm({ ...form, level: e.target.value })}
             options={[
-              { value: 'Beginner', label: 'مبتدئ' },
-              { value: 'Intermediate', label: 'متوسط' },
-              { value: 'Advanced', label: 'متقدم' },
+              { value: 'Beginner', label: translate("مبتدئ") },
+              { value: 'Intermediate', label: translate("متوسط") },
+              { value: 'Advanced', label: translate("متقدم") },
             ]}
           />
-          <Input label="السعة (اتركه فارغاً = غير محدود)" type="number" placeholder="30" value={form.max_students} onChange={(e) => setForm({ ...form, max_students: e.target.value })} />
+          <Input label={translate("السعة (اتركه فارغاً = غير محدود)")} type="number" placeholder="30" value={form.max_students} onChange={(e) => setForm({ ...form, max_students: e.target.value })} />
         </div>
-        <Textarea label="المتطلبات السابقة" rows={2} placeholder="الكورسات المطلوبة قبل هذا الكورس" value={form.prerequisite_courses} onChange={(e) => setForm({ ...form, prerequisite_courses: e.target.value })} />
-        <Textarea label="الوصف" rows={2} placeholder="وصف مختصر للكورس" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        <Textarea label={translate("المتطلبات السابقة")} rows={2} placeholder={translate("الكورسات المطلوبة قبل هذا الكورس")} value={form.prerequisite_courses} onChange={(e) => setForm({ ...form, prerequisite_courses: e.target.value })} />
+        <Textarea label={translate("الوصف")} rows={2} placeholder={translate("وصف مختصر للكورس")} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         <div className="grid grid-cols-2 gap-4">
-          <Input label="رابط جروب واتساب" placeholder="https://..." value={form.link_whatsapp} onChange={(e) => setForm({ ...form, link_whatsapp: e.target.value })} />
-          <Input label="رابط منصة المهام" placeholder="https://..." value={form.link_tasks} onChange={(e) => setForm({ ...form, link_tasks: e.target.value })} />
-          <Input label="رابط جوجل درايف" placeholder="https://..." value={form.link_drive} onChange={(e) => setForm({ ...form, link_drive: e.target.value })} />
-          <Input label="رابط المصادر" placeholder="https://..." value={form.link_sources} onChange={(e) => setForm({ ...form, link_sources: e.target.value })} />
+          <Input label={translate("رابط جروب واتساب")} placeholder="https://..." value={form.link_whatsapp} onChange={(e) => setForm({ ...form, link_whatsapp: e.target.value })} />
+          <Input label={translate("رابط منصة المهام")} placeholder="https://..." value={form.link_tasks} onChange={(e) => setForm({ ...form, link_tasks: e.target.value })} />
+          <Input label={translate("رابط جوجل درايف")} placeholder="https://..." value={form.link_drive} onChange={(e) => setForm({ ...form, link_drive: e.target.value })} />
+          <Input label={translate("رابط المصادر")} placeholder="https://..." value={form.link_sources} onChange={(e) => setForm({ ...form, link_sources: e.target.value })} />
         </div>
         <FormActions>
-          <button type="button" onClick={onClose} className="btn-secondary">إلغاء</button>
+          <button type="button" onClick={onClose} className="btn-secondary">{translate("إلغاء")}</button>
           <button type="submit" disabled={saving} className="btn-primary">
-            {saving ? 'جاري الحفظ...' : course ? 'حفظ التعديلات' : 'إنشاء الكورس'}
+            {saving ? translate("جاري الحفظ...") : course ? translate("حفظ التعديلات") : translate("إنشاء الكورس")}
           </button>
         </FormActions>
       </form>

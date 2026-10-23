@@ -1,3 +1,5 @@
+import { translate } from '@/lib/translations';
+import { translateTemplate } from '@/lib/translations';
 import { useState } from 'react';
 import { Plus, Ban, Search, FileSpreadsheet, Calendar } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
@@ -12,6 +14,7 @@ import { formatEGP, formatDate } from '@/lib/format';
 import { exportToCSV } from '@/lib/exportExcel';
 import { isDateInRange, DateRangePreset } from '@/lib/dateRange';
 import type { Expense } from '@/types/database';
+import { useAuth } from '@/context/AuthContext';
 
 const CATEGORY_LABELS: Record<string, string> = {
   'Rent': 'إيجار',
@@ -39,6 +42,10 @@ interface ExpenseTableRow extends Expense {
 }
 
 export function ExpensesPage() {
+  const { permissions } = useAuth();
+  const canRecordExpenses = permissions.includes('finance.expenses.record');
+  const canVoidExpenses = permissions.includes('finance.expenses.void');
+  const canExportExpenses = permissions.includes('finance.expenses.export');
   const [formOpen, setFormOpen] = useState(false);
   const [voidTarget, setVoidTarget] = useState<ExpenseTableRow | null>(null);
   const [voiding, setVoiding] = useState(false);
@@ -53,40 +60,29 @@ export function ExpensesPage() {
   const [customEnd, setCustomEnd] = useState('');
 
   const { data: expenses, loading, refetch } = useQuery<ExpenseTableRow[]>(async () => {
-    const { data, error } = await supabase
-      .from('expenses')
-      .select(`
-        expense_id,
-        cash_box_id,
-        course_id,
-        amount,
-        category,
-        description,
-        expense_date,
-        notes,
-        voided_at,
-        voided_by,
-        void_reason,
-        created_at,
-        cash_boxes ( name ),
-        courses ( course_name )
-      `)
-      .order('expense_date', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(200);
-    return { data: (data ?? []) as unknown as ExpenseTableRow[], error: error?.message ?? null };
-  });
+    const { data, error } = await supabase.rpc('rbac_list_expenses', { p_limit: 500, p_offset: 0 });
+    if (error) return { data: null, error: error.message };
+    const rows = ((data ?? []) as unknown as (ExpenseTableRow & { cash_box_name: string; course_name: string | null })[]).map((expense) => ({
+      ...expense,
+      cash_boxes: { name: expense.cash_box_name },
+      courses: expense.course_name ? { course_name: expense.course_name } : null,
+    })) as unknown as ExpenseTableRow[];
+    const normalizedSearch = search.trim().toLocaleLowerCase();
+    const filtered = categoryFilter ? rows.filter((expense) => expense.category === categoryFilter) : rows;
+    return { data: normalizedSearch ? filtered.filter((expense) =>
+      `${expense.description ?? ''} ${expense.cash_boxes?.name ?? ''} ${expense.courses?.course_name ?? ''}`.toLocaleLowerCase().includes(normalizedSearch)) : filtered, error: null };
+  }, [search, categoryFilter]);
 
   const handleVoid = async () => {
-    if (!voidTarget) return;
+    if (!voidTarget || !canVoidExpenses) return;
     const reason = voidReason.trim();
     if (reason.length < 5) {
-      setVoidError('اكتب سبب الإلغاء (5 أحرف على الأقل).');
+      setVoidError(translate("اكتب سبب الإلغاء (5 أحرف على الأقل)."));
       return;
     }
     setVoiding(true);
     setVoidError(null);
-    const { error } = await supabase.rpc('void_expense', {
+    const { error } = await supabase.rpc('rbac_void_expense', {
       p_expense_id: voidTarget.expense_id,
       p_void_reason: reason,
     });
@@ -117,7 +113,7 @@ export function ExpensesPage() {
     const q = search.toLowerCase();
     const desc = exp.description?.toLowerCase() ?? '';
     const notes = exp.notes?.toLowerCase() ?? '';
-    const cat = (CATEGORY_LABELS[exp.category] ?? exp.category).toLowerCase();
+    const cat = translate(CATEGORY_LABELS[exp.category] ?? exp.category).toLowerCase();
     const box = exp.cash_boxes?.name?.toLowerCase() ?? '';
     const course = exp.courses?.course_name?.toLowerCase() ?? '';
     return desc.includes(q) || notes.includes(q) || cat.includes(q) || box.includes(q) || course.includes(q);
@@ -130,33 +126,34 @@ export function ExpensesPage() {
 
   // Export to Excel handler
   const handleExportExcel = () => {
+    if (!canExportExpenses) return;
     const headers = [
-      'تاريخ الصرف',
-      'التصنيف',
-      'الوصف',
-      'الخزينة',
-      'الدورة التدريبية',
-      'المبلغ (ج.م)',
-      'حالة السند',
-      'سبب الإلغاء',
-      'ملاحظات',
+      translate("تاريخ الصرف"),
+      translate("التصنيف"),
+      translate("الوصف"),
+      translate("الخزينة"),
+      translate("الدورة التدريبية"),
+      translate("المبلغ (ج.م)"),
+      translate("حالة السند"),
+      translate("سبب الإلغاء"),
+      translate("ملاحظات"),
     ];
 
     const rows = filteredExpenses.map((exp) => [
       exp.expense_date,
-      CATEGORY_LABELS[exp.category] ?? exp.category,
+      translate(CATEGORY_LABELS[exp.category] ?? exp.category),
       exp.description ?? '—',
       exp.cash_boxes?.name ?? '—',
-      exp.courses?.course_name ?? 'عام للأكاديمية',
+      exp.courses?.course_name ?? translate("عام للأكاديمية"),
       exp.amount,
-      exp.voided_at ? 'ملغى' : 'معتمد',
+      exp.voided_at ? translate("ملغى") : translate("معتمد"),
       exp.void_reason ?? '',
       exp.notes ?? '',
     ]);
 
     const dateSuffix = new Date().toISOString().slice(0, 10);
     exportToCSV({
-      filename: `تقرير_المصروفات_${dateSuffix}`,
+      filename: translateTemplate('تقرير_المصروفات_{date}', { date: dateSuffix }),
       headers,
       rows,
     });
@@ -166,22 +163,20 @@ export function ExpensesPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-white font-bold text-xl">إدارة المصروفات</h2>
-          <p className="text-obsidian-300 text-sm mt-1">كل المصروفات التشغيلية وسندات الصرف للأكاديمية</p>
+          <h2 className="text-white font-bold text-xl">{translate("إدارة المصروفات")}</h2>
+          <p className="text-obsidian-300 text-sm mt-1">{translate("كل المصروفات التشغيلية وسندات الصرف للأكاديمية")}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          {canExportExpenses && <button
             onClick={handleExportExcel}
             className="btn-secondary flex items-center gap-2 text-sm bg-obsidian-700 hover:bg-obsidian-600 text-emerald-light border border-emerald-500/30"
-            title="تصدير السجلات المعروضة لملف إكسيل"
+            title={translate("تصدير السجلات المعروضة لملف إكسيل")}
           >
             <FileSpreadsheet size={16} />
-            تصدير إكسيل
-          </button>
-          <button onClick={() => setFormOpen(true)} className="btn-primary">
+            {translate("تصدير إكسيل")}</button>}
+          {canRecordExpenses && <button onClick={() => setFormOpen(true)} className="btn-primary">
             <Plus size={18} />
-            تسجيل مصروف جديد
-          </button>
+            {translate("تسجيل مصروف جديد")}</button>}
         </div>
       </div>
 
@@ -193,7 +188,7 @@ export function ExpensesPage() {
             <Search size={16} className="text-obsidian-300 shrink-0" />
             <input
               type="text"
-              placeholder="بحث بالوصف، التصنيف، الخزينة، أو الملاحظات..."
+              placeholder={translate("بحث بالوصف، التصنيف، الخزينة، أو الملاحظات...")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="bg-transparent text-sm text-obsidian-100 placeholder:text-obsidian-300 outline-none w-full"
@@ -206,10 +201,10 @@ export function ExpensesPage() {
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="input-base w-auto text-sm"
           >
-            <option value="">كل التصنيفات</option>
+            <option value="">{translate("كل التصنيفات")}</option>
             {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
               <option key={key} value={key}>
-                {label}
+                {translate(label)}
               </option>
             ))}
           </select>
@@ -222,11 +217,11 @@ export function ExpensesPage() {
               onChange={(e) => setDatePreset(e.target.value as DateRangePreset)}
               className="bg-transparent text-sm text-obsidian-100 outline-none py-1 cursor-pointer"
             >
-              <option value="all" className="bg-obsidian-800 text-white">كل الفترات</option>
-              <option value="today" className="bg-obsidian-800 text-white">اليوم</option>
-              <option value="this_week" className="bg-obsidian-800 text-white">هذا الأسبوع</option>
-              <option value="this_month" className="bg-obsidian-800 text-white">هذا الشهر</option>
-              <option value="custom" className="bg-obsidian-800 text-white">فترة مخصصة...</option>
+              <option value="all" className="bg-obsidian-800 text-white">{translate("كل الفترات")}</option>
+              <option value="today" className="bg-obsidian-800 text-white">{translate("اليوم")}</option>
+              <option value="this_week" className="bg-obsidian-800 text-white">{translate("هذا الأسبوع")}</option>
+              <option value="this_month" className="bg-obsidian-800 text-white">{translate("هذا الشهر")}</option>
+              <option value="custom" className="bg-obsidian-800 text-white">{translate("فترة مخصصة...")}</option>
             </select>
           </div>
         </div>
@@ -234,14 +229,14 @@ export function ExpensesPage() {
         {/* Custom Date Inputs */}
         {datePreset === 'custom' && (
           <div className="flex items-center gap-3 pt-2 border-t border-obsidian-500/20 text-xs">
-            <span className="text-obsidian-300 font-medium">من تاريخ:</span>
+            <span className="text-obsidian-300 font-medium">{translate("من تاريخ:")}</span>
             <input
               type="date"
               value={customStart}
               onChange={(e) => setCustomStart(e.target.value)}
               className="input-base w-auto py-1 px-2 text-xs"
             />
-            <span className="text-obsidian-300 font-medium">إلى تاريخ:</span>
+            <span className="text-obsidian-300 font-medium">{translate("إلى تاريخ:")}</span>
             <input
               type="date"
               value={customEnd}
@@ -254,10 +249,10 @@ export function ExpensesPage() {
         {/* Filter Summary Bar */}
         <div className="flex items-center justify-between text-xs text-obsidian-300 pt-1">
           <div>
-            عدد السندات المعروضة: <span className="font-num text-white font-semibold">{filteredExpenses.length}</span>
+            {translate("عدد السندات المعروضة:")}{' '}<span className="font-num text-white font-semibold">{filteredExpenses.length}</span>
           </div>
           <div>
-            إجمالي المصروفات المعتمدة: <span className="font-num text-rose-400 font-bold text-sm">{formatEGP(activeFilteredTotal)}</span>
+            {translate("إجمالي المصروفات المعتمدة:")}{' '}<span className="font-num text-rose-400 font-bold text-sm">{formatEGP(activeFilteredTotal)}</span>
           </div>
         </div>
       </div>
@@ -267,21 +262,21 @@ export function ExpensesPage() {
           <PageLoader />
         ) : filteredExpenses.length === 0 ? (
           <EmptyState
-            message="لا توجد مصروفات مطابقة للبحث أو الفترة المحددة — اضغط على زر تسجيل مصروف جديد للبدء"
-            action={<button onClick={() => setFormOpen(true)} className="btn-primary"><Plus size={16} /> تسجيل مصروف</button>}
+            message={translate("لا توجد مصروفات مطابقة للبحث أو الفترة المحددة — اضغط على زر تسجيل مصروف جديد للبدء")}
+            action={canRecordExpenses ? <button onClick={() => setFormOpen(true)} className="btn-primary"><Plus size={16} /> {translate("تسجيل مصروف")}</button> : undefined}
           />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-obsidian-300 text-xs border-b border-obsidian-500/30">
-                  <th className="text-right font-medium px-4 py-3">التاريخ</th>
-                  <th className="text-right font-medium px-4 py-3">التصنيف</th>
-                  <th className="text-right font-medium px-4 py-3">الوصف</th>
-                  <th className="text-right font-medium px-4 py-3 hidden md:table-cell">الخزينة</th>
-                  <th className="text-right font-medium px-4 py-3 hidden lg:table-cell">كورس مرتبط</th>
-                  <th className="text-right font-medium px-4 py-3">المبلغ</th>
-                  <th className="text-right font-medium px-4 py-3">إجراء</th>
+                  <th className="text-right font-medium px-4 py-3">{translate("التاريخ")}</th>
+                  <th className="text-right font-medium px-4 py-3">{translate("التصنيف")}</th>
+                  <th className="text-right font-medium px-4 py-3">{translate("الوصف")}</th>
+                  <th className="text-right font-medium px-4 py-3 hidden md:table-cell">{translate("الخزينة")}</th>
+                  <th className="text-right font-medium px-4 py-3 hidden lg:table-cell">{translate("كورس مرتبط")}</th>
+                  <th className="text-right font-medium px-4 py-3">{translate("المبلغ")}</th>
+                  <th className="text-right font-medium px-4 py-3">{translate("إجراء")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -297,22 +292,21 @@ export function ExpensesPage() {
                       <td className="px-4 py-3 text-obsidian-300 font-num text-xs">{formatDate(exp.expense_date)}</td>
                       <td className="px-4 py-3">
                         <Badge variant={CATEGORY_VARIANTS[exp.category] ?? 'gray'}>
-                          {CATEGORY_LABELS[exp.category] ?? exp.category}
+                          {translate(CATEGORY_LABELS[exp.category] ?? exp.category)}
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-obsidian-100">{exp.description ?? '—'}</td>
                       <td className="px-4 py-3 text-obsidian-200 hidden md:table-cell">{exp.cash_boxes?.name ?? '—'}</td>
-                      <td className="px-4 py-3 text-obsidian-200 hidden lg:table-cell">{exp.courses?.course_name ?? 'عام للسنتر'}</td>
+                      <td className="px-4 py-3 text-obsidian-200 hidden lg:table-cell">{exp.courses?.course_name ?? translate("عام للسنتر")}</td>
                       <td className={`px-4 py-3 font-num font-bold text-rose-400 ${isVoided ? 'line-through' : ''}`}>
                         {formatEGP(exp.amount)}
                       </td>
                       <td className="px-4 py-3">
                         {isVoided ? (
-                          <span title={exp.void_reason ?? 'مصروف ملغى'} className="text-xs text-rose-300">
-                            ملغى
-                          </span>
+                          <span title={exp.void_reason ?? translate("مصروف ملغى")} className="text-xs text-rose-300">
+                            {translate("ملغى")}</span>
                         ) : (
-                          <button
+                          canVoidExpenses && <button
                             onClick={() => {
                               setVoidError(null);
                               setVoidReason('');
@@ -320,8 +314,7 @@ export function ExpensesPage() {
                             }}
                             className="btn-danger px-2.5 py-1.5 text-xs flex items-center gap-1"
                           >
-                            <Ban size={14} /> إلغاء
-                          </button>
+                            <Ban size={14} /> {translate("إلغاء")}</button>
                         )}
                       </td>
                     </tr>
@@ -333,9 +326,9 @@ export function ExpensesPage() {
         )}
       </div>
 
-      <ExpenseForm open={formOpen} onClose={() => setFormOpen(false)} onSaved={refetch} />
+      {canRecordExpenses && <ExpenseForm open={formOpen} onClose={() => setFormOpen(false)} onSaved={refetch} />}
       <ConfirmDialog
-        open={!!voidTarget}
+        open={canVoidExpenses && !!voidTarget}
         onClose={() => {
           if (voiding) return;
           setVoidTarget(null);
@@ -343,16 +336,16 @@ export function ExpensesPage() {
           setVoidError(null);
         }}
         onConfirm={handleVoid}
-        title="إلغاء المصروف"
-        message={`سيتم إلغاء المصروف بقيمة ${formatEGP(voidTarget?.amount ?? 0)} مع الاحتفاظ بسجله، واستبعاده من الأرصدة والتقارير.`}
-        confirmLabel="إلغاء المصروف"
+        title={translate("إلغاء المصروف")}
+        message={translateTemplate('سيتم إلغاء المصروف بقيمة {amount} مع الاحتفاظ بسجله، واستبعاده من الأرصدة والتقارير.', { amount: formatEGP(voidTarget?.amount ?? 0) })}
+        confirmLabel={translate("إلغاء المصروف")}
         loading={voiding}
         confirmDisabled={voidReason.trim().length < 5}
         danger
       >
         <Textarea
-          label="سبب الإلغاء (إلزامي)"
-          placeholder="اذكر سبب إلغاء المصروف"
+          label={translate("سبب الإلغاء (إلزامي)")}
+          placeholder={translate("اذكر سبب إلغاء المصروف")}
           rows={3}
           minLength={5}
           maxLength={500}

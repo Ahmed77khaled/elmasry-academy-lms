@@ -15,7 +15,7 @@ export interface Student {
 export interface Course {
   course_id: string;
   course_name: string;
-  default_cost: number;
+  default_cost: number | null;
   availability_status: 'Upcoming' | 'Active' | 'Closed';
   level: 'Beginner' | 'Intermediate' | 'Advanced' | null;
   duration_weeks: number | null;
@@ -48,7 +48,7 @@ export interface Enrollment {
   enrollment_id: string;
   student_id: string;
   course_id: string;
-  agreed_cost: number;
+  agreed_cost: number | null;
   status: 'Active' | 'Completed' | 'Dropped';
   enrolled_at: string;
   updated_at?: string;
@@ -106,12 +106,12 @@ export interface EnrollmentBalance {
   course_id: string;
   student_name: string;
   course_name: string;
-  agreed_cost: number;
+  agreed_cost: number | null;
   enrollment_status: 'Active' | 'Completed' | 'Dropped';
   enrolled_at: string;
-  total_paid: number;
-  remaining_balance: number;
-  payment_status: 'Paid' | 'Partial' | 'Unpaid' | 'Overpaid';
+  total_paid: number | null;
+  remaining_balance: number | null;
+  payment_status: 'Paid' | 'Partial' | 'Unpaid' | 'Overpaid' | null;
 }
 
 export interface CashBoxBalance {

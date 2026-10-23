@@ -1,3 +1,5 @@
+import { translate } from '@/lib/translations';
+import { translateTemplate } from '@/lib/translations';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Modal } from '@/components/ui/Modal';
@@ -6,6 +8,7 @@ import { Alert } from '@/components/ui/Alert';
 import { formatEGP } from '@/lib/format';
 import { UserPlus, UserCheck, CreditCard } from 'lucide-react';
 import type { Course, Student, CashBoxBalance } from '@/types/database';
+import { useAuth } from '@/context/AuthContext';
 
 interface QuickEnrollModalProps {
   open: boolean;
@@ -22,6 +25,11 @@ export function QuickEnrollModal({
   preselectedCourseId,
   preselectedStudentId,
 }: QuickEnrollModalProps) {
+  const { permissions } = useAuth();
+  const canOverridePrice = permissions.includes('enrollments.pricing.override');
+  const canRecordPayment = permissions.includes('finance.payments.record');
+  const canManagePhone = permissions.includes('students.read_contact_phone');
+  const canManageEmail = permissions.includes('students.email.update');
   const [courses, setCourses] = useState<Course[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [cashBoxes, setCashBoxes] = useState<CashBoxBalance[]>([]);
@@ -66,34 +74,35 @@ export function QuickEnrollModal({
       }
 
       Promise.all([
-        supabase.from('courses').select('*').neq('availability_status', 'Closed').order('course_name'),
-        supabase.from('students').select('*').order('name'),
-        supabase.from('cash_box_balances').select('*').eq('is_active', true),
+        supabase.rpc('rbac_list_courses', { p_limit: 500, p_offset: 0 }),
+        supabase.rpc('rbac_list_students', { p_search: null, p_limit: 500, p_offset: 0 }),
+        canRecordPayment ? supabase.rpc('rbac_list_cash_boxes') : Promise.resolve({ data: [], error: null }),
       ]).then(([coursesRes, studentsRes, boxesRes]) => {
-        setCourses(coursesRes.data ?? []);
-        setStudents(studentsRes.data ?? []);
-        const boxes = (boxesRes.data ?? []) as unknown as CashBoxBalance[];
+        const openCourses = ((coursesRes.data ?? []) as Course[]).filter((course) => course.availability_status !== 'Closed');
+        setCourses(openCourses as Course[]);
+        setStudents((studentsRes.data ?? []) as Student[]);
+        const boxes = (boxesRes.data ?? []) as CashBoxBalance[];
         setCashBoxes(boxes);
         if (boxes.length > 0) setPaymentBoxId(boxes[0].cash_box_id);
 
         if (preselectedCourseId) {
-          const c = coursesRes.data?.find((x) => x.course_id === preselectedCourseId);
-          if (c) setAgreedCost(String(c.default_cost));
+          const c = openCourses.find((x) => x.course_id === preselectedCourseId);
+          if (c) setAgreedCost(c.default_cost == null ? '' : String(c.default_cost));
         }
       });
     }
-  }, [open, preselectedCourseId, preselectedStudentId]);
+  }, [open, preselectedCourseId, preselectedStudentId, canRecordPayment]);
 
   const handleCourseChange = (id: string) => {
     setCourseId(id);
     const c = courses.find((x) => x.course_id === id);
-    if (c) setAgreedCost(String(c.default_cost));
+    if (c) setAgreedCost(c.default_cost == null ? '' : String(c.default_cost));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!courseId) {
-      setError('يرجى اختيار الكورس');
+      setError(translate("يرجى اختيار الكورس"));
       return;
     }
 
@@ -106,50 +115,50 @@ export function QuickEnrollModal({
       // 1. If new student, create the student first
       if (studentMode === 'new') {
         if (!newName.trim()) {
-          throw new Error('اسم الطالب مطلوب');
+          throw new Error(translate("اسم الطالب مطلوب"));
         }
-        const { data: newStudent, error: sErr } = await supabase
-          .from('students')
-          .insert({
-            name: newName.trim(),
-            phone: newPhone.trim() || null,
-            email: newEmail.trim() || null,
-            employment_status: newEmployment,
-            grad_status: newGrad,
-            notes: newNotes.trim() || null,
-          })
-          .select()
-          .single();
+        const { data: newStudent, error: sErr } = await supabase.rpc('rbac_create_student', {
+          p_name: newName.trim(),
+          p_phone: canManagePhone ? newPhone.trim() || null : null,
+          p_email: canManageEmail ? newEmail.trim() || null : null,
+          p_employment_status: newEmployment,
+          p_grad_status: newGrad,
+          p_grad_college: null,
+          p_previous_courses: null,
+          p_notes: newNotes.trim() || null,
+        });
 
         if (sErr) throw sErr;
-        finalStudentId = newStudent.student_id;
+        if (typeof newStudent !== 'string') throw new Error(translate("تعذر استلام رقم الطالب الجديد"));
+        finalStudentId = newStudent;
       } else {
         if (!finalStudentId) {
-          throw new Error('يرجى اختيار الطالب المسجل');
+          throw new Error(translate("يرجى اختيار الطالب المسجل"));
         }
       }
 
       // 2. Enroll student into course via RPC
-      const costNum = agreedCost ? parseFloat(agreedCost) : null;
-      const { data: enrData, error: enrErr } = await supabase.rpc('enroll_student', {
+      const costNum = canOverridePrice && agreedCost ? parseFloat(agreedCost) : null;
+      const { data: enrData, error: enrErr } = await supabase.rpc('rbac_enroll_student', {
         p_student_id: finalStudentId,
         p_course_id: courseId,
         p_agreed_cost: costNum,
       });
 
       if (enrErr) throw enrErr;
+      const enrollment = Array.isArray(enrData) ? enrData[0] : enrData;
 
       // 3. If immediate payment was checked, record initial payment
       const pAmt = parseFloat(paymentAmount) || 0;
-      if (withPayment && pAmt > 0 && enrData?.enrollment_id && paymentBoxId) {
-        const { error: payErr } = await supabase.rpc('record_payment', {
-          p_enrollment_id: enrData.enrollment_id,
+      if (withPayment && canRecordPayment && pAmt > 0 && enrollment?.enrollment_id && paymentBoxId) {
+        const { error: payErr } = await supabase.rpc('rbac_record_payment', {
+          p_enrollment_id: enrollment.enrollment_id,
           p_cash_box_id: paymentBoxId,
           p_amount: pAmt,
           p_payment_date: new Date().toISOString().split('T')[0],
           p_method: paymentMethod,
           p_receipt_ref: receiptRef.trim() || null,
-          p_notes: 'دفعة تسجيل أولى فورية',
+          p_notes: translate("دفعة تسجيل أولى فورية"),
         });
         if (payErr) {
           console.warn('Enrollment succeeded but initial payment failed:', payErr.message);
@@ -159,7 +168,7 @@ export function QuickEnrollModal({
       onSaved();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'حدث خطأ أثناء التسجيل');
+      setError(err instanceof Error ? err.message : translate("حدث خطأ أثناء التسجيل"));
     } finally {
       setSaving(false);
     }
@@ -171,8 +180,8 @@ export function QuickEnrollModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="تسجيل طالب في الكورس"
-      subtitle={selectedCourse ? `إضافة طالب إلى «${selectedCourse.course_name}»` : 'اختر الكورس والطالب'}
+      title={translate("تسجيل طالب في الكورس")}
+      subtitle={selectedCourse ? translateTemplate('إضافة طالب إلى «{course}»', { course: selectedCourse.course_name }) : translate("اختر الكورس والطالب")}
       size="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -181,14 +190,16 @@ export function QuickEnrollModal({
         {/* Course selection */}
         {!preselectedCourseId && (
           <Select
-            label="الكورس التدريبي"
+            label={translate("الكورس التدريبي")}
             value={courseId}
             onChange={(e) => handleCourseChange(e.target.value)}
             options={[
-              { value: '', label: '-- اختر الكورس --' },
+              { value: '', label: translate("-- اختر الكورس --") },
               ...courses.map((c) => ({
                 value: c.course_id,
-                label: `${c.course_name} (التكلفة: ${formatEGP(c.default_cost)})`,
+                label: c.default_cost == null
+                  ? c.course_name
+                  : translateTemplate('{course} (التكلفة: {amount})', { course: c.course_name, amount: formatEGP(c.default_cost) }),
               })),
             ]}
             required
@@ -208,8 +219,7 @@ export function QuickEnrollModal({
               }`}
             >
               <UserCheck size={16} />
-              طالب مسجل بالفعل
-            </button>
+              {translate("طالب مسجل بالفعل")}</button>
             <button
               type="button"
               onClick={() => setStudentMode('new')}
@@ -220,19 +230,18 @@ export function QuickEnrollModal({
               }`}
             >
               <UserPlus size={16} />
-              طالب جديد كلياً (إضافة سريعة)
-            </button>
+              {translate("طالب جديد كلياً (إضافة سريعة)")}</button>
           </div>
         )}
 
         {/* Existing Student Choice */}
         {studentMode === 'existing' && !preselectedStudentId && (
           <Select
-            label="اختر الطالب المسجل"
+            label={translate("اختر الطالب المسجل")}
             value={studentId}
             onChange={(e) => setStudentId(e.target.value)}
             options={[
-              { value: '', label: '-- اختر الطالب من القائمة --' },
+              { value: '', label: translate("-- اختر الطالب من القائمة --") },
               ...students.map((s) => ({
                 value: s.student_id,
                 label: `${s.name} ${s.phone ? `(${s.phone})` : ''}`,
@@ -246,49 +255,48 @@ export function QuickEnrollModal({
         {studentMode === 'new' && (
           <div className="p-3.5 bg-obsidian-700/40 rounded-xl border border-obsidian-500/30 space-y-3 animate-fade-in">
             <p className="text-xs text-azure-brand font-semibold flex items-center gap-1.5">
-              <UserPlus size={14} /> بيانات الطالب الجديد
-            </p>
+              <UserPlus size={14} /> {translate("بيانات الطالب الجديد")}</p>
             <Input
-              label="اسم الطالب الكامل"
-              placeholder="مثال: أحمد عبد الله"
+              label={translate("اسم الطالب الكامل")}
+              placeholder={translate("مثال: أحمد عبد الله")}
               required
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
             />
             <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="رقم الهاتف"
+              {canManagePhone && <Input
+                label={translate("رقم الهاتف")}
                 placeholder="01xxxxxxxxx"
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}
-              />
-              <Input
-                label="البريد الإلكتروني"
+              />}
+              {canManageEmail && <Input
+                label={translate("البريد الإلكتروني")}
                 type="email"
                 placeholder="email@example.com"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
-              />
+              />}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Select
-                label="الحالة الوظيفية"
+                label={translate("الحالة الوظيفية")}
                 value={newEmployment}
                 onChange={(e) => setNewEmployment(e.target.value)}
                 options={[
-                  { value: 'Student', label: 'طالب' },
-                  { value: 'Employed', label: 'يعمل' },
-                  { value: 'Unemployed', label: 'لا يعمل' },
-                  { value: 'Freelancer', label: 'مستقل' },
+                  { value: 'Student', label: translate("طالب") },
+                  { value: 'Employed', label: translate("يعمل") },
+                  { value: 'Unemployed', label: translate("لا يعمل") },
+                  { value: 'Freelancer', label: translate("مستقل") },
                 ]}
               />
               <Select
-                label="حالة التخرج"
+                label={translate("حالة التخرج")}
                 value={newGrad}
                 onChange={(e) => setNewGrad(e.target.value)}
                 options={[
-                  { value: 'Undergrad', label: 'جامعي' },
-                  { value: 'Graduate', label: 'خريج' },
+                  { value: 'Undergrad', label: translate("جامعي") },
+                  { value: 'Graduate', label: translate("خريج") },
                 ]}
               />
             </div>
@@ -297,18 +305,19 @@ export function QuickEnrollModal({
 
         {/* Agreed Cost */}
         <div className="p-3 bg-obsidian-700/30 rounded-xl border border-obsidian-500/20">
-          <Input
-            label="المبلغ المتفق عليه للكورس (ج.م)"
+          {canOverridePrice ? <Input
+            label={translate("المبلغ المتفق عليه للكورس (ج.م)")}
             type="number"
             step="0.01"
-            placeholder={selectedCourse ? String(selectedCourse.default_cost) : '0.00'}
+            placeholder={selectedCourse?.default_cost == null ? translate("السعر الافتراضي") : String(selectedCourse.default_cost)}
             value={agreedCost}
             onChange={(e) => setAgreedCost(e.target.value)}
-          />
-          <p className="text-xs text-obsidian-300 mt-1.5">يمكن تعديل السعر وفقاً لأي خصم أو اتفاق خاص مع الطالب</p>
+          /> : <p className="text-sm text-obsidian-200">{translate("سيُحدد السعر من إعدادات الكورس، ولا يمكن تغييره من هذا الحساب.")}</p>}
+          {canOverridePrice && <p className="text-xs text-obsidian-300 mt-1.5">{translate("يمكن تعديل السعر وفقاً لأي خصم أو اتفاق خاص مع الطالب")}</p>}
         </div>
 
         {/* Instant Deposit Checkbox */}
+        {canRecordPayment && <>
         <div className="p-3 bg-obsidian-700/30 rounded-xl border border-obsidian-500/20 space-y-3">
           <label className="flex items-center gap-2 text-sm text-obsidian-100 font-medium cursor-pointer">
             <input
@@ -318,22 +327,22 @@ export function QuickEnrollModal({
               className="w-4 h-4 rounded text-emerald-brand bg-obsidian-600 border-obsidian-400 focus:ring-emerald-brand"
             />
             <CreditCard size={16} className="text-emerald-light" />
-            <span>تحصيل دفعة أولى أو مقدم الآن فور التسجيل</span>
+            <span>{translate("تحصيل دفعة أولى أو مقدم الآن فور التسجيل")}</span>
           </label>
 
           {withPayment && (
             <div className="pt-2 border-t border-obsidian-500/20 grid grid-cols-2 gap-3 animate-fade-in">
               <Input
-                label="مبلغ الدفعة الأولى (ج.م)"
+                label={translate("مبلغ الدفعة الأولى (ج.م)")}
                 type="number"
                 step="0.01"
-                placeholder="مثال: 500"
+                placeholder={translate("مثال: 500")}
                 value={paymentAmount}
                 onChange={(e) => setPaymentAmount(e.target.value)}
                 required={withPayment}
               />
               <Select
-                label="الخزنة المستلمة"
+                label={translate("الخزنة المستلمة")}
                 value={paymentBoxId}
                 onChange={(e) => setPaymentBoxId(e.target.value)}
                 options={cashBoxes.map((b) => ({
@@ -343,18 +352,18 @@ export function QuickEnrollModal({
                 required={withPayment}
               />
               <Select
-                label="طريقة الدفع"
+                label={translate("طريقة الدفع")}
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
                 options={[
-                  { value: 'Cash', label: 'كاش' },
-                  { value: 'Vodafone Cash', label: 'فودافون كاش' },
-                  { value: 'InstaPay', label: 'إنستاباي' },
-                  { value: 'Bank Transfer', label: 'تحويل بنكي' },
+                  { value: 'Cash', label: translate("كاش") },
+                  { value: 'Vodafone Cash', label: translate("فودافون كاش") },
+                  { value: 'InstaPay', label: translate("إنستاباي") },
+                  { value: 'Bank Transfer', label: translate("تحويل بنكي") },
                 ]}
               />
               <Input
-                label="رقم الإيصال / المرجع (اختياري)"
+                label={translate("رقم الإيصال / المرجع (اختياري)")}
                 placeholder="REC-001"
                 value={receiptRef}
                 onChange={(e) => setReceiptRef(e.target.value)}
@@ -362,13 +371,13 @@ export function QuickEnrollModal({
             </div>
           )}
         </div>
+        </>}
 
         <FormActions>
           <button type="button" onClick={onClose} className="btn-secondary">
-            إلغاء
-          </button>
+            {translate("إلغاء")}</button>
           <button type="submit" disabled={saving} className="btn-primary">
-            {saving ? 'جاري التسجيل...' : 'تأكيد تسجيل الطالب بالكورس'}
+            {saving ? translate("جاري التسجيل...") : translate("تأكيد تسجيل الطالب بالكورس")}
           </button>
         </FormActions>
       </form>

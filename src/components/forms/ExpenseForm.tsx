@@ -1,3 +1,5 @@
+import { translate } from '@/lib/translations';
+import { translateTemplate } from '@/lib/translations';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Modal } from '@/components/ui/Modal';
@@ -40,25 +42,26 @@ export function ExpenseForm({ open, onClose, onSaved }: ExpenseFormProps) {
       setExpenseDate(todayISO());
       setCategory('Other');
       Promise.all([
-        supabase.from('cash_box_balances').select('*').eq('is_active', true).order('name'),
-        supabase.from('courses').select('*').order('course_name'),
+        supabase.rpc('rbac_list_cash_boxes'),
+        supabase.rpc('rbac_list_courses', { p_limit: 500, p_offset: 0 }),
       ]).then(([boxRes, courseRes]) => {
-        setCashBoxes(boxRes.data ?? []);
-        setCourses(courseRes.data ?? []);
-        if (boxRes.data && boxRes.data.length > 0) setCashBoxId(boxRes.data[0].cash_box_id);
+        const activeBoxes = ((boxRes.data ?? []) as CashBoxBalance[]).filter((box) => box.is_active);
+        setCashBoxes(activeBoxes);
+        setCourses((courseRes.data ?? []) as Course[]);
+        if (activeBoxes.length > 0) setCashBoxId(activeBoxes[0].cash_box_id);
       });
     }
   }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cashBoxId) { setError('يرجى اختيار الخزنة'); return; }
-    if (enteredAmount <= 0) { setError('المبلغ يجب أن يكون أكبر من صفر'); return; }
+    if (!cashBoxId) { setError(translate("يرجى اختيار الخزنة")); return; }
+    if (enteredAmount <= 0) { setError(translate("المبلغ يجب أن يكون أكبر من صفر")); return; }
 
     setSaving(true);
     setError(null);
 
-    const { error: rpcError } = await supabase.rpc('record_expense', {
+    const { error: rpcError } = await supabase.rpc('rbac_record_expense', {
       p_cash_box_id: cashBoxId,
       p_amount: enteredAmount,
       p_expense_date: expenseDate,
@@ -80,25 +83,25 @@ export function ExpenseForm({ open, onClose, onSaved }: ExpenseFormProps) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="تسجيل مصروف جديد" subtitle="أدخل تفاصيل المصروف">
+    <Modal open={open} onClose={onClose} title={translate("تسجيل مصروف جديد")} subtitle={translate("أدخل تفاصيل المصروف")}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <Alert variant="error">{error}</Alert>}
 
         <Select
-          label="الخزنة (مصدر الأموال)"
+          label={translate("الخزنة (مصدر الأموال)")}
           value={cashBoxId}
           onChange={(e) => setCashBoxId(e.target.value)}
           options={[
-            { value: '', label: '-- اختر الخزنة --' },
+            { value: '', label: translate("-- اختر الخزنة --") },
             ...cashBoxes.map((b) => ({
               value: b.cash_box_id,
-              label: `${b.name} (الرصيد: ${formatEGP(b.current_balance)})`,
+              label: translateTemplate('{name} (الرصيد: {amount})', { name: b.name, amount: formatEGP(b.current_balance) }),
             })),
           ]}
         />
 
         <Input
-          label="المبلغ (ج.م)"
+          label={translate("المبلغ (ج.م)")}
           type="number"
           step="0.01"
           placeholder="0.00"
@@ -108,45 +111,45 @@ export function ExpenseForm({ open, onClose, onSaved }: ExpenseFormProps) {
 
         {showWarning && (
           <Alert variant="warning">
-            تنبيه: هذا المصروف يتجاوز رصيد الخزنة الحالي وسيؤدي إلى رصيد سالب بقيمة {formatEGP(Math.abs(projectedBalance))}
+            {translateTemplate('تحذير: هذا المصروف يتجاوز رصيد الخزنة الحالي وسيؤدي إلى رصيد سالب بقيمة {amount}', { amount: formatEGP(Math.abs(projectedBalance)) })}
           </Alert>
         )}
 
         <div className="grid grid-cols-2 gap-4">
-          <Input label="تاريخ المصروف" type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} />
+          <Input label={translate("تاريخ المصروف")} type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} />
           <Select
-            label="التصنيف"
+            label={translate("التصنيف")}
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             options={[
-              { value: 'Rent', label: 'إيجار' },
-              { value: 'Salary', label: 'مرتبات ومكافآت' },
-              { value: 'Supplies', label: 'أدوات وبوفيه' },
-              { value: 'Hardware', label: 'أجهزة وشبكات' },
-              { value: 'Marketing', label: 'إعلانات ودعاية' },
-              { value: 'Utilities', label: 'كهرباء ومياه وإنترنت' },
-              { value: 'Other', label: 'أخرى' },
+              { value: 'Rent', label: translate("إيجار") },
+              { value: 'Salary', label: translate("مرتبات ومكافآت") },
+              { value: 'Supplies', label: translate("أدوات وبوفيه") },
+              { value: 'Hardware', label: translate("أجهزة وشبكات") },
+              { value: 'Marketing', label: translate("إعلانات ودعاية") },
+              { value: 'Utilities', label: translate("كهرباء ومياه وإنترنت") },
+              { value: 'Other', label: translate("أخرى") },
             ]}
           />
         </div>
 
         <Select
-          label="كورس مرتبط (اختياري)"
+          label={translate("كورس مرتبط (اختياري)")}
           value={courseId}
           onChange={(e) => setCourseId(e.target.value)}
           options={[
-            { value: '', label: 'عام للسنتر' },
+            { value: '', label: translate("عام للسنتر") },
             ...courses.map((c) => ({ value: c.course_id, label: c.course_name })),
           ]}
         />
 
-        <Input label="الوصف" placeholder="وصف المصروف" value={description} onChange={(e) => setDescription(e.target.value)} />
-        <Textarea label="ملاحظات" rows={2} placeholder="ملاحظات إضافية" value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <Input label={translate("الوصف")} placeholder={translate("وصف المصروف")} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <Textarea label={translate("ملاحظات")} rows={2} placeholder={translate("ملاحظات إضافية")} value={notes} onChange={(e) => setNotes(e.target.value)} />
 
         <FormActions>
-          <button type="button" onClick={onClose} className="btn-secondary">إلغاء</button>
+          <button type="button" onClick={onClose} className="btn-secondary">{translate("إلغاء")}</button>
           <button type="submit" disabled={saving} className="btn-primary">
-            {saving ? 'جاري التسجيل...' : 'تسجيل المصروف'}
+            {saving ? translate("جاري التسجيل...") : translate("تسجيل المصروف")}
           </button>
         </FormActions>
       </form>
