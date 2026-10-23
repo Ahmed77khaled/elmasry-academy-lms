@@ -9,12 +9,12 @@ Create a reliable audit trail for important LMS security, administrator, and fin
 
 ## 2. Current implementation findings
 
-- Earlier task notes report that `login-alert` was deployed and sent to the single configured `TELEGRAM_CHAT_ID`; the live deployment was not re-inspected in this task. Current local source validates the signed-in LMS administrator and queues a fixed login-success event by hashed session ID; it no longer calls Telegram directly.
+- The current TrainerPro function inventory confirms `login-alert` v12 is active. It validates the signed-in LMS administrator and queues a fixed login-success event by hashed session ID while preserving the private alert.
 - The prior private-chat template included account email and request IP when available. Those fields are excluded from the shared-group template.
 - The login alert is initiated by the app after successful login. It does not record failed password attempts or sign-ins outside this app.
 - `public.admin_audit_log` is currently defined by local migration drafts as an append-only administrator/role audit table with a constrained action list. It does not yet represent a complete audit of all finance and authentication events.
-- `rbac_set_admin_active` changes LMS access and records an admin audit action, but the current local flow has no Telegram member mapping, group-removal job, or delivery outbox.
-- Live database/function state is not independently established by this specification. Local migration files and prior operator reports must not be treated as proof of the currently deployed state.
+- `rbac_set_admin_active` changes LMS access and records an admin audit action; Telegram membership mapping and automatic group removal remain unimplemented. Existing event routing may place the admin action in the delivery outbox, depending on the source event and configured allowlist.
+- Function versions and status were independently checked through Supabase CLI on 23 October 2026. Database migration state in this document is based on the earlier postflight and operator-provided results; no SQL was run during the current closure work.
 
 ## 3. Event and delivery matrix
 
