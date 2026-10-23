@@ -2,7 +2,7 @@ import { translate } from '@/lib/translations';
 import { useRef, useState } from 'react';
 import { ImagePlus, RotateCcw, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { useBranding } from '@/context/BrandingContext';
+import { useBranding } from '@/context/useBranding';
 import { Alert } from '@/components/ui/Alert';
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;

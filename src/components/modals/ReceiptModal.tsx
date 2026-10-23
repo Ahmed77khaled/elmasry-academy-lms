@@ -1,5 +1,5 @@
 import { translate } from '@/lib/translations';
-import { useLocale } from '@/context/LocaleContext';
+import { useLocale } from '@/context/useLocale';
 import { Modal } from '@/components/ui/Modal';
 import { formatEGP, formatDate } from '@/lib/format';
 import { Printer, CheckCircle2 } from 'lucide-react';

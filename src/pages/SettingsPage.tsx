@@ -11,7 +11,7 @@ import { formatEGP } from '@/lib/format';
 import type { CashBoxBalance } from '@/types/database';
 import { AdminInviteForm } from '@/components/forms/AdminInviteForm';
 import { AdminAccessManagement } from '@/components/AdminAccessManagement';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 import { getAdminDisplayName, getRoleDisplayName } from '@/lib/adminLabels';
 import { AdminAvatar, AdminAvatarSettings } from '@/components/AdminAvatar';
 import { AcademyLogoSettings } from '@/components/AcademyLogoSettings';

@@ -1,4 +1,4 @@
-import { getLocale } from '@/context/LocaleContext';
+import { getLocale } from '@/context/localeState';
 
 export function formatEGP(amount: number): string {
   const locale = getLocale();

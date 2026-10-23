@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/Badge';
 import { PageLoader, EmptyState } from '@/components/ui/Feedback';
 import { ReceiptModal } from '@/components/modals/ReceiptModal';
 import type { DashboardMetrics } from '@/types/database';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 
 interface PaymentRow {
   payment_id: string;

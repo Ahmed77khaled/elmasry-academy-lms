@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/Form';
 import { Alert } from '@/components/ui/Alert';
 import { formatEGP } from '@/lib/format';
 import type { Course, Student, EnrollmentBalance } from '@/types/database';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 
 interface EnrollFormProps {
   open: boolean;

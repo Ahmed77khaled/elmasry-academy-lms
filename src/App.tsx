@@ -1,10 +1,13 @@
 import { translate } from '@/lib/translations';
-import { useLocale } from '@/context/LocaleContext';
+import { useLocale } from '@/context/useLocale';
 import { lazy, Suspense } from 'react';
-import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { AuthProvider } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 import { BrandingProvider } from '@/context/BrandingContext';
 import { LocaleProvider } from '@/context/LocaleContext';
-import { RouterProvider, AppShell, useRouter } from '@/components/AppShell';
+import { AppShell } from '@/components/AppShell';
+import { RouterProvider } from '@/context/RouterProvider';
+import { useRouter } from '@/context/useRouter';
 const DashboardPage = lazy(() => import('@/pages/DashboardPage').then((module) => ({ default: module.DashboardPage })));
 const StudentsPage = lazy(() => import('@/pages/StudentsPage').then((module) => ({ default: module.StudentsPage })));
 const StudentDetailsPage = lazy(() => import('@/pages/StudentDetailsPage').then((module) => ({ default: module.StudentDetailsPage })));

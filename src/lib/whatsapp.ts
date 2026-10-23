@@ -3,7 +3,7 @@
  * Generates direct wa.me URLs for trainee payment reminders and communications.
  * No external API or bots needed — 100% free and safe.
  */
-import { getLocale } from '@/context/LocaleContext';
+import { getLocale } from '@/context/localeState';
 import { translateTemplate } from '@/lib/translations';
 
 export function formatEgyptPhoneForWhatsApp(phone: string | null | undefined): string | null {

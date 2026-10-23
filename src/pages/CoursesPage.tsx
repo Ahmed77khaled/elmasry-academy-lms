@@ -4,14 +4,15 @@ import { useState } from 'react';
 import { Search, Plus, Pencil, Eye, MessageCircle, ListTodo, HardDrive, BookMarked, MoreVertical, Lock } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from '@/components/AppShell';
-import { Badge, courseStatusBadge } from '@/components/ui/Badge';
+import { useRouter } from '@/context/useRouter';
+import { Badge } from '@/components/ui/Badge';
+import { courseStatusBadge } from '@/components/ui/badgeStatus';
 import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { CourseForm } from '@/components/forms/CourseForm';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { formatEGP } from '@/lib/format';
 import type { Course, EnrollmentBalance } from '@/types/database';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 
 const LEVEL_LABELS: Record<string, string> = {
   'Beginner': 'مبتدئ', 'Intermediate': 'متوسط', 'Advanced': 'متقدم',

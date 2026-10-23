@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Search, Plus, CreditCard, FileSpreadsheet, MessageCircle } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from '@/components/AppShell';
-import { Badge, paymentStatusBadge } from '@/components/ui/Badge';
+import { useRouter } from '@/context/useRouter';
+import { Badge } from '@/components/ui/Badge';
+import { paymentStatusBadge } from '@/components/ui/badgeStatus';
 import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { QuickEnrollModal } from '@/components/forms/QuickEnrollModal';
 import { PaymentForm } from '@/components/forms/PaymentForm';
@@ -14,7 +15,7 @@ import { exportToCSV } from '@/lib/exportExcel';
 import { generatePaymentReminderUrl } from '@/lib/whatsapp';
 import { Alert } from '@/components/ui/Alert';
 import type { EnrollmentBalance } from '@/types/database';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 
 export function EnrollmentsPage() {
   const { navigate } = useRouter();

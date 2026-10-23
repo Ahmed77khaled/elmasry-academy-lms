@@ -1,12 +1,12 @@
 import { translate } from '@/lib/translations';
 import { translateTemplate } from '@/lib/translations';
-import { useLocale } from '@/context/LocaleContext';
+import { useLocale } from '@/context/useLocale';
 import { useEffect, useState } from 'react';
 import { RefreshCw, ShieldCheck, UserCog, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoader } from '@/components/ui/Feedback';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 import { getAuditActionName, getPermissionDescription, getRoleDisplayName } from '@/lib/adminLabels';
 
 interface AdminRow {

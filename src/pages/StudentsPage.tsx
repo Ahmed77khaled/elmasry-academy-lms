@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Search, Plus, Pencil, Eye, BookOpen, FileSpreadsheet, MessageCircle } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from '@/components/AppShell';
+import { useRouter } from '@/context/useRouter';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { StudentForm } from '@/components/forms/StudentForm';
@@ -12,7 +12,7 @@ import { QuickEnrollModal } from '@/components/forms/QuickEnrollModal';
 import { exportToCSV } from '@/lib/exportExcel';
 import { formatEgyptPhoneForWhatsApp } from '@/lib/whatsapp';
 import type { Student } from '@/types/database';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 
 const EMPLOYMENT_LABELS: Record<string, string> = {
   Employed: 'يعمل',

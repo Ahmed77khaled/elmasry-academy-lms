@@ -14,7 +14,7 @@ import { formatEGP, formatDate } from '@/lib/format';
 import { exportToCSV } from '@/lib/exportExcel';
 import { isDateInRange, DateRangePreset } from '@/lib/dateRange';
 import type { Expense } from '@/types/database';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 
 const CATEGORY_LABELS: Record<string, string> = {
   'Rent': 'إيجار',

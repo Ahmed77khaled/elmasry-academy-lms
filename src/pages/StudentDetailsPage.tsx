@@ -13,8 +13,9 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from '@/components/AppShell';
-import { Badge, paymentStatusBadge } from '@/components/ui/Badge';
+import { useRouter } from '@/context/useRouter';
+import { Badge } from '@/components/ui/Badge';
+import { paymentStatusBadge } from '@/components/ui/badgeStatus';
 import { PageLoader, EmptyState } from '@/components/ui/Feedback';
 import { formatEGP, formatDate } from '@/lib/format';
 import { formatEgyptPhoneForWhatsApp, generatePaymentReminderUrl } from '@/lib/whatsapp';
@@ -23,7 +24,7 @@ import { StudentForm } from '@/components/forms/StudentForm';
 import { PaymentForm } from '@/components/forms/PaymentForm';
 import type { Student, EnrollmentBalance } from '@/types/database';
 import { Alert } from '@/components/ui/Alert';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 
 const EMPLOYMENT_LABELS: Record<string, string> = {
   Employed: 'يعمل',

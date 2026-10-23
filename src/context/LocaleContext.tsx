@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-
-export type Locale = 'ar' | 'en';
+import { setActiveLocale } from '@/context/localeState';
+import type { Locale } from '@/context/localeState';
 
 interface LocaleContextValue {
   locale: Locale;
@@ -9,31 +9,22 @@ interface LocaleContextValue {
   toggleLocale: () => void;
 }
 
-const LocaleContext = createContext<LocaleContextValue | null>(null);
-let activeLocale: Locale = 'ar';
-
-export function getLocale(): Locale {
-  return activeLocale;
-}
-
-export function setActiveLocale(locale: Locale) {
-  activeLocale = locale;
-}
+export const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(() => {
     try {
       const savedLocale: Locale = localStorage.getItem('elmasry-lms-locale') === 'en' ? 'en' : 'ar';
-      activeLocale = savedLocale;
+      setActiveLocale(savedLocale);
       return savedLocale;
     } catch {
-      activeLocale = 'ar';
+      setActiveLocale('ar');
       return 'ar';
     }
   });
 
   const setLocale = useCallback((nextLocale: Locale) => {
-    activeLocale = nextLocale;
+    setActiveLocale(nextLocale);
     setLocaleState(nextLocale);
     try {
       localStorage.setItem('elmasry-lms-locale', nextLocale);
@@ -45,7 +36,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const toggleLocale = useCallback(() => setLocale(locale === 'ar' ? 'en' : 'ar'), [locale, setLocale]);
 
   useEffect(() => {
-    activeLocale = locale;
+    setActiveLocale(locale);
     document.documentElement.lang = locale;
     document.documentElement.dir = locale === 'ar' ? 'rtl' : 'ltr';
     document.title = locale === 'ar'
@@ -55,10 +46,4 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({ locale, setLocale, toggleLocale }), [locale, setLocale, toggleLocale]);
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
-}
-
-export function useLocale() {
-  const context = useContext(LocaleContext);
-  if (!context) throw new Error('useLocale must be used within LocaleProvider.');
-  return context;
 }

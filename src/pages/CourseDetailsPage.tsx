@@ -22,8 +22,9 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from '@/components/AppShell';
-import { Badge, paymentStatusBadge, courseStatusBadge } from '@/components/ui/Badge';
+import { useRouter } from '@/context/useRouter';
+import { Badge } from '@/components/ui/Badge';
+import { paymentStatusBadge, courseStatusBadge } from '@/components/ui/badgeStatus';
 import { PageLoader, EmptyState } from '@/components/ui/Feedback';
 import { formatEGP, formatDate } from '@/lib/format';
 import { exportToCSV } from '@/lib/exportExcel';
@@ -34,7 +35,7 @@ import { PaymentForm } from '@/components/forms/PaymentForm';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type { Course, CourseFinancialSummary, EnrollmentBalance, Student } from '@/types/database';
 import { Alert } from '@/components/ui/Alert';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 
 const LEVEL_LABELS: Record<string, string> = {
   Beginner: 'مبتدئ',

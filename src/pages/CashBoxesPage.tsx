@@ -11,7 +11,7 @@ import { CashBoxForm, TransferForm } from '@/components/forms/CashBoxForm';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { formatEGP } from '@/lib/format';
 import type { CashBoxBalance } from '@/types/database';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 
 const TYPE_LABELS: Record<string, string> = {
   'Main': 'رئيسية', 'Branch': 'فرع', 'Online': 'أونلاين', 'Bank': 'بنك', 'Petty Cash': 'فرعية',

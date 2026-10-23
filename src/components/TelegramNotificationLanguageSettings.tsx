@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Languages } from 'lucide-react';
 import { Alert } from '@/components/ui/Alert';
 import { FormActions } from '@/components/ui/Form';
-import { useLocale } from '@/context/LocaleContext';
+import { useLocale } from '@/context/useLocale';
 import { supabase } from '@/lib/supabase';
 
 type NotificationLanguage = 'ar' | 'en';

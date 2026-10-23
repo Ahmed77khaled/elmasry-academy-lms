@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, createContext, useContext, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   LayoutDashboard,
   GraduationCap,
@@ -14,7 +14,9 @@ import {
   Shield,
   X,
 } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
+import { useRouter } from '@/context/useRouter';
+import type { Page } from '@/context/RouterContext';
 import { getAdminDisplayName, getRoleDisplayName } from '@/lib/adminLabels';
 import { supabase } from '@/lib/supabase';
 import { formatEGP } from '@/lib/format';
@@ -22,82 +24,8 @@ import { PageLoader } from '@/components/ui/Feedback';
 import { AcademyLogo } from '@/components/AcademyLogo';
 import { AdminAvatar } from '@/components/AdminAvatar';
 import { LanguageToggle } from '@/components/LanguageToggle';
-import { useLocale } from '@/context/LocaleContext';
+import { useLocale } from '@/context/useLocale';
 import { translate, translateTemplate } from '@/lib/translations';
-
-type Page =
-  | 'dashboard'
-  | 'students'
-  | 'student-details'
-  | 'courses'
-  | 'course-details'
-  | 'enrollments'
-  | 'payments'
-  | 'expenses'
-  | 'cashboxes'
-  | 'settings';
-
-interface RouteState {
-  page: Page;
-  params: Record<string, string>;
-}
-
-interface RouterContextType {
-  route: RouteState;
-  navigate: (page: Page, params?: Record<string, string>) => void;
-}
-
-const RouterContext = createContext<RouterContextType | null>(null);
-
-export function useRouter(): RouterContextType {
-  const ctx = useContext(RouterContext);
-  if (!ctx) throw new Error('useRouter must be used within RouterProvider');
-  return ctx;
-}
-
-function parseHash(): RouteState {
-  const hash = window.location.hash.slice(1) || '/';
-  const parts = hash.split('/');
-  const page = (parts[1] as Page) || 'dashboard';
-  const params: Record<string, string> = {};
-  for (let i = 2; i < parts.length; i += 2) {
-    if (parts[i] && parts[i + 1]) {
-      params[parts[i]] = decodeURIComponent(parts[i + 1]);
-    }
-  }
-  return { page, params };
-}
-
-function buildHash(page: Page, params?: Record<string, string>): string {
-  let hash = `/${page}`;
-  if (params) {
-    for (const [key, value] of Object.entries(params)) {
-      hash += `/${key}/${encodeURIComponent(value)}`;
-    }
-  }
-  return hash;
-}
-
-export function RouterProvider({ children }: { children: React.ReactNode }) {
-  const [route, setRoute] = useState<RouteState>(parseHash());
-
-  useEffect(() => {
-    const onHashChange = () => setRoute(parseHash());
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, []);
-
-  const navigate = useCallback((page: Page, params?: Record<string, string>) => {
-    window.location.hash = buildHash(page, params);
-    window.scrollTo(0, 0);
-  }, []);
-
-  return (
-    <RouterContext.Provider value={{ route, navigate }}>
-      {children}
-    </RouterContext.Provider>
-  );
-}
 
 const NAV_ITEMS: { page: Page; label: string; icon: typeof LayoutDashboard }[] = [
   { page: 'dashboard', label: 'الرئيسية', icon: LayoutDashboard },

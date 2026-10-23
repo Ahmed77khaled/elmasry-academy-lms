@@ -1,5 +1,5 @@
-import { getLocale } from '@/context/LocaleContext';
-import type { Locale } from '@/context/LocaleContext';
+import { getLocale } from '@/context/localeState';
+import type { Locale } from '@/context/localeState';
 
 // Arabic product vocabulary: الدورة التدريبية، التسجيل، الدفعة، سند السداد، المصروف، الخزنة، مدير النظام، مالك المنصة، سجل التدقيق.
 const en: Record<string, string> = {

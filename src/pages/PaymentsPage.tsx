@@ -15,7 +15,7 @@ import { formatEGP, formatDate } from '@/lib/format';
 import { exportToCSV } from '@/lib/exportExcel';
 import { isDateInRange, DateRangePreset } from '@/lib/dateRange';
 import { formatEgyptPhoneForWhatsApp } from '@/lib/whatsapp';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 
 const METHOD_LABELS: Record<string, string> = {
   Cash: 'كاش',

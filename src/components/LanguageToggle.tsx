@@ -1,5 +1,5 @@
 import { Languages } from 'lucide-react';
-import { useLocale } from '@/context/LocaleContext';
+import { useLocale } from '@/context/useLocale';
 
 export function LanguageToggle({ compact = false }: { compact?: boolean }) {
   const { locale, toggleLocale } = useLocale();

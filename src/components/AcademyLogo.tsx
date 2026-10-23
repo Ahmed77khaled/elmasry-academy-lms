@@ -1,6 +1,6 @@
 import { translate } from '@/lib/translations';
 import { useState } from 'react';
-import { useBranding } from '@/context/BrandingContext';
+import { useBranding } from '@/context/useBranding';
 
 interface AcademyLogoProps {
   imageClassName?: string;

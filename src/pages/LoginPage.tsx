@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 import { Lock, Mail, ShieldCheck, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Alert } from '@/components/ui/Alert';
 import { AcademyLogo } from '@/components/AcademyLogo';
 import { LanguageToggle } from '@/components/LanguageToggle';
-import { useLocale } from '@/context/LocaleContext';
+import { useLocale } from '@/context/useLocale';
 import { translate } from '@/lib/translations';
 
 export function LoginPage() {

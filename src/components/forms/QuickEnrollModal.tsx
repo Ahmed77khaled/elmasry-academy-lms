@@ -8,7 +8,7 @@ import { Alert } from '@/components/ui/Alert';
 import { formatEGP } from '@/lib/format';
 import { UserPlus, UserCheck, CreditCard } from 'lucide-react';
 import type { Course, Student, CashBoxBalance } from '@/types/database';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/useAuth';
 
 interface QuickEnrollModalProps {
   open: boolean;
