@@ -1,28 +1,26 @@
 import { translate } from '@/lib/translations';
 import { useLocale } from '@/context/LocaleContext';
-import React from 'react';
+import { lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { BrandingProvider } from '@/context/BrandingContext';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { RouterProvider, AppShell, useRouter } from '@/components/AppShell';
-import { DashboardPage } from '@/pages/DashboardPage';
-import { StudentsPage } from '@/pages/StudentsPage';
-import { StudentDetailsPage } from '@/pages/StudentDetailsPage';
-import { CoursesPage } from '@/pages/CoursesPage';
-import { CourseDetailsPage } from '@/pages/CourseDetailsPage';
-import { EnrollmentsPage } from '@/pages/EnrollmentsPage';
-import { PaymentsPage } from '@/pages/PaymentsPage';
-import { ExpensesPage } from '@/pages/ExpensesPage';
-import { CashBoxesPage } from '@/pages/CashBoxesPage';
-import { SettingsPage } from '@/pages/SettingsPage';
-import { LoginPage } from '@/pages/LoginPage';
+const DashboardPage = lazy(() => import('@/pages/DashboardPage').then((module) => ({ default: module.DashboardPage })));
+const StudentsPage = lazy(() => import('@/pages/StudentsPage').then((module) => ({ default: module.StudentsPage })));
+const StudentDetailsPage = lazy(() => import('@/pages/StudentDetailsPage').then((module) => ({ default: module.StudentDetailsPage })));
+const CoursesPage = lazy(() => import('@/pages/CoursesPage').then((module) => ({ default: module.CoursesPage })));
+const CourseDetailsPage = lazy(() => import('@/pages/CourseDetailsPage').then((module) => ({ default: module.CourseDetailsPage })));
+const EnrollmentsPage = lazy(() => import('@/pages/EnrollmentsPage').then((module) => ({ default: module.EnrollmentsPage })));
+const PaymentsPage = lazy(() => import('@/pages/PaymentsPage').then((module) => ({ default: module.PaymentsPage })));
+const ExpensesPage = lazy(() => import('@/pages/ExpensesPage').then((module) => ({ default: module.ExpensesPage })));
+const CashBoxesPage = lazy(() => import('@/pages/CashBoxesPage').then((module) => ({ default: module.CashBoxesPage })));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage').then((module) => ({ default: module.SettingsPage })));
+const LoginPage = lazy(() => import('@/pages/LoginPage').then((module) => ({ default: module.LoginPage })));
 import { PageLoader } from '@/components/ui/Feedback';
 import { ShieldAlert, LogOut } from 'lucide-react';
 
 function PageRenderer() {
   const { route } = useRouter();
-  const { locale } = useLocale();
-  void locale;
 
   switch (route.page) {
     case 'dashboard':
@@ -63,7 +61,11 @@ function AuthenticatedApp() {
   }
 
   if (!user) {
-    return <LoginPage />;
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <LoginPage />
+      </Suspense>
+    );
   }
 
   // Strict UI Guard: Only administrators can access the system
@@ -95,7 +97,9 @@ function AuthenticatedApp() {
   return (
     <RouterProvider>
       <AppShell>
-        <PageRenderer />
+        <Suspense fallback={<PageLoader />}>
+          <PageRenderer />
+        </Suspense>
       </AppShell>
     </RouterProvider>
   );
