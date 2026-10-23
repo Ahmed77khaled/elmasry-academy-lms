@@ -1,6 +1,19 @@
 name: Telegram outbox migration contract test
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+      - 'scripts/test-telegram-outbox-concurrency.sh'
+      - '.github/workflows/telegram-outbox-ci.yml'
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+      - 'scripts/test-telegram-outbox-concurrency.sh'
+      - '.github/workflows/telegram-outbox-ci.yml'
   workflow_dispatch: {}
 
 permissions:

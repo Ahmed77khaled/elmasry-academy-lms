@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test:telegram": "node --test supabase/functions/_shared/telegram-dispatch.test.mjs",
+    "test:telegram": "node --test supabase/functions/_shared/telegram-dispatch.test.mjs supabase/functions/login-alert/login-alert.test.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },

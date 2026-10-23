@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import { getBearerToken, getSupabaseKey, handleOptions, jsonResponse } from "../_shared/http.ts";
+import { logPrivateTelegramNetworkFailure } from "../_shared/safe-logging.mjs";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const publishableKey = getSupabaseKey("SUPABASE_ANON_KEY", "SUPABASE_PUBLISHABLE_KEYS");
@@ -137,8 +138,8 @@ Deno.serve(async (request: Request) => {
           reason: classifyTelegramFailure(telegramResponse.status, description),
         });
       }
-    } catch (err) {
-      console.error("Legacy private telegram alert delivery failed due to network or timeout.", err);
+    } catch {
+      logPrivateTelegramNetworkFailure();
     }
   }
 

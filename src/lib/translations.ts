@@ -255,6 +255,7 @@ const en: Record<string, string> = {
   'المتبقي': 'Remaining', 'مسجل بتاريخ': 'Enrolled', 'إرسال تذكير واتساب': 'WhatsApp reminder', 'تفاصيل الدورة': 'Course details',
   'تعذر التحقق من الصلاحيات. تم إيقاف الوصول لحين توفر خدمة الصلاحيات.': 'Authorization could not be verified. Access is blocked until the permission service is available.',
   'غير مصرح لك بعرض هذه الصفحة.': 'You are not authorized to view this page.',
+  'المدفوع': 'Paid',
 };
 
 export function translate(text: string, locale: Locale = getLocale()): string {

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { logPrivateTelegramNetworkFailure } from "../_shared/safe-logging.mjs";
 
 // We extract helper functions to verify them in isolation without hitting live network or live Deno APIs
 function classifyTelegramFailure(status, description) {
@@ -88,4 +89,20 @@ test("mocked private Telegram alert delivery sends expected JSON without calling
   assert.equal(calledBody.chat_id, "mock_chat_456");
   assert.match(calledBody.text, /الحساب: test@example\.com/);
   assert.equal(calledBody.disable_web_page_preview, true);
+});
+
+test("private alert network logs never expose request errors or bot-token URLs", () => {
+  const originalError = console.error;
+  const logged = [];
+  console.error = (...args) => logged.push(args);
+  try {
+    logPrivateTelegramNetworkFailure(
+      new Error("request failed at https://api.telegram.org/botsecret-token/sendMessage"),
+    );
+  } finally {
+    console.error = originalError;
+  }
+
+  assert.deepEqual(logged, [["Legacy private Telegram alert delivery failed due to network or timeout."]]);
+  assert.doesNotMatch(JSON.stringify(logged), /secret-token/);
 });

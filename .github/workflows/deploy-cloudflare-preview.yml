@@ -31,6 +31,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Type-check the application
+        run: npm run typecheck
+
+      - name: Lint the application
+        run: npm run lint
+
+      - name: Test notification helpers
+        run: npm run test:telegram
+
       - name: Build the LMS
         run: npm run build
         env:
