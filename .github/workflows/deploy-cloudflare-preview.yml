@@ -1,0 +1,41 @@
+name: Deploy Cloudflare Pages preview
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - .github/workflows/deploy-cloudflare-preview.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-pages-preview
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the LMS
+        run: npm run build
+
+      - name: Deploy the preview branch
+        run: npx --yes wrangler@4.152.0 pages deploy dist --project-name elmasry-academy-lms --branch preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
