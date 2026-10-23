@@ -20,6 +20,8 @@ export function CourseForm({ open, onClose, onSaved, course }: CourseFormProps) 
     availability_status: 'Upcoming',
     level: 'Beginner',
     duration_weeks: '4',
+    start_date: '',
+    end_date: '',
     max_students: '',
     prerequisite_courses: '',
     description: '',
@@ -47,6 +49,8 @@ export function CourseForm({ open, onClose, onSaved, course }: CourseFormProps) 
           availability_status: course.availability_status,
           level: course.level ?? 'Beginner',
           duration_weeks: course.duration_weeks ? String(course.duration_weeks) : '4',
+          start_date: course.start_date ?? '',
+          end_date: course.end_date ?? '',
           max_students: course.max_students ? String(course.max_students) : '',
           prerequisite_courses: course.prerequisite_courses ?? '',
           description: course.description ?? '',
@@ -58,7 +62,7 @@ export function CourseForm({ open, onClose, onSaved, course }: CourseFormProps) 
       } else {
         setForm({
           course_name: '', default_cost: '', availability_status: 'Upcoming', level: 'Beginner',
-          duration_weeks: '4', max_students: '', prerequisite_courses: '', description: '',
+          duration_weeks: '4', start_date: '', end_date: '', max_students: '', prerequisite_courses: '', description: '',
           link_whatsapp: '', link_tasks: '', link_drive: '', link_sources: '',
         });
       }
@@ -71,6 +75,10 @@ export function CourseForm({ open, onClose, onSaved, course }: CourseFormProps) 
       setError(translate("اسم الكورس مطلوب"));
       return;
     }
+    if (form.start_date && form.end_date && form.end_date < form.start_date) {
+      setError(translate('\u062a\u0627\u0631\u064a\u062e \u0646\u0647\u0627\u064a\u0629 \u0627\u0644\u0643\u0648\u0631\u0633 \u064a\u062c\u0628 \u0623\u0646 \u064a\u0643\u0648\u0646 \u0628\u0639\u062f \u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0628\u062f\u0627\u064a\u0629 \u0623\u0648 \u0641\u064a \u0646\u0641\u0633 \u0627\u0644\u064a\u0648\u0645'));
+      return;
+    }
     setSaving(true);
     setError(null);
 
@@ -80,8 +88,8 @@ export function CourseForm({ open, onClose, onSaved, course }: CourseFormProps) 
       p_level: form.level,
       p_duration_weeks: parseInt(form.duration_weeks) || 4,
       p_prerequisite_courses: form.prerequisite_courses.trim() || null,
-      p_start_date: course?.start_date ?? null,
-      p_end_date: course?.end_date ?? null,
+      p_start_date: form.start_date || null,
+      p_end_date: form.end_date || null,
       p_max_students: form.max_students ? parseInt(form.max_students) : null,
       p_default_cost: canEditPrice && form.default_cost ? parseFloat(form.default_cost) : null,
       p_availability_status: form.availability_status,
@@ -119,6 +127,10 @@ export function CourseForm({ open, onClose, onSaved, course }: CourseFormProps) 
         <div className="grid grid-cols-2 gap-4">
           {canEditPrice && <Input label={translate("التكلفة الافتراضية (ج.م)")} type="number" step="0.01" placeholder="1500" value={form.default_cost} onChange={(e) => setForm({ ...form, default_cost: e.target.value })} />}
           <Input label={translate("المدة (أسابيع)")} type="number" placeholder="4" value={form.duration_weeks} onChange={(e) => setForm({ ...form, duration_weeks: e.target.value })} />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label={translate('\u062a\u0627\u0631\u064a\u062e \u0628\u062f\u0627\u064a\u0629 \u0627\u0644\u0643\u0648\u0631\u0633 (\u0627\u062e\u062a\u064a\u0627\u0631\u064a)')} type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+          <Input label={translate('\u062a\u0627\u0631\u064a\u062e \u0646\u0647\u0627\u064a\u0629 \u0627\u0644\u0643\u0648\u0631\u0633 (\u0627\u062e\u062a\u064a\u0627\u0631\u064a)')} type="date" min={form.start_date || undefined} value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
         </div>
         <div className="grid grid-cols-3 gap-4">
           <Select

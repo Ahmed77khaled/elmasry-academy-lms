@@ -17,6 +17,7 @@ import {
   CreditCard,
   CheckCircle2,
   Clock,
+  CalendarDays,
   Award,
   FileSpreadsheet,
 } from 'lucide-react';
@@ -241,6 +242,14 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
             </div>
             {course.description && (
               <p className="text-obsidian-200 text-sm mt-2 max-w-3xl leading-relaxed">{course.description}</p>
+            )}
+            {(course.start_date || course.end_date) && (
+              <p className="flex flex-wrap items-center gap-x-2 text-obsidian-200 text-sm mt-3">
+                <CalendarDays size={15} className="text-azure-brand" />
+                {course.start_date && `${translate('\u0627\u0644\u0628\u062f\u0627\u064a\u0629')}: ${formatDate(course.start_date)}`}
+                {course.start_date && course.end_date && ' \u00b7 '}
+                {course.end_date && `${translate('\u0627\u0644\u0646\u0647\u0627\u064a\u0629')}: ${formatDate(course.end_date)}`}
+              </p>
             )}
           </div>
           {canReadCoursePricing && <div className="text-left bg-obsidian-700/60 rounded-xl p-3 border border-obsidian-500/40">

@@ -10,7 +10,7 @@ import { courseStatusBadge } from '@/components/ui/badgeStatus';
 import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { CourseForm } from '@/components/forms/CourseForm';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { formatEGP } from '@/lib/format';
+import { formatEGP, formatDate } from '@/lib/format';
 import type { Course, EnrollmentBalance } from '@/types/database';
 import { useAuth } from '@/context/useAuth';
 
@@ -150,6 +150,13 @@ export function CoursesPage() {
                       <Badge variant="gray">{course.level ? translate(LEVEL_LABELS[course.level] ?? course.level) : '—'}</Badge>
                       <span className="text-obsidian-300 text-xs">{course.duration_weeks ?? 0} {translate("أسبوع")}</span>
                     </div>
+                    {(course.start_date || course.end_date) && (
+                      <p className="text-obsidian-300 text-xs mt-2">
+                        {course.start_date && `${translate('\u0627\u0644\u0628\u062f\u0627\u064a\u0629')}: ${formatDate(course.start_date)}`}
+                        {course.start_date && course.end_date && ' \u00b7 '}
+                        {course.end_date && `${translate('\u0627\u0644\u0646\u0647\u0627\u064a\u0629')}: ${formatDate(course.end_date)}`}
+                      </p>
+                    )}
                   </div>
                   <div className="relative shrink-0">
                     {(canUpdateCourse || canCloseCourse) && <button onClick={() => setMenuOpen(menuOpen === course.course_id ? null : course.course_id)} className="btn-ghost p-1.5">
