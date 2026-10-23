@@ -1,3 +1,13 @@
+# Current delivery status (2026-10-23)
+
+- Repository `main` and `origin/main` are at commit `47e0857fc2d423628d453a973294bb545f7ec887`.
+- The Vite frontend is automatically deployed from `main` to the Cloudflare Pages Preview branch at https://preview.elmasry-academy-lms.pages.dev/. The preview returns HTTP 200. No production domain or production deployment was configured in this work.
+- The frontend build toolchain is Vite 8 and Tailwind CSS 4. `npm audit` reports zero vulnerabilities. `typecheck`, `lint`, `build`, and the 12-test offline Telegram suite pass. Lint reports 9 non-blocking Fast Refresh warnings; build reports a JavaScript chunk slightly above 500 kB.
+- Supabase functions were read-only inventoried after deploying only `login-alert`: `login-alert` v12 ACTIVE, `telegram-group-dispatch` v6 ACTIVE, and `admin-invite` v1 ACTIVE. JWT gateway verification remains disabled for all three; handlers perform their own checks.
+- No SQL or migration was applied during the 2026-10-23 closure work. The historical migration bootstrap mismatch described below remains unresolved and requires a reviewed baseline plan before any database-history reconciliation or fresh-project bootstrap.
+- A real authenticated user-flow smoke test was not performed; the operator should verify sign-in and representative LMS workflows in the Preview URL using their own account. Do not share credentials. The earlier token exposure note still applies: revoke any Cloudflare token pasted into chat and keep only its rotated replacement in GitHub secrets.
+- Older status notes below are historical records. Use this section and the repository state for current hosting/function versions.
+
 # سياق مشروع أكاديمية المصري — TrainerPro LMS
 ## وثيقة الربط والمزامنة بين Antigravity و OpenCode (DeepSeek V4.1)
 
