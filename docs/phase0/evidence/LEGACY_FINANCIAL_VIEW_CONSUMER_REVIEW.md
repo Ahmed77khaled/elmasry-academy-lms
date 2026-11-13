@@ -47,7 +47,7 @@ The source evidence and the view dependency report therefore cannot both describ
 
 ## Required next evidence before reconsidering HOLD
 
-- Reconcile the same-project `pg_get_functiondef` for `public.rbac_course_financial_summary(uuid)` with dependency evidence for all four views.
+- Use the prepared, SELECT-only capture in `docs/phase0/validation/PHASE0_FINANCIAL_VIEW_DEPENDENCY_READONLY.sql` to reconcile same-project function definitions and dependency evidence for all four views, only after separate authorization and fresh target-ref verification.
 - Confirm whether the production and staging function definitions are identical to the archived evidence.
 - Inventory any reporting, export, or external client that reads the four views directly.
 - Keep Candidate 4 in `docs/phase0/drafts/` until the above evidence and the Staging test cases have been reviewed.
