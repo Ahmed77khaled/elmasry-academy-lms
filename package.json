@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "test:telegram": "node --test supabase/functions/_shared/telegram-dispatch.test.mjs supabase/functions/login-alert/login-alert.test.mjs",
+    "test": "node --test src/context/authRequestEpoch.test.mjs supabase/functions/_shared/telegram-dispatch.test.mjs supabase/functions/login-alert/login-alert.test.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },

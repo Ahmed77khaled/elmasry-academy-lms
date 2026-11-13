@@ -1,6 +1,7 @@
-import React, { createContext, useEffect, useState } from 'react';
+import React, { createContext, useEffect, useRef, useState } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { createAuthRequestEpoch } from '@/context/authRequestEpoch.mjs';
 
 interface AuthContextType {
   user: User | null;
@@ -27,12 +28,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isOwner, setIsOwner] = useState(false);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [authorizationReady, setAuthorizationReady] = useState(false);
+  const requestEpoch = useRef(createAuthRequestEpoch());
 
   useEffect(() => {
     let mounted = true;
+    const epoch = requestEpoch.current;
 
-    async function verifyAdmin(userId?: string): Promise<boolean> {
-      if (!userId) return false;
+    const isCurrentRequest = (requestId: number) => mounted && epoch.isCurrent(requestId);
+
+    function clearAuthorizationState(adminStatus = false) {
+      setIsAdmin(adminStatus);
+      setRoleKey(null);
+      setIsOwner(false);
+      setPermissions([]);
+      setAuthorizationReady(false);
+    }
+
+    async function verifyAdmin(): Promise<boolean> {
       try {
         const { data, error } = await supabase.rpc('is_admin');
         return !error && data === true;
@@ -41,14 +53,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    async function loadAuthorization() {
+    async function loadAuthorization(requestId: number) {
       try {
         const { data, error } = await supabase.rpc('get_my_authorization');
+        if (!isCurrentRequest(requestId)) return;
         if (error) {
-          setAuthorizationReady(false);
-          setRoleKey(null);
-          setIsOwner(false);
-          setPermissions([]);
+          clearAuthorizationState(true);
           return;
         }
         const authorization = Array.isArray(data) ? data[0] : data;
@@ -57,78 +67,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsOwner(authorization?.is_owner === true);
         setPermissions(Array.isArray(authorization?.permissions) ? authorization.permissions : []);
       } catch {
-        setAuthorizationReady(false);
-        setRoleKey(null);
-        setIsOwner(false);
-        setPermissions([]);
+        if (isCurrentRequest(requestId)) clearAuthorizationState(true);
       }
     }
 
     async function initAuth() {
+      const requestId = epoch.begin();
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!mounted) return;
+        if (!isCurrentRequest(requestId)) return;
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          const adminStatus = await verifyAdmin(session.user.id);
-          if (mounted) {
-            setIsAdmin(adminStatus);
-            await loadAuthorization();
-          }
+          const adminStatus = await verifyAdmin();
+          if (!isCurrentRequest(requestId)) return;
+          setIsAdmin(adminStatus);
+          if (adminStatus) await loadAuthorization(requestId);
+          else clearAuthorizationState(false);
         } else {
-          setIsAdmin(false);
-          setRoleKey(null);
-          setIsOwner(false);
-          setPermissions([]);
-          setAuthorizationReady(false);
+          clearAuthorizationState(false);
         }
       } catch {
-        if (mounted) setIsAdmin(false);
+        if (isCurrentRequest(requestId)) clearAuthorizationState(false);
       } finally {
-        if (mounted) setLoading(false);
+        if (isCurrentRequest(requestId)) setLoading(false);
       }
     }
 
     void initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const requestId = epoch.begin();
       setSession(session);
       setUser(session?.user ?? null);
       if (!session?.user) {
-        setIsAdmin(false);
-        setRoleKey(null);
-        setIsOwner(false);
-        setPermissions([]);
-        setAuthorizationReady(false);
+        clearAuthorizationState(false);
         setLoading(false);
         return;
       }
 
       setLoading(true);
-      setAuthorizationReady(false);
-      setRoleKey(null);
-      setIsOwner(false);
-      setPermissions([]);
+      clearAuthorizationState(false);
       window.setTimeout(() => {
         void (async () => {
-          const adminStatus = await verifyAdmin(session.user.id);
-          if (!mounted) return;
-          setIsAdmin(adminStatus);
-          if (adminStatus) await loadAuthorization();
-          else {
-            setRoleKey(null);
-            setIsOwner(false);
-            setPermissions([]);
-            setAuthorizationReady(false);
+          if (!isCurrentRequest(requestId)) return;
+          try {
+            const adminStatus = await verifyAdmin();
+            if (!isCurrentRequest(requestId)) return;
+            setIsAdmin(adminStatus);
+            if (adminStatus) await loadAuthorization(requestId);
+            else clearAuthorizationState(false);
+          } catch {
+            if (isCurrentRequest(requestId)) clearAuthorizationState(false);
+          } finally {
+            if (isCurrentRequest(requestId)) setLoading(false);
           }
-          if (mounted) setLoading(false);
         })();
       }, 0);
     });
 
     return () => {
       mounted = false;
+      epoch.invalidate();
       subscription.unsubscribe();
     };
   }, []);
@@ -157,9 +157,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshAuthorization = async () => {
+    const requestId = requestEpoch.current.begin();
     setAuthorizationReady(false);
+    setLoading(true);
     try {
       const { data: adminStatus, error: adminError } = await supabase.rpc('is_admin');
+      if (!requestEpoch.current.isCurrent(requestId)) return;
       if (adminError || adminStatus !== true) {
         setIsAdmin(false);
         setRoleKey(null);
@@ -169,6 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setIsAdmin(true);
       const { data, error } = await supabase.rpc('get_my_authorization');
+      if (!requestEpoch.current.isCurrent(requestId)) return;
       if (error) {
         setRoleKey(null);
         setIsOwner(false);
@@ -181,22 +185,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setPermissions(Array.isArray(authorization?.permissions) ? authorization.permissions : []);
       setAuthorizationReady(true);
     } catch {
-      setRoleKey(null);
-      setIsOwner(false);
-      setPermissions([]);
+      if (requestEpoch.current.isCurrent(requestId)) {
+        setIsAdmin(false);
+        setRoleKey(null);
+        setIsOwner(false);
+        setPermissions([]);
+        setAuthorizationReady(false);
+      }
+    } finally {
+      if (requestEpoch.current.isCurrent(requestId)) setLoading(false);
     }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
+    const requestId = requestEpoch.current.begin();
+    setLoading(true);
+    clearAuthorizationForSignOut();
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      console.warn('The session could not be ended cleanly.');
+    } finally {
+      if (requestEpoch.current.isCurrent(requestId)) {
+        setUser(null);
+        setSession(null);
+        setIsAdmin(false);
+        setRoleKey(null);
+        setIsOwner(false);
+        setPermissions([]);
+        setAuthorizationReady(false);
+        setLoading(false);
+      }
+    }
+  };
+
+  function clearAuthorizationForSignOut() {
     setIsAdmin(false);
     setRoleKey(null);
     setIsOwner(false);
     setPermissions([]);
     setAuthorizationReady(false);
-  };
+  }
 
   return (
     <AuthContext.Provider value={{ user, session, loading, isAdmin, roleKey, isOwner, permissions, authorizationReady, refreshAuthorization, signIn, signOut }}>

@@ -15,7 +15,7 @@ The checkout contains the React/TypeScript application (`src/`), Supabase Edge F
 | `npm run typecheck` | PASS (`tsc --noEmit -p tsconfig.app.json`) |
 | `npm run lint` | PASS (`eslint .`) |
 | `npm run build` | PASS (Vite 8.3.5; 1,661 modules) |
-| `npm run test` | NOT RUN: npm reports missing script `test` |
+| `npm run test` | PASS: 16 tests (4 request-epoch tests + 12 existing Edge Function tests) |
 | `npm run test:telegram` | PASS: 12 tests, 0 failures; uses mocked delivery and no live Telegram call |
 
 Dependencies were installed from the existing lockfile with `npm ci`; it reported 7 moderate audit findings. No package or lockfile edits were made.
@@ -47,16 +47,14 @@ The read-only audit SQL (`validation/PHASE0_REMAINING_SECURITY_GAPS_READONLY.sql
 
 `src/context/AuthContext.tsx` fetches current session on mount, asks `is_admin()`, and loads `get_my_authorization()`; auth-state events load authorization only after a positive admin check. It clears permissions when no session or non-admin is seen. `AppShell.tsx` gates page navigation and render on permissions; sensitive CRUD and read flows call `rbac_*` RPCs rather than direct table writes. `AdminAccessManagement.tsx` uses role/owner RPCs; login invokes a best-effort alert after sign-in. The detailed flow, page-permission map, server-boundary evidence and regression cases are in [APPLICATION_AUTHORIZATION_FLOW_REVIEW.md](../evidence/APPLICATION_AUTHORIZATION_FLOW_REVIEW.md).
 
-Regression risks / follow-up:
+Implemented in this follow-up:
 
-1. `verifyAdmin(userId)` accepts a user ID argument but does not bind it to the RPC; the server derives identity from JWT via `auth.uid()`. This is currently okay if session transition ordering is sound, but is misleading API shape and needs race testing.
-2. `onAuthStateChange` schedules async RPCs with `setTimeout(0)`. Rapid account changes or token refreshes can race, and stale responses can overwrite newer auth state; there is no request generation guard.
-3. `loadAuthorization()` mutates component state internally and can finish after sign-out or account switch. Add a stale-session guard and ensure an authorization RPC error consistently sets `authorizationReady=false`.
-4. `refreshAuthorization()` resets ready state; error paths clear role/permissions but do not always set `isAdmin=false` when the second authorization call fails. This creates stale admin state after transient failures.
-5. `signOut()` awaits the SDK call before local clearing; if sign-out rejects, local state may remain. Cover rejection behavior.
-6. Route gating is UX defense only. Server-side `has_permission` / `is_admin` checks in each exposed definer function remain the enforcement boundary.
+1. Added a shared request epoch checked after async session/admin/authorization operations and invalidated on auth events, sign-out, and provider cleanup. Removed the unused `userId` parameter; server identity still comes from `auth.uid()`.
+2. Initial session loading now fetches authorization only after a positive admin check, matching the auth-event path.
+3. Explicit refresh starts a new request epoch, blocks app content while loading, and ignores stale results.
+4. Added four Node tests for current-request selection, invalidation, next request, and ignoring late responses. Added an `npm test` script that runs these and the existing 12 Edge Function tests.
 
-No code changes or auth tests were added in this takeover pass; add focused mocked Supabase tests for sign-in, auth refresh/token rollover, account switch, sign-out/rejection, inactive admin, normal authenticated user, and expired session before changing semantics.
+Remaining: tests cover the epoch helper but do not mount `AuthProvider` or mock the Supabase client. Add integration cases for sign-in, token refresh, account switch, sign-out rejection, inactive admin, normal user, and expired session when the project has a React testing environment. A transient `get_my_authorization()` failure intentionally keeps `authorizationReady=false`; `isAdmin` can remain true until a successful recheck, while protected route content stays blocked. Route gating remains a UX layer; server-side `has_permission` / `is_admin` checks are the enforcement boundary.
 
 ## Missing Staging cases prepared (not executed)
 
@@ -113,7 +111,7 @@ Source set: 20 files under `migrations-snapshot/`; captured ledger: four version
 
 1. **P0 — close evidence mismatch:** retrieve complete retained results for Production and Staging routine query, or execute SELECT-only inventory per environment under approved read-only access; export all signatures/effective ACL/body; count only `prokind IN ('f','p')` and label environment.
 2. **P1 — finalize authorization map:** for every callable signature identify definer mode, owner, search path, authorization predicate, data scope, app call site and minimum grant; distinguish trigger-only, self-scoped, RBAC, legacy and unreachable routines. Add call-site map links to each row.
-3. **P1 — AuthContext regression:** add request-generation/session guard and tests before modifying semantics; ensure error/logout paths fail closed and stale responses cannot restore authorization.
+3. **P1 — AuthContext integration coverage:** the request epoch guard and unit tests are implemented; add mocked Supabase/React integration cases before treating sign-in, token refresh, account switch, sign-out rejection, inactive admin, normal user, and expired-session flows as verified.
 4. **P1 — Stage validation:** execute only approved Cash Box and strengthened Default ACL probes against verified Staging; synthetic identities only; outbox-only assertions.
 5. **P2 — migration statement reconciliation:** populate evidence columns in [MIGRATION_STATEMENT_MATRIX.md](../evidence/MIGRATION_STATEMENT_MATRIX.md) from read-only catalog/data outputs. Keep ledger untouched until every relevant statement and rollback plan are reviewed.
 6. **P2 — currency consumer review:** inventory internal UI and external consumers; keep Candidate 4 **HOLD** until EGP/USD business contract is approved.
