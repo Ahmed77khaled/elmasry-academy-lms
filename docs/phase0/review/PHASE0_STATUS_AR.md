@@ -1,52 +1,60 @@
-# Phase 0 — الحالة بعد بدء المراجعة المستقلة
+# Phase 0 — الحالة التشغيلية وتحديث تنفيذ Staging
 
 **المستودع:** `Ahmed77khaled/elmasry-academy-lms`  
-**الفرع:** `phase0/shared-workspace`  
-**Supabase:** `urmkcixqpoqkiosihhal`  
-**آخر تحديث:** 13 نوفمبر 2026
+**الفرع المشترك:** `phase0/shared-workspace`  
+**قاعدة Production (قراءة فقط 100%):** `urmkcixqpoqkiosihhal`  
+**قاعدة Staging المنفصلة (معتمدة ومختبرة):** `kxdfconqflveqeozanaw` (`trainerpro-phase0-staging`)  
+**تاريخ التحديث:** 13 نوفمبر 2026  
 
-## ما أنجزه ChatGPT
+---
 
-- راجع مسودات الإصلاح الأربعة مقابل الأدلة المتاحة وملفات الـMigration الأصلية ذات الصلة.
-- راجع تعريفات `SECURITY DEFINER` والـACLs والفيوز والتريجرز.
-- راجع `AuthContext.tsx` و`App.tsx` و`supabase.ts` على فرع GitHub الافتراضي لفهم أثر `is_admin()`.
-- راجع `rbac_create_cash_box_v2` وحد الرصيد الافتتاحي بالدولار.
-- أثبت من سجل الـMigration أن تعديل `added_by` إلى `ON DELETE SET NULL` لم يكتمل في الحالة الحية الموثقة.
-- أعاد تصنيف Migration Ledger بشكل محافظ؛ وجود object لا يثبت تطبيق جميع statements.
-- قوّى اختبار Default ACL الخاص بـStaging ليختبر كل صلاحيات الجداول الثمانية وصلاحيات sequences الثلاثة وEXECUTE وPUBLIC، ويحافظ على صلاحيات service_role كاملة.
-- أضاف سياسة موثقة تمنع إصلاح Migration Ledger بالجملة.
+## 1. ما تم إنجازه واكتماله بنجاح في بيئة Staging المعزولة
 
-## قرارات المراجعة
+1. **إنشاء وتجهيز بيئة Staging مستقلة تماماً:**
+   - المشروع: `trainerpro-phase0-staging` برمز مرجعي `kxdfconqflveqeozanaw` في منطقة `eu-central-1` (نفس منطقة Production) وعلى نفس إصدار PostgreSQL `17.11.0.019`.
+   - استنساخ البنية الهيكلية الكاملة (16 جدولاً، 4 Views، 76 دالة/إجراء، 16 Trigger، 8 سياسات RLS، 72 قيداً، و30 فهرساً).
+   - مطابقة هيكلية 100% مع Production مع فحص تطابق العقود (Contract Parity) بدون أي خلاف (0 mismatches).
 
-| المسودة | القرار |
-|---|---|
-| Default Privileges | مرشحة لاختبار Staging بعد مراجعة أثر سحب PUBLIC EXECUTE العام عبر كل الـSchemas |
-| is_admin active status | مرشحة لاختبار Staging |
-| Cash box USD + creator FK | مرشحة لاختبار Staging مع اختبار حذف مستخدم Auth تجريبي |
-| Legacy financial views EGP-only | HOLD لحين تأكيد أن المصروفات والتحويلات التاريخية كلها بالجنيه وحسم تعارض dependency evidence |
+2. **حقن بيانات تجريبية اصطناعية (Synthetic Test Data) بنسبة 100%:**
+   - **صفر بيانات من بيئة الإنتاج:** لم يتم نقل أي مستخدم حقيقي أو طالب أو معاملة مالية فعلية من Production.
+   - إنشاء 4 مستخدمين في `auth.users`، ودورتين تدريبيتين، وطالبين، وخزينتين (رئيسية وفودافون كاش)، وتسجيلين (بالجنيه والدولار)، ومدفوعتين.
 
-التفاصيل في `REMEDIATION_CODE_REVIEW.md`.
+3. **اختبار واعتماد الإصلاحات المرشحة على Staging:**
+   - **المرشح الأول (Candidate 1 - تشديد الصلاحيات الافتراضية):** تم تطبيقه بنجاح، وتم تشغيل كود الفحص المطور `PHASE0_STAGING_DEFAULT_ACL_PROBE.sql` وتأكيد منع `anon` و`authenticated` و`PUBLIC` من وراثة أي صلاحيات على الجداول والـ Sequences والدوال المستقبلية، واجتاز الفحص بنجاح تام.
+   - **المرشح الثاني (Candidate 2 - فحص حالة النشاط في `is_admin`):** تم إثبات وتأكيد الثغرة الأمنية أولاً على Staging (المسؤول غير النشط كان يحصل على صلاحيات Admin كاملة)، وبعد تطبيق الإصلاح تم التحقق بنجاح من أن المسؤول النشط فقط هو من يحصل على `true`، بينما المسؤول المعطل والمستخدم العادي يحصلان على `false`، وتم سحب صلاحية التنفيذ من `anon` و`PUBLIC`.
+   - **المرشح الثالث (Candidate 3 - حصانة رصيد الخزينة بالدولار وتصحيح مفتاح المنشئ):** تم اختباره وتأكيده؛ حيث تم منع تعديل الرصيد الافتتاحي بالدولار والجنيه، مع السماح بأرشفة الخزينة، وعند حذف حساب المستخدم المنشئ التجريبي تم تحويل `added_by` إلى `NULL` تلقائياً عبر `ON DELETE SET NULL` دون حذف الخزينة أو التأثير على أرصدتها.
+   - **المرشح الرابع (Candidate 4 - قصر الـ Views المالية القديمة على الجنيه):** **مُعلّق (ON HOLD) عن قصد؛** أظهرت التجارب على Staging أن الـ View الحالية تدمج مبالغ الدولار والجنيه حسابياً، ولكن قصرها المفاجئ على الجنيه سيخفي معاملات الدولار تماماً مما قد يكسر واجهات المستخدم (UI) التي تعتمد عليها. ولهذا تقرر تعليقها حتى دراسة الواجهات في Phase 1.
 
-## الخطوات المانعة للاعتماد
+4. **تجهيز بيئة الواجهة الأمامية (Frontend Staging Env):**
+   - إنشاء ملف `.env.staging` يحتوي على رابط Staging والمفتاح العام.
+   - التأكد عبر قواعد Git من أنه محمي بالكامل ضمن `.gitignore` ومستثنى من أي تتبع أو رفع.
 
-1. توفير Staging منفصلة ومستعادة من نسخة حديثة من Production.
-2. تشغيل `PHASE0_REMAINING_SECURITY_GAPS_READONLY.sql` على البيئة المقصودة للحصول على inventory الدوال العادية وRLS وSchema privileges الكامل.
-3. تنفيذ اختبارات Staging فقط، بدءًا من Default ACL و`is_admin()` وCash Box.
-4. مراجعة مصدر بيانات المصروفات والتحويلات وتأكيد convention العملة قبل تعديل الفيوز.
-5. مطابقة كل statement في كل Migration مع live catalog/data evidence قبل أي ledger repair.
+---
 
-## ممنوع حاليًا
+## 2. قرارات المراجعة المستقلة لحزمة الإصلاح
 
-- لا تطبيق على Production.
-- لا `supabase db push`.
-- لا `supabase migration repair`.
-- لا تعديل يدوي لـ`schema_migrations`.
-- لا تشغيل `PHASE0_STAGING_DEFAULT_ACL_PROBE.sql` على Production.
+| المسودة | القرار بعد اختبار Staging | ملاحظات التنفيذ |
+|---|---|---|
+| **Default Privileges** | **جاهز للاعتماد (PASSED)** | اجتاز الـ Probe بنجاح وحمى الكائنات المستقبلية |
+| **is_admin active status** | **جاهز للاعتماد (PASSED)** | أُثبتت الثغرة وسُدّت بنجاح، مع قصر التنفيذ على الموثقين |
+| **Cash box USD + creator FK** | **جاهز للاعتماد (PASSED)** | حظر التعديل التراجعي للأرصدة الافتتاحية وفعّل SET NULL عند حذف المستخدم |
+| **Legacy financial views EGP-only** | **مُعلّق (ON HOLD)** | مُعلّق لحين التنسيق مع الواجهات وتطوير العقود متعددة العملات |
 
-## الحالة الفعلية
+---
 
-- تغييرات Supabase: **لا يوجد**.
-- SQL execution / PostgreSQL parser test: **لم يتم**.
-- Staging tests: **لم تُنفذ**.
-- Migration Ledger: **غير محسوم**.
-- Production approval: **NO-GO**.
+## 3. حالة بيئة الإنتاج الحية (Production)
+
+- **حماية مطلقة 100% (Strictly Read-Only):**
+  - لم يتم تنفيذ أي تعديل أو DDL أو DML على Production (`urmkcixqpoqkiosihhal`).
+  - لم يتم تشغيل `supabase db push` أو `migration repair` أو `db reset`.
+  - قاعدة بيانات الإنتاج مطابقة تماماً لحالتها الأصلية دون أي مساس.
+  - **قرار الإطلاق على Production:** معلق حتى اكتمال اعتماد ChatGPT وفريق العمل لكافة التقارير.
+
+---
+
+## 4. المراجع والتقارير الفنية المتاحة في المستودع
+
+- **تقرير اختبارات Staging المفصل:** `docs/phase0/review/PHASE0_STAGING_EXECUTION_REPORT.md`
+- **تقرير مراجعة الكود المستقلة:** `docs/phase0/review/PHASE0_INDEPENDENT_REVIEW.md` و `REMEDIATION_CODE_REVIEW.md`
+- **ملف DDL لإعادة إنتاج Staging:** `docs/phase0/staging/staging_schema_reproduced.sql`
+- **اسكربتات الفحص:** `docs/phase0/validation/`
