@@ -1,56 +1,48 @@
-# Phase 0 — الحالة بعد تدقيق سجل Supabase الأصلي
+# Phase 0 — الوضع الحالي وملخص التسليم إلى Codex
 
-**المستودع:** `Ahmed77khaled/elmasry-academy-lms`  
-**الفرع:** `phase0/shared-workspace`  
+**المستودع:** `Ahmed77khaled/elmasry-academy-lms` (Private)  
+**فرع الأدلة:** `phase0/shared-workspace`  
+**فرع Codex:** `codex/phase0-next`  
 **Production:** `urmkcixqpoqkiosihhal`  
 **Staging:** `kxdfconqflveqeozanaw`  
 **آخر تحديث:** 13 نوفمبر 2026
 
-## نتيجة التحقيق في Pause Project
+## الخلاصة
 
-تم استخراج الهدف الحقيقي من السجل:
+ملفات المشروع موجودة على GitHub: كود React/TypeScript، Supabase Functions، migrations الحالية، 20 migration snapshots، أدلة Phase 0، ملفات SQL المرشحة، Schema snapshot، validation scripts، وسجل تنفيذ Supabase بعد إزالة كلمات مرور الاختبار.
 
-- المشروع الذي تم إيقافه: `eidlyvsiroyxvccmzlfm`
-- الاسم: `Ahmed77khaled's Project`
-- المنطقة: `eu-west-3`
-- قبل الإيقاف: `ACTIVE_HEALTHY`
-- بعد استدعاء pause: `PAUSING`
-- لا يوجد أي استدعاء `resume_project` في جلسة التنفيذ.
-- المستخدم أكد صراحةً أن المشروع هو Portfolio وأنه موافق على إبقائه متوقفًا مقابل تشغيل TrainerPro Staging.
+تم إنشاء فرع مستقل لـCodex حتى يشتغل بعيدًا عن `main` ويحافظ على فرع الأدلة.
 
-**تم حسم القرار: الإيقاف مقصود وموافق عليه، ولا نحتاج إلى Resume.** المشروع منفصل عن Production وStaging. آخر حالة مسجلة هي PAUSING، ولم نجرِ فحصًا حيًا جديدًا لحالته.
+## قرارات Supabase
 
-## تدقيق Production SQL
+- Production لم يكن هدف استدعاء pause، ولم تسجل جلسة التنفيذ أي كتابة SQL عليه؛ 24 استعلام Production كانت SELECT-only.
+- مشروع Ahmed Khaled Portfolio (`eidlyvsiroyxvccmzlfm`) تم إيقافه عمدًا لتوفير slot لـStaging، والمستخدم وافق على إبقائه متوقفًا.
+- Staging (`kxdfconqflveqeozanaw`) أُنشئ واستخدم لاختبارات Phase 0.
+- لا تنفذ أي تغييرات على Production. ولا تنفذ أي كتابة جديدة على Staging دون موافقة مستقلة وفحص ref قبل التنفيذ.
 
-السجل يحتوي على 95 استدعاء `execute_sql`:
-- 24 استدعاء على Production — كلها SELECT فقط.
-- 71 استدعاء على Staging — عمليات تجهيز واختبارات.
+## الإصلاحات
 
-لم يظهر أي DDL أو DML أو GRANT أو REVOKE على Production. واستمر Production في الاستجابة لاستعلامات القراءة أثناء جلسة التنفيذ.
-
-## تصحيح مهم بخصوص البيانات
-
-لم يتم نسخ سجلات طلاب أو مستخدمين حقيقيين أو معاملات مالية من Production. لكن تم قراءة وإعادة إنتاج بعض بيانات الإعداد المرجعية، مثل تعريفات الأدوار والصلاحيات وروابطها. لذلك عبارة "0% Production Data Copied" غير دقيقة بصيغتها المطلقة.
-
-## نتائج الإصلاحات
-
-| الإصلاح | الحالة بعد تدقيق سجل التنفيذ |
+| المرشح | الحالة |
 |---|---|
-| Default Privileges | مطبق على Staging؛ الـProbe المنفذ كان نسخة مختصرة، ويلزم تشغيل النسخة الكاملة الحالية |
-| is_admin active status | مطبق؛ نتائج SQL تثبت active=true وinactive=false وnormal=false |
-| Cash box USD + creator FK | مطبق؛ اختبارات أساسية نجحت، لكن بعض سيناريوهات الخطة لم تُختبر |
-| Legacy financial views EGP-only | HOLD |
-| Migration Ledger | غير محسوم؛ لا db push ولا migration repair |
+| Default Privileges | نُفذ على Staging؛ الاختبار المنفذ كان نسخة أقدم مختصرة، ويلزم تشغيل الـProbe الكامل الحالي |
+| is_admin active status | نُفذ على Staging؛ اختبار SQL أكد active=true وinactive=false وnormal=false |
+| Cash Box USD + creator FK | نُفذ على Staging؛ اختبارات أساسية نجحت، والتغطية ليست كاملة |
+| Legacy Financial Views EGP-only | HOLD — لا تطبقه حتى حسم المستهلكين ومعنى العملة |
 
-## متبقي قبل اعتماد Production
+## أهم المهام المفتوحة لـCodex
 
-- مراجعة 69 دالة ظاهرة لـanon و70 لـauthenticated على Staging، كل واحدة على حدة.
-- تشغيل نسخة Probe الصلاحيات الكاملة الحالية.
-- اختبار AuthContext في الواجهة.
-- استكمال اختبارات Cash Box عبر RPC واختبارات الحدود والحذف وإشعارات Telegram.
-- لا يلزم استعادة مشروع Portfolio؛ المستخدم وافق على إبقائه متوقفًا.
-- إبقاء Production على NO-GO حتى اكتمال المراجعة.
+1. بناء inventory لكل الدوال العامة القابلة للتنفيذ بواسطة `anon` و`authenticated` (المسجل 69 و70)، ومراجعة السلوك الفعلي قبل اقتراح أي revoke.
+2. مراجعة تدفق `AuthContext` واختبارات تسجيل الدخول وتحديث الجلسة والخروج للمسؤول المعطّل.
+3. استكمال اختبارات Cash Box عبر RPC المعتمد، واختبارات limits والحذف وتغيير creator وإشعارات outbox دون إرسال خارجي.
+4. تشغيل الـACL probe الأحدث على Staging بعد موافقة واضحة.
+5. بناء Migration statement-level reconciliation للـ20 ملفًا مقابل 4 ledger rows.
+6. إبقاء Candidate 4 على HOLD إلى أن يتفق عقد الواجهة/التقارير على تمثيل EGP وUSD.
 
-التقرير التفصيلي: `ANTIGRAVITY_STAGING_REPORT_REVIEW.md` و`SUPABASE_LIFECYCLE_AND_SQL_AUDIT.md`.
+## ممنوع
 
-**لم أنفذ أي Pause أو Resume أو أي SQL جديد خلال هذا التدقيق.**
+- `supabase db push`, `db reset`, `migration repair`, أو تعديل يدوي لـ`schema_migrations`.
+- أي DDL/DML/GRANT/REVOKE على Production.
+- إضافة المرشحات الأربعة إلى active migrations قبل المراجعة والموافقة.
+- نشر Production أو تغيير إعدادات Vercel أو مفاتيح Supabase.
+
+راجع `docs/phase0/CODEX_HANDOFF.md` للحصول على تعليمات Codex الكاملة.

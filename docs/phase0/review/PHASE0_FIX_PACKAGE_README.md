@@ -1,62 +1,26 @@
-# حزمة إصلاحات Phase 0 — Elmasry Academy LMS
+# Phase 0 Remediation Package — Current Status
 
-**المشروع المستهدف:** TrainerPro — `urmkcixqpoqkiosihhal`  
-**تاريخ الحزمة:** 13 نوفمبر 2026  
-**نوع العمل:** إصلاحات Forward-only مبنية على أدلة التسليم، جاهزة للمراجعة والاختبار على Staging.
+**Current status:** Candidates 1–3 were executed on the dedicated Staging project; Candidate 4 remains HOLD. This file supersedes the earlier pre-Staging package note.
 
-## مهم قبل أي استخدام
+## Authoritative current records
+- `../CODEX_HANDOFF.md`
+- `PHASE0_STATUS_AR.md`
+- `SUPABASE_LIFECYCLE_AND_SQL_AUDIT.md`
+- `REMEDIATION_CODE_REVIEW.md`
+- `STAGING_TEST_PLAN.md`
+- `SUPABASE_MCP_RAW_EXECUTION_LOG.md` (credentials redacted)
 
-هذه الحزمة **لا تعني أن قاعدة البيانات الحية تم تعديلها**. لم يتم تنفيذ أي SQL على Supabase، ولم يتم تعديل ملفات المشروع الأصلية أو Git، ولم يتم عمل Commit أو Push أو Deploy.
+## Candidate decisions
 
-السبب: تقرير التسليم يؤكد عدم وجود Staging مستقل، كما أن Migration Ledger يحتوي على تعارضات تمنع استخدام `supabase db push` أو `migration repair` بأمان. لا يجوز تجربة هذه التغييرات على Production بدل Staging. الملفات مسودات تنفيذ، وليست إثباتًا أن الإصلاحات طُبقت.
+1. **Default privileges** — executed on Staging. The captured execution used an earlier reduced probe; the current strengthened probe and cross-schema global default implications still require verification.
+2. **Active-admin `is_admin()`** — executed on Staging; SQL behavior tests support active=true, inactive=false, non-admin=false. Frontend AuthContext regression is still not evidenced.
+3. **Cash-box USD immutability + creator FK** — executed on Staging; core invariants passed. Archive RPC, negative/over-limit validation, hard-delete/reassignment rejection, and notification-side-effect coverage remain incomplete.
+4. **Legacy financial views EGP-only** — HOLD. Do not apply before UI/external consumer inventory, a confirmed expense/transfer currency convention, and approved multi-currency contract.
 
-## الإصلاحات التي جهزتها
+## Migration status
 
-1. `20261113190000_harden_postgres_default_privileges.sql`
-   - يمنع منح `anon` و`authenticated` صلاحيات افتراضية على الجداول والمتتاليات والدوال الجديدة في `public` التي ينشئها `postgres`.
-   - يزيل الافتراضي `PUBLIC EXECUTE` عن الدوال الجديدة التي ينشئها `postgres`. هذا الجزء عالمي على كل الـSchemas لأن PostgreSQL لا يسمح بإلغاء الـGlobal Default من داخل Schema واحدة.
-   - يحافظ على Default Grants الخاصة بـ`service_role`، ولا يلمس `supabase_admin`، ولا يغير صلاحيات الكائنات الموجودة حاليًا. إزالة `PUBLIC EXECUTE` الافتراضية تؤثر عالميًا على كل الدوال الجديدة التي ينشئها `postgres` في أي Schema، لذلك تتطلب مراجعة Staging لكل الـSchemas.
+The four candidate files remain in `drafts/migrations/`, not in `supabase/migrations/`. Direct SQL execution on Staging does not establish migration-ledger registration. The captured evidence reports 20 local migration versions and 4 ledger rows; reconcile statement-by-statement.
 
-2. `20261113190100_fix_is_admin_active_status.sql`
-   - يصلح `public.is_admin()` كي لا تعتبر الحسابات المعطّلة Admin نشطًا.
-   - يحتفظ بـ`SECURITY DEFINER` و`search_path` وصلاحيات التنفيذ المتوقعة.
+## Safety
 
-3. `20261113190200_fix_cash_box_usd_immutability_and_creator_fk.sql`
-   - يمنع تغيير `opening_balance_usd` بعد إنشاء الخزينة، مثل الرصيد الافتتاحي بالجنيه.
-   - يصلح علاقة `cash_boxes.added_by` لتستخدم `ON DELETE SET NULL` كما تنص عليه Migration 008 وملف إصلاحها اللاحق؛ الدليل الحالي يقول إن القيد الحي ما زال `NO ACTION`.
-   - يحافظ على Default العمود الحالي دون تغيير، ويضيف حدًا أقصى لرصيد USD متوافقًا مع RPC إنشاء الخزينة.
-   - يصلح `ON DELETE SET NULL` لتطابق الغرض الأصلي من العلاقة، مع الإبقاء على Default العمود كما هو حاليًا لتجنب تغيير غير ضروري.
-   - يضيف فحص حد أقصى لرصيد USD متوافقًا مع حد إنشاء الخزينة في RPC الحالي.
-   - يوقف التنفيذ إذا اختلفت بنية القيد أو التريجر عن الأدلة المدققة.
-
-4. `20261113190300_make_legacy_financial_views_egp_only.sql`
-   - يفصل المبالغ في الفيوز المالية القديمة لتعرض EGP فقط.
-   - يحتفظ بأسماء وترتيب وأنواع أعمدة الفيوز الأربعة وبخاصية `security_invoker=true`.
-   - يترك العدّادات التشغيلية وعدد الاشتراكات عبر العملات كما هي؛ القيم المالية فقط EGP.
-   - يعامل `expenses` و`cash_box_transfers` كـEGP لأن الـSchema والـRPC الحالي لا يحتويان على دعم عملة لهذه القيود. يجب تأكيد هذا الافتراض التجاري قبل الموافقة على Staging.
-
-## ترتيب المراجعة
-
-1. خذ نسخة احتياطية قابلة للاستعادة وأنشئ مشروع Staging مستقلًا من نسخة منقّحة/مستعادة من قاعدة البيانات.
-2. ابدأ بملف `validation/PHASE0_REMAINING_SECURITY_GAPS_READONLY.sql` لجمع الدليل الناقص عن الدوال العادية وRLS وسياسات الـSchemas والتريجرات.
-3. على Staging فقط، طبّق الملفات الأربعة بالترتيب الزمني، كل ملف في معاملة منفصلة.
-4. شغّل `validation/PHASE0_POST_APPLY_READONLY_CHECKS.sql` وراجع النتائج.
-5. نفّذ اختبارات سلوكية على حسابات وخزائن تجريبية مخصصة في Staging قبل أي قرار Production.
-
-## ممنوع حاليًا
-
-- لا تشغّل `supabase db push`.
-- لا تشغّل `supabase migration repair` لأي من الـ20 إصدارًا القديمة.
-- لا تشغّل هذه الملفات في Production.
-- لا تعدّل `schema_migrations` يدويًا.
-- لا تعدّل ملفات الـMigration التاريخية.
-
-## ما لم يتم إصلاحه بعد
-
-- لم تتم تسوية Migration Ledger؛ تصنيف بعض الملفات متناقض، ووجود Function أو Table لا يثبت أن كامل Migration طُبق.
-- لم يكتمل تدقيق كل دوال `SECURITY INVOKER` وACLs وRLS وسياسات الـSchemas. يوجد استعلام لجمع الدليل في مجلد `validation`.
-- تعارض وصف Trigger الإشعارات بين `STATEMENT` و`FOR EACH ROW` يحتاج قراءة `tgtype` الخام؛ الحزمة لا تغيّر هذا التريجر.
-- لا يوجد Staging حسب التقرير، ولذلك لا توجد نتائج اختبار تنفيذ فعلية.
-- لم أعدّل `AuthContext.tsx` أو بقية التطبيق؛ ملفات المصدر الفعلية غير موجودة في حزمة الأدلة. إصلاح `is_admin()` في قاعدة البيانات يعالج مصدر حالة Admin الذي يستدعيه التطبيق، لكنه لا يغني عن اختبار تدفق AuthContext.
-
-**حالة Phase 0:** OPEN / NOT CLEARED FOR PRODUCTION.
+Production (`urmkcixqpoqkiosihhal`) remains NO-GO for all changes. Do not run `supabase db push`, `migration repair`, `db reset`, direct ledger edits, or candidate SQL against Production. Even Staging mutation requires explicit user approval and a fresh target-ref check.

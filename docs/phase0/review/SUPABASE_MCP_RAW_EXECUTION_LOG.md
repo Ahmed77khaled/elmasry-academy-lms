@@ -1,3 +1,5 @@
+> SECURITY REDACTION NOTE: Four fixed synthetic Staging test passwords and local Windows user paths have been redacted from this archival log. Do not reuse the old test credentials. This file is retained as an execution-evidence record, not as a replayable script.
+
 # Supabase MCP Operations — Raw Execution Log
 
 **Session Period:** 2026-11-13 (Step 7800 to 8248)
@@ -471,7 +473,7 @@ Completed At: 2026-11-13T21:15:04+02:00
 ```json
 Created At: 2026-11-13T21:15:16+02:00
 Completed At: 2026-11-13T21:15:17+02:00
-The output was large and was saved to: file:///C:/Users/msi/.gemini/antigravity/brain/18838df4-dda9-460e-8c5b-289f64a621e8/.system_generated/steps/7874/output.txt
+The output was large and was saved to: file:///[LOCAL_WINDOWS_PATH_REDACTED]/.gemini/antigravity/brain/18838df4-dda9-460e-8c5b-289f64a621e8/.system_generated/steps/7874/output.txt
 ```
 
 ---
@@ -495,7 +497,7 @@ The output was large and was saved to: file:///C:/Users/msi/.gemini/antigravity/
 ```json
 Created At: 2026-11-13T21:15:49+02:00
 Completed At: 2026-11-13T21:15:51+02:00
-The output was large and was saved to: file:///C:/Users/msi/.gemini/antigravity/brain/18838df4-dda9-460e-8c5b-289f64a621e8/.system_generated/steps/7878/output.txt
+The output was large and was saved to: file:///[LOCAL_WINDOWS_PATH_REDACTED]/.gemini/antigravity/brain/18838df4-dda9-460e-8c5b-289f64a621e8/.system_generated/steps/7878/output.txt
 ```
 
 ---
@@ -519,7 +521,7 @@ The output was large and was saved to: file:///C:/Users/msi/.gemini/antigravity/
 ```json
 Created At: 2026-11-13T21:16:07+02:00
 Completed At: 2026-11-13T21:16:08+02:00
-The output was large and was saved to: file:///C:/Users/msi/.gemini/antigravity/brain/18838df4-dda9-460e-8c5b-289f64a621e8/.system_generated/steps/7880/output.txt
+The output was large and was saved to: file:///[LOCAL_WINDOWS_PATH_REDACTED]/.gemini/antigravity/brain/18838df4-dda9-460e-8c5b-289f64a621e8/.system_generated/steps/7880/output.txt
 ```
 
 ---
@@ -1544,7 +1546,7 @@ Completed At: 2026-11-13T21:48:13+02:00
 ```json
 {
   "project_id": "kxdfconqflveqeozanaw",
-  "query": "INSERT INTO auth.users (\n  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,\n  raw_app_meta_data, raw_user_meta_data, is_sso_user, is_anonymous, created_at, updated_at\n) VALUES\n(\n  'a0000000-0000-0000-0000-000000000001',\n  '00000000-0000-0000-0000-000000000000',\n  'authenticated', 'authenticated', 'admin.active@example.invalid',\n  crypt('StagingAdmin123!', gen_salt('bf')), now(),\n  '{\"provider\":\"email\",\"providers\":[\"email\"]}'::jsonb, '{\"name\":\"Active Admin\"}'::jsonb,\n  false, false, now(), now()\n),\n(\n  'a0000000-0000-0000-0000-000000000002',\n  '00000000-0000-0000-0000-000000000000',\n  'authenticated', 'authenticated', 'admin.inactive@example.invalid',\n  crypt('StagingInactive123!', gen_salt('bf')), now(),\n  '{\"provider\":\"email\",\"providers\":[\"email\"]}'::jsonb, '{\"name\":\"Inactive Admin\"}'::jsonb,\n  false, false, now(), now()\n),\n(\n  'a0000000-0000-0000-0000-000000000003',\n  '00000000-0000-0000-0000-000000000000',\n  'authenticated', 'authenticated', 'normal.user@example.invalid',\n  crypt('StagingNormal123!', gen_salt('bf')), now(),\n  '{\"provider\":\"email\",\"providers\":[\"email\"]}'::jsonb, '{\"name\":\"Normal User\"}'::jsonb,\n  false, false, now(), now()\n),\n(\n  'a0000000-0000-0000-0000-000000000004',\n  '00000000-0000-0000-0000-000000000000',\n  'authenticated', 'authenticated', 'creator.temp@example.invalid',\n  crypt('StagingCreator123!', gen_salt('bf')), now(),\n  '{\"provider\":\"email\",\"providers\":[\"email\"]}'::jsonb, '{\"name\":\"Creator Temp\"}'::jsonb,\n  false, false, now(), now()\n)\nON CONFLICT (id) DO NOTHING;"
+  "query": "INSERT INTO auth.users (\n  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,\n  raw_app_meta_data, raw_user_meta_data, is_sso_user, is_anonymous, created_at, updated_at\n) VALUES\n(\n  'a0000000-0000-0000-0000-000000000001',\n  '00000000-0000-0000-0000-000000000000',\n  'authenticated', 'authenticated', 'admin.active@example.invalid',\n  crypt('[REDACTED_STAGING_TEST_PASSWORD]', gen_salt('bf')), now(),\n  '{\"provider\":\"email\",\"providers\":[\"email\"]}'::jsonb, '{\"name\":\"Active Admin\"}'::jsonb,\n  false, false, now(), now()\n),\n(\n  'a0000000-0000-0000-0000-000000000002',\n  '00000000-0000-0000-0000-000000000000',\n  'authenticated', 'authenticated', 'admin.inactive@example.invalid',\n  crypt('[REDACTED_STAGING_TEST_PASSWORD]', gen_salt('bf')), now(),\n  '{\"provider\":\"email\",\"providers\":[\"email\"]}'::jsonb, '{\"name\":\"Inactive Admin\"}'::jsonb,\n  false, false, now(), now()\n),\n(\n  'a0000000-0000-0000-0000-000000000003',\n  '00000000-0000-0000-0000-000000000000',\n  'authenticated', 'authenticated', 'normal.user@example.invalid',\n  crypt('[REDACTED_STAGING_TEST_PASSWORD]', gen_salt('bf')), now(),\n  '{\"provider\":\"email\",\"providers\":[\"email\"]}'::jsonb, '{\"name\":\"Normal User\"}'::jsonb,\n  false, false, now(), now()\n),\n(\n  'a0000000-0000-0000-0000-000000000004',\n  '00000000-0000-0000-0000-000000000000',\n  'authenticated', 'authenticated', 'creator.temp@example.invalid',\n  crypt('[REDACTED_STAGING_TEST_PASSWORD]', gen_salt('bf')), now(),\n  '{\"provider\":\"email\",\"providers\":[\"email\"]}'::jsonb, '{\"name\":\"Creator Temp\"}'::jsonb,\n  false, false, now(), now()\n)\nON CONFLICT (id) DO NOTHING;"
 }
 ```
 
@@ -2536,7 +2538,7 @@ Completed At: 2026-11-13T21:58:38+02:00
 ```json
 Created At: 2026-11-13T21:58:44+02:00
 Completed At: 2026-11-13T21:58:44+02:00
-The output was large and was saved to: file:///C:/Users/msi/.gemini/antigravity/brain/18838df4-dda9-460e-8c5b-289f64a621e8/.system_generated/steps/8247/output.txt
+The output was large and was saved to: file:///[LOCAL_WINDOWS_PATH_REDACTED]/.gemini/antigravity/brain/18838df4-dda9-460e-8c5b-289f64a621e8/.system_generated/steps/8247/output.txt
 ```
 
 ---
