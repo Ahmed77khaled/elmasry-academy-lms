@@ -45,7 +45,7 @@ The read-only audit SQL (`validation/PHASE0_REMAINING_SECURITY_GAPS_READONLY.sql
 
 ### Application authorization review
 
-`src/context/AuthContext.tsx` fetches current session on mount, asks `is_admin()`, and only loads `get_my_authorization()` after admin verification during auth-state refresh. It clears permissions when no session or non-admin is seen. `AppShell.tsx` gates page navigation and render on permissions; sensitive CRUD and read flows call `rbac_*` RPCs rather than direct table writes. `AdminAccessManagement.tsx` uses role/owner RPCs; login invokes a best-effort alert after sign-in.
+`src/context/AuthContext.tsx` fetches current session on mount, asks `is_admin()`, and loads `get_my_authorization()`; auth-state events load authorization only after a positive admin check. It clears permissions when no session or non-admin is seen. `AppShell.tsx` gates page navigation and render on permissions; sensitive CRUD and read flows call `rbac_*` RPCs rather than direct table writes. `AdminAccessManagement.tsx` uses role/owner RPCs; login invokes a best-effort alert after sign-in. The detailed flow, page-permission map, server-boundary evidence and regression cases are in [APPLICATION_AUTHORIZATION_FLOW_REVIEW.md](../evidence/APPLICATION_AUTHORIZATION_FLOW_REVIEW.md).
 
 Regression risks / follow-up:
 
