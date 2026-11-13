@@ -200,3 +200,12 @@ PostgreSQL 17 requires `CREATE OR REPLACE VIEW` to produce the existing columns 
 - Migration ledger repair: **NOT RUN**.
 - Git main branch: **UNCHANGED**.
 - This report is a code/evidence review, not a deployment approval.
+
+
+## 8. Follow-up review work (13 November 2026)
+
+After the initial review, the migration reconciliation assessment was rewritten conservatively. The previous table's FULLY APPLIED labels for unregistered versions were not supported by statement-level proof. The new `evidence/MIGRATION_RECONCILIATION.md` marks most of those versions UNKNOWN or PARTIAL until every statement is reconciled, and explicitly prohibits blanket migration repair.
+
+The Staging default-ACL probe was also strengthened. It now checks all eight PostgreSQL 17 table privileges (`SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN`), all three sequence privileges (`USAGE, SELECT, UPDATE`), function EXECUTE, explicit PUBLIC ACL entries, and preservation of every captured service_role privilege. It remains transactional and ends with ROLLBACK; it is **not read-only while running** and is Staging-only.
+
+These follow-up changes are committed on `phase0/shared-workspace`. They do not change the approval status: Staging has not been run, Production remains NO-GO, and migration ledger reconciliation remains blocked.
