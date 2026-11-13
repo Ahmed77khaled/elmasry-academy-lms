@@ -1,5 +1,7 @@
 # Financial Views & Dependency Evidence — Elmasry Academy LMS
 
+> **Reconciliation note (2026-11-14):** This retained report contains an unresolved inconsistency and must not be treated as a definitive consumer inventory for Candidate 4. Its §4 says `rbac_course_financial_summary` references `course_financial_summary`; the archived Production function definition in `PHASE0_RPC_SECURITY_DEFINER_SOURCE_EVIDENCE.md` (routine 15) delegates to `rbac_course_financial_summary_v2`, and the 2026-10-30 migration snapshot defines that wrapper the same way. Its §1 and §5 also say the UI calls `rbac_course_financial_summary_v2`, but the checked current application source calls `rbac_course_financial_summary` at `src/pages/CourseDetailsPage.tsx:97`. Do not infer the current deployed function body from either conflicting artifact. Reconcile with same-project captured function/dependency evidence before using Candidate 4.
+
 > **Target Supabase Project:** `urmkcixqpoqkiosihhal` (TrainerPro)  
 > **Audited Views:** `enrollment_balances`, `cash_box_balances`, `course_financial_summary`, `dashboard_metrics`  
 
@@ -9,7 +11,7 @@
 3. **Aggregation Safety:** Subqueries pre-aggregate totals before joining, preventing Cartesian product duplication.
 4. **Multi-Currency Commingling:** All 4 views sum numeric amounts directly without currency discrimination (summing USD and EGP together).
 5. **Database Dependencies:** `dashboard_metrics` directly depends on `enrollment_balances`. Only 1 database function (`rbac_course_financial_summary` v1) references any view.
-6. **Application Usage:** The application codebase (`src/`) **does NOT query these views directly via PostgREST** (`supabase.from(...)`). All frontend screens call `v2` RPCs (`rbac_course_financial_summary_v2`, `rbac_operational_dashboard_metrics`, `rbac_finance_dashboard_metrics`, `rbac_list_cash_boxes_v2`, etc.).
+6. **Application Usage:** The checked application codebase (`src/`) has no direct PostgREST reads of these views (`supabase.from(...)`). It uses RPCs. The current Course Details source calls the compatibility-named `rbac_course_financial_summary`; Dashboard uses `rbac_operational_dashboard_metrics` and `rbac_finance_dashboard_metrics`. Whether the deployed compatibility RPC reads `course_financial_summary` is unresolved by the retained evidence above.
 
 ## 2. View Column Contracts & PostgreSQL Data Types
 

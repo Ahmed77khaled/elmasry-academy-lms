@@ -20,11 +20,12 @@ The search across `src/` and `supabase/functions/` found no `.from()` reads of t
 The application call at `src/pages/CourseDetailsPage.tsx:97` uses `rbac_course_financial_summary`. Two retained artifacts disagree about its dependency:
 
 - `docs/phase0/evidence/FINANCIAL_VIEWS_AND_DEPENDENCIES.md`, sections 1 and 4, says this routine references `course_financial_summary`.
+- That same report's sections 1 and 5 incorrectly describe the app call as `rbac_course_financial_summary_v2`; current checked source calls `rbac_course_financial_summary`.
 - The retained Production function definition in `docs/phase0/evidence/PHASE0_RPC_SECURITY_DEFINER_SOURCE_EVIDENCE.md` (routine 15) returns rows from `public.rbac_course_financial_summary_v2(p_course_id)`.
 - The migration snapshot `docs/phase0/migrations-snapshot/20261030130000_course_enrollment_currency_v2.sql` defines that wrapper in the same way, and the v2 function body calculates results from source tables.
 - Candidate 4's header comments claim that the application RPC is backed by the legacy view. That claim is not supported by the retained Production function definition above.
 
-The source evidence and the view dependency report therefore cannot both describe the same routine definition. Until this is reconciled against a captured, same-project function definition and dependency result, do not treat the v1-named application call as proof either that the view is used or that it is unused.
+The source evidence and the view dependency report therefore cannot both describe the same routine definition. Until this is reconciled against a captured, same-project function definition and dependency result, do not treat the v1-named application call as proof either that the view is used or that it is unused. The archived dependency report also misstates the current UI RPC name; this correction is recorded at the top of that report without deleting its original evidence tables.
 
 ## Candidate 4 review implications
 
