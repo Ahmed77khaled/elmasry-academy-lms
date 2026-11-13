@@ -25,7 +25,7 @@ The first attempt to create Staging failed because the organization had reached 
 
 The recorded session contains **zero** `resume_project` or `restore_project` calls. The last observed status for the personal project is `PAUSING`; the log does not establish its current status after that check. Do not assume it has been restored.
 
-**Conclusion:** Antigravity did pause a separate personal Supabase project to free a project slot. The captured records do not show a pause of TrainerPro Production. The personal project may still be paused and needs an owner decision before resuming because the free-project quota was already reached.
+**Conclusion:** Antigravity paused a separate personal Supabase project to free a project slot. The captured records do not show a pause of TrainerPro Production. The owner has now explicitly confirmed that this is the Ahmed Khaled Portfolio project and approved keeping it paused in exchange for activating the TrainerPro Staging project. Therefore, no resume action is required; the pause is intentional and accepted. The last recorded lifecycle status remains `PAUSING`, so the actual current state has not been freshly queried in this session.
 
 ## 2. Production SQL audit — 24 calls, all read-only
 
@@ -109,7 +109,7 @@ Important limits:
 
 ## 6. Remaining blockers
 
-1. **Personal project lifecycle:** ref `eidlyvsiroyxvccmzlfm` was paused and no resume call appears in the session. Its current status must be checked in Supabase Dashboard. Do not resume blindly while the free-project quota is at the limit; resuming may require a plan change or a different project-slot decision.
+1. **Personal project lifecycle:** ref `eidlyvsiroyxvccmzlfm` (Ahmed Khaled Portfolio) was paused and no resume call appears in the session. The owner explicitly approved keeping it paused to make room for TrainerPro Staging. No resume action is required. The last recorded lifecycle status is `PAUSING`; no fresh status check has been performed.
 2. **Existing callable routines:** the Staging audit reports 69 public routines executable by `anon` and 70 by `authenticated`. Candidate 1 affects future objects; it does not revoke old grants across the existing API surface. Perform function-by-function authorization review before Production release.
 3. **Default ACL full probe:** run the current strengthened probe, not the reduced probe in the captured session.
 4. **Application regression:** test real Staging frontend login/refresh/logout and authorization-gated routes.
@@ -127,7 +127,7 @@ The raw log contains a fixed synthetic Staging password in the SQL used to creat
 |---|---|
 | Was Production the target of `pause_project`? | **No** |
 | Which project was paused? | `eidlyvsiroyxvccmzlfm` — Ahmed77khaled's personal project |
-| Was that project resumed in the captured session? | **No resume call recorded** |
+| Was that project resumed in the captured session? | **No resume call recorded; owner approves keeping it paused** |
 | Did captured Production SQL calls modify the database? | **No — all 24 are SELECT-only** |
 | Did recorded SQL writes target Staging? | **Yes — all 71 recorded SQL calls targeting the Staging ref** |
 | Did an `apply_migration` execute? | **No — the one attempt was cancelled before execution** |
