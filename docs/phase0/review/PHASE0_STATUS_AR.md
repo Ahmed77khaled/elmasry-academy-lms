@@ -1,44 +1,57 @@
-# Phase 0 — الحالة التشغيلية بعد تقرير Staging ومراجعته
+# Phase 0 — الحالة بعد تدقيق سجل Supabase الأصلي
 
 **المستودع:** `Ahmed77khaled/elmasry-academy-lms`  
 **الفرع:** `phase0/shared-workspace`  
 **Production:** `urmkcixqpoqkiosihhal`  
-**Staging (بحسب تقرير Antigravity):** `kxdfconqflveqeozanaw`  
-**آخر مراجعة:** 13 نوفمبر 2026
+**Staging:** `kxdfconqflveqeozanaw`  
+**آخر تحديث:** 13 نوفمبر 2026
 
-## ملخص التنفيذ المبلغ عنه
+## نتيجة التحقيق في Pause Project
 
-تقرير Antigravity يقول إن بيئة Staging أُنشئت، وإن المرشحات 1 و2 و3 اجتازت اختبارات وظيفية، بينما المرشح 4 لم يُطبق وظل HOLD. هذه نتائج Staging مبلّغ عنها وليست موافقة على Production.
+تم استخراج الهدف الحقيقي من السجل:
 
-## نقطة عاجلة قيد التحقق
+- المشروع الذي تم إيقافه: `eidlyvsiroyxvccmzlfm`
+- الاسم: `Ahmed77khaled's Project`
+- المنطقة: `eu-west-3`
+- قبل الإيقاف: `ACTIVE_HEALTHY`
+- بعد استدعاء pause: `PAUSING`
+- لا يوجد أي استدعاء `resume_project` في جلسة التنفيذ.
 
-سجل التنفيذ المرفق يحتوي على استدعاء `supabase_mcp/pause_project` قبل إنشاء المشروع الجديد. السجل المعروض لا يوضح الـProject Ref المستهدف ولا نتيجة الاستدعاء، ولا يظهر فيه استدعاء `resume_project`.
+**ده مشروع شخصي منفصل، وليس Production أو Staging.** تم إيقافه بعد فشل إنشاء Staging بسبب الوصول إلى حد المشروعين المجانيين النشطين.
 
-لذلك لا نعتمد حتى الآن عبارة أن Production لم يتأثر إطلاقاً. يجب استخراج arguments وresponse لاستدعاء pause، ومراجعة حالة المشروعين وسجل الأحداث. إذا ثبت أن Production تم إيقافه خلال المهمة، يجب إعادته إلى حالته السابقة النشطة والتحقق من سلامة الخدمة.
+آخر حالة مسجلة للمشروع الشخصي هي PAUSING؛ لم يتم التحقق من حالته الحية بعد ذلك. لا تستعده عشوائيًا قبل مراجعة حد المشاريع النشطة.
 
-التفاصيل في `ANTIGRAVITY_STAGING_REPORT_REVIEW.md`.
+## تدقيق Production SQL
 
-## قرارات المرشحات
+السجل يحتوي على 95 استدعاء `execute_sql`:
+- 24 استدعاء على Production — كلها SELECT فقط.
+- 71 استدعاء على Staging — عمليات تجهيز واختبارات.
 
-| المرشح | الحالة بعد المراجعة المستقلة |
+لم يظهر أي DDL أو DML أو GRANT أو REVOKE على Production. واستمر Production في الاستجابة لاستعلامات القراءة أثناء جلسة التنفيذ.
+
+## تصحيح مهم بخصوص البيانات
+
+لم يتم نسخ سجلات طلاب أو مستخدمين حقيقيين أو معاملات مالية من Production. لكن تم قراءة وإعادة إنتاج بعض بيانات الإعداد المرجعية، مثل تعريفات الأدوار والصلاحيات وروابطها. لذلك عبارة "0% Production Data Copied" غير دقيقة بصيغتها المطلقة.
+
+## نتائج الإصلاحات
+
+| الإصلاح | الحالة بعد تدقيق سجل التنفيذ |
 |---|---|
-| Default Privileges | نجاح مبدئي؛ يلزم تشغيل نسخة الـProbe الكاملة الحالية وفحص أثر الـGlobal defaults |
-| is_admin active status | نجاح وظيفي مبدئي على Staging؛ يلزم حفظ مخرجات الاختبار وفحص AuthContext |
-| Cash box USD + creator FK | نجاح وظيفي مبدئي على Staging؛ يلزم حفظ المخرجات وإثبات عزل الإشعارات |
-| Legacy financial views EGP-only | HOLD — لا تطبقه |
-| Migration Ledger | غير محسوم — لا migration repair ولا db push |
-| Existing callable routines | blocker — التقرير نفسه يحصي 69 routine متاحة لـanon؛ يلزم فحصها واحدة واحدة |
+| Default Privileges | مطبق على Staging؛ الـProbe المنفذ كان نسخة مختصرة، ويلزم تشغيل النسخة الكاملة الحالية |
+| is_admin active status | مطبق؛ نتائج SQL تثبت active=true وinactive=false وnormal=false |
+| Cash box USD + creator FK | مطبق؛ اختبارات أساسية نجحت، لكن بعض سيناريوهات الخطة لم تُختبر |
+| Legacy financial views EGP-only | HOLD |
+| Migration Ledger | غير محسوم؛ لا db push ولا migration repair |
 
-## حدود ما تم إثباته
+## متبقي قبل اعتماد Production
 
-تطابق عدد الجداول والدوال والتريجرز والسياسات، مع فحص أعمدة وأنواع الـfinancial views، لا يكفي لإثبات تطابق كامل لتعريفات كل objects والـACLs والـRLS.
+- مراجعة 69 دالة ظاهرة لـanon و70 لـauthenticated على Staging، كل واحدة على حدة.
+- تشغيل نسخة Probe الصلاحيات الكاملة الحالية.
+- اختبار AuthContext في الواجهة.
+- استكمال اختبارات Cash Box عبر RPC واختبارات الحدود والحذف وإشعارات Telegram.
+- حل مسألة المشروع الشخصي الذي تم إيقافه.
+- إبقاء Production على NO-GO حتى اكتمال المراجعة.
 
-لم يتم اعتماد أي إصلاح على Production. قرار Production ما زال NO-GO.
+التقرير التفصيلي: `ANTIGRAVITY_STAGING_REPORT_REVIEW.md` و`SUPABASE_LIFECYCLE_AND_SQL_AUDIT.md`.
 
-## الترتيب المطلوب
-
-1. حسم استدعاء `pause_project` والتأكد من أن Production يعمل.
-2. إعادة تشغيل أحدث Probe كامل على Staging وتوثيق SHA والمخرجات.
-3. استكمال مراجعة الدوال الحالية التي يستطيع anon تنفيذها.
-4. إرفاق الأدلة الخام لاختبارات Candidate 2 و3.
-5. إبقاء Candidate 4 والـMigration Ledger دون تغيير لحين استكمال المراجعة.
+**لم أنفذ أي Pause أو Resume أو أي SQL جديد خلال هذا التدقيق.**
