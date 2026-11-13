@@ -117,9 +117,9 @@ Important limits:
 6. **Legacy financial views:** keep Candidate 4 on HOLD; the test sample confirms raw EGP/USD sums are mixed, but an EGP-only patch can break existing consumers.
 7. **Migration ledger:** still unresolved. No db push or repair until statement-level reconciliation is finished.
 
-## 7. Sensitive test artifacts
+## 7. Synthetic test credential exposure and redaction
 
-The raw log contains a fixed synthetic Staging password in the SQL used to create disposable `example.invalid` test Auth accounts. It is not a Production credential, but it is a reusable test credential visible to collaborators with repository access. Rotate or delete the synthetic Staging accounts after testing and redact this value from future shared logs. Do not reuse it anywhere else.
+The original raw log contained four fixed passwords used by disposable `example.invalid` Staging Auth accounts. These values have been redacted from the current version of `SUPABASE_MCP_RAW_EXECUTION_LOG.md` and from the current execution summary. However, earlier Git commits in the repository history contained the original log content, so treat the four synthetic accounts as having exposed credentials. Before further interactive Staging login tests, reset their passwords or delete/recreate those synthetic accounts on Staging only, after verifying the target project ref and obtaining explicit authorization. Never reuse the historic credentials. The accounts are identified by synthetic Auth UUIDs `a0000000-0000-0000-0000-000000000001` through `...0004` and `example.invalid` email addresses. Do not touch any Production user.
 
 ## 8. Final determination
 

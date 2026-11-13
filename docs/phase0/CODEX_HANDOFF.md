@@ -90,7 +90,7 @@ For every migration statement, classify the expected live effect as equivalent, 
 
 ### P3 — Cash-box and notification test completeness
 - Prepare reproducible Staging-only test scripts for the gaps in `STAGING_TEST_PLAN.md`: approved archive RPC, negative/over-limit insert validation, direct hard-delete rejection, creator reassignment rejection, Auth user deletion behavior, and Telegram outbox side effects.
-- Use synthetic identities only. Historical fixed test passwords have been redacted; never recreate or reuse those credentials.
+- Use synthetic identities only. Four disposable Staging Auth accounts (`a0000000-0000-0000-0000-000000000001` through `...0004`, `example.invalid`) were created during the previous tests. Their fixed passwords were redacted from the current raw log, but older Git commits contained those values. Treat their credentials as exposed. Before further interactive Staging login tests, reset or delete/recreate those synthetic accounts on Staging only, after explicit user authorization and fresh target-ref verification. Never touch Production identities.
 - Do not run any test that sends live Telegram/email/webhook notifications. Use outbox-only or mocked dispatch paths.
 
 ### P4 — Migration and currency reconciliation
