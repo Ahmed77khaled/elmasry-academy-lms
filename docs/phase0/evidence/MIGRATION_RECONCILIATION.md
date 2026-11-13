@@ -1,33 +1,79 @@
-# Migration Reconciliation & Drift Evidence — Elmasry Academy LMS
+# Migration Reconciliation — Evidence Reassessment
 
-> **Target Supabase Project:** `urmkcixqpoqkiosihhal` (TrainerPro)  
-> **Local Migrations:** 20 files | **Remote Ledger:** 4 files  
+**Target:** Supabase project `urmkcixqpoqkiosihhal` (TrainerPro)  
+**Local source snapshot:** 20 files under `migrations-snapshot/`  
+**Captured remote ledger:** 4 rows (see Phase 0 precheck report)  
+**Review status:** DRIFT CONFIRMED — NO LEDGER REPAIR AUTHORIZED
 
-## 1. Exact Database Evidence & Classifications
+## 1. What the current evidence actually proves
 
-| Version | Filename | Classification | In Ledger? | Exact Database Evidence |
-| --- | --- | --- | --- | --- |
-| 20261015024100 | 20261015024100_001_create_core_tables.sql | FULLY APPLIED | NO | All 12 core tables (admins, students, courses, etc.) exist with primary keys and constraints. |
-| 20261015024134 | 20261015024134_002_create_database_views.sql | FULLY APPLIED | NO | All 4 financial views exist on live DB with security_invoker. |
-| 20261015024155 | 20261015024155_003_create_rpc_functions.sql | FULLY APPLIED | NO | All 8 initial RPCs exist in pg_proc. |
-| 20261015024209 | 20261015024209_004_fix_constraint_and_seed.sql | FULLY APPLIED | NO | uq_enrollment constraint exists and initial seed roles exist in admin_roles. |
-| 202610210005 | 202610210005_production_hardening.sql | FULLY APPLIED | NO | Immutability triggers and check constraints exist on payments/expenses. |
-| 202610210006 | 202610210006_security_and_authorization_hardening.sql | FULLY APPLIED | NO | is_admin() exists with search_path=pg_catalog, public. |
-| 202610210007 | 202610210007_purge_legacy_rls_and_revoke_public.sql | FULLY APPLIED | NO | has_table_privilege for anon/authenticated is false across all tables. |
-| 202610210008 | 202610210008_protect_cash_boxes_opening_balance.sql | FULLY APPLIED | NO | prevent_cash_box_mutation exists on cash_boxes. |
-| 20261021171218 | 20261021171218_allow_cash_box_creator_nullification_on_auth_delete.sql | FULLY APPLIED | NO | Function prevent_cash_box_mutation contains the creator nullification check logic. |
-| 20261021214608 | 20261021214608_add_login_alert_dedupe.sql | FULLY APPLIED | YES | login_alert_dedupe table exists; registered in schema_migrations. |
-| 20261021223822 | 20261021223822_rbac_catalog_and_authorization_primitives.sql | FULLY APPLIED | NO | schema private exists; private.has_permission, is_platform_owner exist. |
-| 20261021224440 | 20261021224440_rbac_role_aware_data_endpoints.sql | FULLY APPLIED | NO | rbac_list_* functions exist in pg_proc. |
-| 20261021224905 | 20261021224905_rbac_permission_checked_write_endpoints.sql | FULLY APPLIED | NO | rbac_record_payment, rbac_record_expense, etc. exist in pg_proc. |
-| 20261022225500 | 20261022225500_rbac_multiple_platform_owners.sql | FULLY APPLIED | NO | admins.is_owner column exists on live DB. |
-| 20261022230000 | 20261022230000_rbac_authorization_cutover.sql | FULLY APPLIED | YES | Legacy functions revoked; registered in schema_migrations. |
-| 20261023090000 | 20261023090000_branding_and_admin_avatars.sql | DRAFT (NOT APPLIED) | NO | academy_branding table DOES NOT EXIST on DB; file explicitly labeled 'Draft only'. |
-| 20261023100000 | 20261023100000_platform_audit_and_telegram_outbox.sql | FULLY APPLIED | NO | platform_audit_events and telegram_notification_outbox tables exist and have live rows. |
-| 20261023110000 | 20261023110000_telegram_notification_language.sql | FULLY APPLIED | YES | rbac_set_telegram_group_language exists; registered in schema_migrations. |
-| 20261030120000 | 20261030120000_student_profile_directory_v2.sql | FULLY APPLIED | YES | students.country/workplace/study_year columns exist; registered in schema_migrations. |
-| 20261030130000 | 20261030130000_course_enrollment_currency_v2.sql | FULLY APPLIED | NO | courses.default_cost_usd, enrollments.agreed_currency, payments.currency, cash_boxes.opening_balance_usd exist; NOT in ledger. |
+The database audit captured four rows in `supabase_migrations.schema_migrations`:
 
-## 2. Risk & Impact Analysis
-- **The Danger of `supabase db push`:** Running `supabase db push` will attempt to apply all 16 unregistered migrations from scratch. It will fail with `relation already exists` errors or corrupt schema state.
-- **Recommended Approach:** Use `supabase migration repair --status applied <version>` for the 15 applied-but-unregistered migrations, while excluding `20261023090000_branding_and_admin_avatars.sql` (which remains an unapplied draft).
+| Version | Local file | Ledger row present |
+|---|---|---:|
+| 20261021214608 | `20261021214608_add_login_alert_dedupe.sql` | Yes |
+| 20261022230000 | `20261022230000_rbac_authorization_cutover.sql` | Yes |
+| 20261023110000 | `20261023110000_telegram_notification_language.sql` | Yes |
+| 20261030120000 | `20261030120000_student_profile_directory_v2.sql` | Yes |
+
+A ledger row proves only that the version is recorded in the captured ledger. It is not independent proof that every statement in the local file ran unchanged or that the file content now matches the historical SQL applied.
+
+The audit reports 20 local files and only these 4 registered versions. The other 16 files do not have a corresponding captured ledger row.
+
+## 2. Reassessment of the former classifications
+
+The original reconciliation table labelled 15 unregistered files as FULLY APPLIED largely from object-existence checks. Those checks are insufficient to prove that all statements and side effects in each file were applied correctly.
+
+Use these conservative classifications instead:
+
+| Version | Ledger | Evidence reported | Revised classification |
+|---|---:|---|---|
+| 20261015024100 | No | Core tables exist, but local source describes an older `id`-based schema and does not prove exact live definitions | UNKNOWN — REQUIRES STATEMENT-LEVEL DIFF |
+| 20261015024134 | No | Four view names exist; no complete statement-by-statement equivalence proof | UNKNOWN — REQUIRES DEFINITION DIFF |
+| 20261015024155 | No | Eight initial RPCs reported present; no proof every function/ACL/side effect matches file | UNKNOWN — REQUIRES FUNCTION/ACL DIFF |
+| 20261015024209 | No | Unique constraint and seed role names reported present; exact seed effects are not reconciled | UNKNOWN — REQUIRES DATA/CONSTRAINT DIFF |
+| 202610210005 | No | Some trigger/check objects reported present; not all statements individually proved | UNKNOWN — REQUIRES FULL DIFF |
+| 202610210006 | No | `is_admin()` exists, but its live body differs from the desired active-admin invariant and the file replaces several other objects | UNKNOWN / PARTIAL CANDIDATE — FULL DIFF REQUIRED |
+| 202610210007 | No | Effective table grants reported revoked; all policies, column grants and statements not fully reconciled | UNKNOWN — REQUIRES FULL PRIVILEGE DIFF |
+| 202610210008 | No | Trigger function exists, but the live `added_by` FK action is NO ACTION rather than the file's intended SET NULL | PARTIAL / DRIFT CONFIRMED |
+| 20261021171218 | No | Trigger body contains creator nullification logic; file does not itself change FK action | OBJECT EFFECT PRESENT, LEDGER ABSENT; FULL FILE APPLICATION NOT PROVEN |
+| 20261021214608 | Yes | Ledger row and `login_alert_dedupe` table reported present | LEDGER-RECORDED; schema/content equivalence still needs validation |
+| 20261021223822 | No | RBAC schema/helpers reported present; no full role/catalog/policy/ACL diff | UNKNOWN — REQUIRES FULL DIFF |
+| 20261021224440 | No | Some `rbac_list_*` functions reported present; no full signature/body/grant diff | UNKNOWN — REQUIRES FULL DIFF |
+| 20261021224905 | No | Some RBAC write functions reported present; no full signature/body/grant diff | UNKNOWN — REQUIRES FULL DIFF |
+| 20261022225500 | No | `admins.is_owner` reported present; the local inventory flags the file as Draft Only | UNKNOWN — DRAFT MARKER CONFLICTS WITH LIVE OBJECT |
+| 20261022230000 | Yes | Ledger row present; local inventory flags file as Draft Only | LEDGER-RECORDED — VERIFY HISTORICAL CONTENT AND DRAFT MARKER |
+| 20261023090000 | No | File explicitly says Draft Only and `academy_branding` table reported absent | DRAFT / NOT APPLIED (supported by current evidence) |
+| 20261023100000 | No | Audit reports audit/outbox tables and rows exist; local inventory flags file as Draft Only | UNKNOWN — DRAFT MARKER CONFLICTS WITH LIVE OBJECT |
+| 20261023110000 | Yes | Ledger row and language RPC reported present | LEDGER-RECORDED; verify function body/grants |
+| 20261030120000 | Yes | Ledger row and student profile columns reported present | LEDGER-RECORDED; verify function bodies/grants and exact snapshot |
+| 20261030130000 | No | Currency columns, v2 functions, and constraints reported present | OBJECTS REPORTED PRESENT; FULL FILE APPLICATION AND LEDGER RECORD NOT PROVEN |
+
+The inventory and live audit must be treated as separate sources. In particular, “Draft Only” comments in local files that also have ledger rows or related live objects need provenance investigation; do not silently resolve the conflict.
+
+## 3. Why blanket migration repair is unsafe
+
+Do **not** run:
+
+- `supabase db push`
+- `supabase migration repair --status applied` for all missing versions
+- manual INSERT/UPDATE/DELETE against `schema_migrations`
+
+A migration repair command changes the migration history record; it does not execute or verify the original SQL. A wrong ledger entry can make future deploys skip required changes, while a missing/incorrect entry can make a later push attempt non-idempotent SQL against existing production objects.
+
+## 4. Required reconciliation procedure
+
+For each unregistered version, obtain the full local SQL (already archived in `migrations-snapshot/`) and build a statement inventory:
+1. Every CREATE/ALTER/DROP/GRANT/REVOKE/COMMENT/INSERT/UPDATE/DELETE/NOTIFY statement.
+2. Exact live catalog/data evidence corresponding to each statement.
+3. A classification per statement: equivalent, different, absent, or unverifiable.
+4. A migration-level classification. Only mark FULLY APPLIED when every relevant statement and expected side effect is proved.
+5. Record the evidence query and result for each classification.
+
+For versions already in the ledger, compare the migration name and all expected live effects to prove there is no drift. The ledger row alone is not enough.
+
+A separate restored Staging database should be used to test the planned reconciliation sequence. Do not use Production as a test harness.
+
+## 5. Current decision
+
+**NO-GO for any migration repair or db push.** The supplied reports do not contain enough statement-level evidence to perform a safe repair. The migration reconciliation task remains open.
