@@ -21,6 +21,24 @@ This is a test plan, not evidence that tests have passed. Use a dedicated restor
 6. Create a disposable Auth user, link it as `added_by` to a disposable cash box in the supported test setup, delete that test Auth user, and verify `added_by` becomes NULL while both opening balances remain unchanged. Do not use a real administrator account for this test.
 7. Verify the archive notification trigger still fires exactly once for an active-to-inactive transition and not for unrelated metadata updates.
 
+### B1. Missing candidate-3 cases (prepared, not executed)
+
+Run only after explicit approval for the specific Staging operation and independently verify ref `kxdfconqflveqeozanaw` immediately before execution. Use synthetic fixtures; wrap reversible database checks in a transaction and roll back. Never call a live Telegram/email/webhook dispatcher.
+
+| Case | Action | Expected result | Evidence to retain |
+|---|---|---|---|
+| Approved archive RPC | Call `rbac_archive_cash_box(p_cash_box_id)` on an active disposable box using an identity with `finance.cash_boxes.update` | Active→inactive succeeds once; notification trigger queues one outbox item | RPC result, before/after row, outbox event IDs/count |
+| Negative EGP opening balance | Call `rbac_create_cash_box_v2` with `p_opening_balance < 0` | Rejected; no cash box persists | SQLSTATE/message and post-check row count |
+| Negative USD opening balance | Call the same RPC with nonnegative EGP and `p_opening_balance_usd < 0` | Rejected; no cash box persists | SQLSTATE/message and post-check row count |
+| EGP upper bound | Test the documented inclusive maximum and maximum plus one precision unit | At maximum accepted if contract is inclusive; over-limit rejected | Returned value or SQLSTATE/message |
+| USD upper bound | Repeat upper-bound test for USD independently | Same documented bound behavior as EGP | Returned value or SQLSTATE/message |
+| Hard-delete rejection | Attempt direct `DELETE` of a disposable cash box under the authenticated test role | Rejected by policy/trigger; box remains | SQLSTATE/message and row snapshot |
+| Arbitrary creator reassignment | Change `added_by` from creator UUID to a different synthetic Auth UUID | Rejected; original creator remains | SQLSTATE/message and row snapshot |
+| Auth user deletion | Create a fresh synthetic Auth user, bind as creator through supported setup, delete that user in Staging | FK sets `added_by` to NULL and preserves both balances | Auth deletion result and before/after balance/creator values |
+| Outbox transition scope | Snapshot outbox, archive via RPC, then update unrelated metadata on another box | Exactly one archive event; no event for metadata-only update; do not invoke dispatcher | Outbox rows, trigger definition and worker/dispatch exclusion |
+
+Use fresh synthetic Auth accounts. Historical credentials for four existing disposable accounts are considered exposed; reset or recreate those accounts before any interactive login test. Do not use real administrator identities.
+
 ## C. Financial view correctness
 
 1. Compare `enrollment_balances.total_paid` with non-voided EGP payments for EGP enrollments only.
@@ -40,6 +58,10 @@ Run `validation/PHASE0_STAGING_DEFAULT_ACL_PROBE.sql` on Staging only. It create
 - `PUBLIC` has no EXECUTE on the newly created function.
 - `service_role` retains the documented public-schema defaults.
 - Future `postgres`-created functions in other relevant schemas also receive no PUBLIC EXECUTE by default; explicitly grant EXECUTE to intended callers after creation.
+
+### D1. Strengthened cross-schema coverage (prepared, not executed)
+
+Use the current strengthened probe, not the reduced historical probe. In the same rollback-only session, create a uniquely named function in each relevant schema (at minimum `public` and `private`; include other application schemas exposed to PostgREST if any) as `postgres`. Before rollback capture effective EXECUTE for `PUBLIC`, `anon`, `authenticated`, and `service_role`, the function owner, `proconfig` search path and exploded `pg_default_acl` entries. Confirm all expected denials and documented service-role privileges, then verify all probe objects are absent after rollback. This validates schema-wide defaults independently of table/sequence checks.
 
 Do not run this probe in Production.
 
