@@ -2,7 +2,7 @@
 
 Executable statements in 20 archived SQL snapshots. Each row is individually classified against retained remote evidence. `UNVERIFIABLE` means no exact statement-specific result was retained; it is not proof of absence.
 
-**Total executable statement rows:** 641.
+**Total executable statement rows:** 641. Transaction-control statements (`BEGIN` / `COMMIT`) are classified **NOT APPLICABLE** because they have no independently observable persistent catalog/data effect.
 
 ### `20261015024100_001_create_core_tables.sql` — 79 executable statements
 
@@ -124,7 +124,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
-| 1 | `BEGIN` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 | 2 | `DO $preflight$ BEGIN IF to_regclass('public.payments') IS NULL OR to_regclass('public.expenses') IS NULL OR to_regclass('public.cash_box_transfer…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 3 | `ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS receipt_number bigint` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `CREATE SEQUENCE IF NOT EXISTS public.payment_receipt_number_seq AS bigint` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -191,13 +191,13 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 65 | `CREATE OR REPLACE VIEW public.dashboard_metrics WITH (security_invoker = true) AS SELECT (SELECT count(*) FROM public.students) AS total_students…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 66 | `REVOKE ALL ON public.cash_box_balances, public.course_financial_summary, public.dashboard_metrics, public.enrollment_balances FROM PUBLIC, anon` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 67 | `GRANT SELECT ON public.cash_box_balances, public.course_financial_summary, public.dashboard_metrics, public.enrollment_balances TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 68 | `COMMIT` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 68 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
 ### `202610210006_security_and_authorization_hardening.sql` — 56 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
-| 1 | `BEGIN` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 | 2 | `CREATE OR REPLACE FUNCTION public.is_admin() RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, public AS $$ SELECT EXIS…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 3 | `REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC, anon` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -252,13 +252,13 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 53 | `CREATE POLICY "payments_admin_only_policy" ON public.payments FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin())` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 54 | `CREATE POLICY "expenses_admin_only_policy" ON public.expenses FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin())` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 55 | `CREATE POLICY "transfers_admin_only_policy" ON public.cash_box_transfers FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 56 | `COMMIT` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 56 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
 ### `202610210007_purge_legacy_rls_and_revoke_public.sql` — 35 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
-| 1 | `BEGIN` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 | 2 | `DO $$ DECLARE r RECORD; BEGIN FOR r IN ( SELECT schemaname, tablename, policyname FROM pg_policies WHERE schemaname = 'public' AND tablename IN (…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 3 | `ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `ALTER TABLE public.admins FORCE ROW LEVEL SECURITY` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -292,15 +292,15 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 32 | `DROP TRIGGER IF EXISTS trg_transfers_financial_immutability ON public.cash_box_transfers` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 33 | `CREATE TRIGGER trg_transfers_financial_immutability BEFORE UPDATE OR DELETE ON public.cash_box_transfers FOR EACH ROW EXECUTE FUNCTION public.pre…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 34 | `DO $$ DECLARE p RECORD; BEGIN FOR p IN ( SELECT proname, oid FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname IN ( 'is_admin'…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 35 | `COMMIT` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 35 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
 ### `202610210008_protect_cash_boxes_opening_balance.sql` — 17 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
-| 1 | `BEGIN` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 | 2 | `DO $preflight$ BEGIN IF to_regclass('public.cash_boxes') IS NULL THEN RAISE EXCEPTION 'Migration 008 preflight failed: table public.cash_boxes do…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 3 | `ALTER TABLE public.cash_boxes ADD COLUMN IF NOT EXISTS added_by uuid REFERENCES auth.users(id) ON DELETE SET NULL` | **DIFFERENT (confirmed)** | Captured Production FK `cash_boxes_added_by_fkey` is `ON DELETE NO ACTION`; expected SET NULL. See raw log FK query and MIGRATION_RECONCILIATION.md. |
+| 3 | `ALTER TABLE public.cash_boxes ADD COLUMN IF NOT EXISTS added_by uuid REFERENCES auth.users(id) ON DELETE SET NULL` | **DIFFERENT (confirmed)** | Captured Production FK `cash_boxes_added_by_fkey` is `ON DELETE NO ACTION`; expected SET NULL. Production evidence: `docs/phase0/evidence/CASH_BOX_TRIGGER_EVIDENCE.md` records `cash_boxes_added_by_fkey` with `confdeltype = a` (NO ACTION); `MIGRATION_RECONCILIATION.md` identifies this mismatch for 202610210008. |
 | 4 | `COMMENT ON COLUMN public.cash_boxes.added_by IS 'UUID of administrator who created this cash box. NULL for legacy records created prior to Migrat…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 5 | `CREATE OR REPLACE FUNCTION public.prevent_cash_box_mutation() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$ BEGIN -…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 6 | `COMMENT ON FUNCTION public.prevent_cash_box_mutation() IS 'SECURITY INVOKER trigger function guarding cash_boxes against DELETE, invalid initial …` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -314,30 +314,30 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 14 | `REVOKE UPDATE (cash_box_id, opening_balance, added_by, created_at) ON TABLE public.cash_boxes FROM authenticated, anon, PUBLIC` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 15 | `GRANT SELECT ON TABLE public.cash_boxes TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 16 | `GRANT UPDATE (name, type, owner, is_active, notes) ON TABLE public.cash_boxes TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 17 | `COMMIT` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 17 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
 ### `20261021171218_allow_cash_box_creator_nullification_on_auth_delete.sql` — 5 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
-| 1 | `BEGIN` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 | 2 | `DO $$ BEGIN IF to_regprocedure('public.prevent_cash_box_mutation()') IS NULL THEN RAISE EXCEPTION 'Migration 008 is required: public.prevent_cash…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 3 | `CREATE OR REPLACE FUNCTION public.prevent_cash_box_mutation() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$ BEGIN -…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `COMMENT ON FUNCTION public.prevent_cash_box_mutation() IS 'Guards cash_boxes against deletion, invalid opening balances, creator reassignment, an…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 5 | `COMMIT` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 5 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
 ### `20261021214608_add_login_alert_dedupe.sql` — 8 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
-| 1 | `BEGIN` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 | 2 | `CREATE TABLE IF NOT EXISTS public.login_alert_dedupe ( session_hash TEXT PRIMARY KEY CHECK (session_hash ~ '^[0-9a-f]{64}$'), created_at TIMESTAM…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 3 | `CREATE INDEX IF NOT EXISTS idx_login_alert_dedupe_created_at ON public.login_alert_dedupe (created_at)` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `ALTER TABLE public.login_alert_dedupe ENABLE ROW LEVEL SECURITY` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 5 | `ALTER TABLE public.login_alert_dedupe FORCE ROW LEVEL SECURITY` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 6 | `REVOKE ALL ON TABLE public.login_alert_dedupe FROM PUBLIC, anon, authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 7 | `GRANT SELECT, INSERT, DELETE ON TABLE public.login_alert_dedupe TO service_role` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 8 | `COMMIT` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 8 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
 ### `20261021223822_rbac_catalog_and_authorization_primitives.sql` — 46 executable statements
 
@@ -521,7 +521,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
-| 1 | `BEGIN` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 | 2 | `DROP INDEX IF EXISTS public.admins_single_platform_owner_idx` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 3 | `ALTER TABLE public.admin_audit_log DROP CONSTRAINT IF EXISTS admin_audit_log_action_check` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `ALTER TABLE public.admin_audit_log ADD CONSTRAINT admin_audit_log_action_check CHECK (action IN ( 'owner_claimed', 'owner_transferred', 'owner_ad…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -534,13 +534,13 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 11 | `GRANT EXECUTE ON FUNCTION public.rbac_set_admin_owner(uuid, boolean) TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 12 | `REVOKE ALL ON FUNCTION public.rbac_set_admin_active(uuid, boolean) FROM PUBLIC, anon` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 13 | `GRANT EXECUTE ON FUNCTION public.rbac_set_admin_active(uuid, boolean) TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 14 | `COMMIT` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 14 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
 ### `20261022230000_rbac_authorization_cutover.sql` — 13 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
-| 1 | `BEGIN` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 | 2 | `DO $preflight$ DECLARE v_function text; v_oid oid; v_required_functions text[] := ARRAY[ 'private.has_permission(text)', 'private.is_platform_own…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 3 | `REVOKE ALL PRIVILEGES ON TABLE public.admins, public.students, public.courses, public.enrollments, public.payments, public.expenses, public.cash_…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `REVOKE UPDATE (name, type, owner, is_active, notes) ON TABLE public.cash_boxes FROM PUBLIC, anon, authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -552,13 +552,13 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 10 | `GRANT EXECUTE ON FUNCTION public.claim_platform_owner() TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 11 | `GRANT EXECUTE ON FUNCTION public.can_claim_platform_owner() TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 12 | `GRANT EXECUTE ON FUNCTION public.rbac_set_admin_owner(uuid, boolean) TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 13 | `COMMIT` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 13 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
 ### `20261023090000_branding_and_admin_avatars.sql` — 36 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
-| 1 | `BEGIN` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 | 2 | `CREATE TABLE IF NOT EXISTS public.academy_branding ( singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton IS TRUE), logo_path text, update…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 3 | `INSERT INTO public.academy_branding (singleton) VALUES (true) ON CONFLICT (singleton) DO NOTHING` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `ALTER TABLE public.academy_branding ENABLE ROW LEVEL SECURITY` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -593,13 +593,13 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 33 | `GRANT EXECUTE ON FUNCTION public.set_academy_logo(text) TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 34 | `ALTER TABLE public.admin_audit_log DROP CONSTRAINT IF EXISTS admin_audit_log_action_check` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 35 | `ALTER TABLE public.admin_audit_log ADD CONSTRAINT admin_audit_log_action_check CHECK (action IN ( 'owner_claimed', 'owner_transferred', 'owner_ad…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 36 | `COMMIT` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 36 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
 ### `20261023100000_platform_audit_and_telegram_outbox.sql` — 48 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
-| 1 | `BEGIN` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 | 2 | `DO $preflight$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'private') THEN RAISE EXCEPTION 'Preflight failed: expected privat…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 3 | `CREATE TABLE IF NOT EXISTS public.platform_audit_events ( event_id uuid PRIMARY KEY DEFAULT gen_random_uuid(), event_type text NOT NULL CHECK (ev…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `CREATE INDEX IF NOT EXISTS platform_audit_events_created_at_idx ON public.platform_audit_events (created_at DESC)` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -646,13 +646,13 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 45 | `COMMENT ON TABLE public.telegram_notification_outbox IS 'Server-side retryable delivery state for the single administrator Telegram group. Never …` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 46 | `COMMENT ON FUNCTION public.claim_telegram_notifications(integer, integer) IS 'Atomically leases due Telegram outbox rows for the service-role dis…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 47 | `COMMENT ON FUNCTION public.enqueue_admin_login_notification(uuid, text) IS 'Atomically deduplicates a session hash and records a successful LMS a…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 48 | `COMMIT` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 48 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
 ### `20261023110000_telegram_notification_language.sql` — 17 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
-| 1 | `BEGIN` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 | 2 | `CREATE TABLE public.platform_notification_settings ( singleton_id smallint PRIMARY KEY DEFAULT 1 CHECK (singleton_id = 1), group_language text NO…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 3 | `INSERT INTO public.platform_notification_settings (singleton_id, group_language) VALUES (1, 'ar') ON CONFLICT (singleton_id) DO NOTHING` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `ALTER TABLE public.platform_notification_settings ENABLE ROW LEVEL SECURITY` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -668,7 +668,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 14 | `REVOKE ALL ON FUNCTION public.rbac_set_telegram_group_language(text) FROM PUBLIC, anon` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 15 | `GRANT EXECUTE ON FUNCTION public.rbac_set_telegram_group_language(text) TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 16 | `COMMENT ON TABLE public.platform_notification_settings IS 'Owner-controlled settings for shared platform notifications; group language defaults t…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 17 | `COMMIT` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 17 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
 ### `20261030120000_student_profile_directory_v2.sql` — 13 executable statements
 
@@ -692,7 +692,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
-| 1 | `BEGIN` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 | 2 | `ALTER TABLE public.courses ADD COLUMN IF NOT EXISTS default_cost_usd numeric(12,2)` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 3 | `ALTER TABLE public.enrollments ADD COLUMN IF NOT EXISTS agreed_currency text NOT NULL DEFAULT 'EGP'` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS currency text NOT NULL DEFAULT 'EGP'` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -743,4 +743,4 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 49 | `GRANT EXECUTE ON FUNCTION public.rbac_finance_dashboard_usd_v2() TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 50 | `GRANT EXECUTE ON FUNCTION public.rbac_course_financial_summary_v2(uuid) TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 51 | `REVOKE ALL ON FUNCTION public.record_payment(uuid,uuid,numeric,date,text,text,text) FROM PUBLIC, anon, authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 52 | `COMMIT` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 52 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |

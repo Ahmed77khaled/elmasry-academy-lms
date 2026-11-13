@@ -1,6 +1,6 @@
-# Callable Routine Matrix — Archived SECURITY DEFINER Evidence
+# Production SECURITY DEFINER Routine Matrix — Archived Evidence
 
-**Scope:** 70 routines listed in archived Production SECURITY DEFINER inventory; not the Staging 69/70 aggregate. Values below are historical evidence, not a fresh live query. Function body/source details are in `ALL_70_SECURITY_DEFINER_FUNCTIONS.md`. This matrix does not claim complete coverage of non-SECURITY DEFINER routines, PostgREST-exposed operators, or an exhaustive Staging inventory.
+**Scope:** 70 routines listed in archived Production SECURITY DEFINER inventory; not the Staging 69/70 aggregate. Values below are historical evidence, not a fresh live query. Function body/source details are in `ALL_70_SECURITY_DEFINER_FUNCTIONS.md`. This file is only the archived Production SECURITY DEFINER routine matrix. It is not a complete callable-routine inventory: it does not enumerate non-SECURITY DEFINER routines or represent Staging.
 
 | Schema | Signature | Definer | Owner | Fixed search_path | anon EXECUTE | authenticated EXECUTE | service_role EXECUTE | PUBLIC EXECUTE | Class / intended access |
 |---|---|---:|---|---|---:|---:|---:|---:|---|
@@ -75,6 +75,6 @@
 | public | `void_expense(uuid,text)` | yes | postgres | `['search_path=pg_catalog, public']` | false | false | true | false | Legacy; service_role only; no client call |
 | public | `void_payment(uuid,text)` | yes | postgres | `['search_path=pg_catalog, public']` | false | false | true | false | Legacy; service_role only; no client call |
 
-## Limits and reconciliation
+## Explicit scope and limits
 
-The source inventory contributes 70 enumerated SECURITY DEFINER routines. Raw log operations 101–102 report 69/70 for Staging from `pg_proc` without a `prokind` restriction; the operation-101 row output is missing from the archived log. That number is therefore not reconcilable routine-by-routine with this Production SECURITY DEFINER inventory. The exact callable routine rows for both environments must be refreshed through the SELECT-only audit before any routine is called exposed or safe. PUBLIC ACL values in this table describe the archived source evidence only.
+The source inventory contributes 70 enumerated Production SECURITY DEFINER routines. The distinct Staging aggregate in raw log operations 101–102 reports 69/70 from `pg_proc` without a `prokind` restriction; the operation-101 row output is missing from the archived log. That number is therefore not reconcilable routine-by-routine with this Production SECURITY DEFINER inventory. The exact callable routine rows for both environments must be refreshed through the SELECT-only audit before any routine is called exposed or safe. PUBLIC ACL values in this table describe the archived source evidence only.
