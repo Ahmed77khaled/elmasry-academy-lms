@@ -34,7 +34,8 @@ ALTER TABLE public.admins
   ADD COLUMN IF NOT EXISTS is_owner boolean NOT NULL DEFAULT false;
 
 CREATE UNIQUE INDEX IF NOT EXISTS admins_single_platform_owner_idx
-  ON public.admins (is_owner)  WHERE is_owner IS TRUE;
+  ON public.admins (is_owner)
+  WHERE is_owner IS TRUE;
 
 CREATE TABLE IF NOT EXISTS public.admin_roles (
   role_key text PRIMARY KEY CHECK (role_key ~ '^[a-z][a-z0-9_]{1,49}$'),

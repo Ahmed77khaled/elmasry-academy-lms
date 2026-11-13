@@ -51,7 +51,8 @@ BEGIN
     RAISE EXCEPTION 'Permission denied: courses.read is required.' USING ERRCODE = '42501';
   END IF;
   RETURN QUERY
-  SELECT c.course_id, c.course_name::text, c.description, c.level::text,    c.duration_weeks, c.prerequisite_courses, c.start_date, c.end_date,
+  SELECT c.course_id, c.course_name::text, c.description, c.level::text,
+    c.duration_weeks, c.prerequisite_courses, c.start_date, c.end_date,
     c.max_students,
     CASE WHEN private.has_permission('courses.pricing.read') THEN c.default_cost END,
     CASE WHEN private.has_permission('courses.pricing.read') THEN c.default_cost_usd END,

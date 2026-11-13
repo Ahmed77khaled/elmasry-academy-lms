@@ -52,7 +52,8 @@ VALUES (
   'admin-avatars', 'admin-avatars', false, 2097152,
   ARRAY['image/png', 'image/jpeg', 'image/webp']::text[]
 )
-ON CONFLICT (id) DO UPDATESET public = EXCLUDED.public,
+ON CONFLICT (id) DO UPDATE
+SET public = EXCLUDED.public,
     file_size_limit = EXCLUDED.file_size_limit,
     allowed_mime_types = EXCLUDED.allowed_mime_types;
 

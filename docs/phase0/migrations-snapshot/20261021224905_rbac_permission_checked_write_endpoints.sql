@@ -162,6 +162,7 @@ BEGIN
   RETURN v_course_id;
 END;
 $function$;
+
 CREATE OR REPLACE FUNCTION public.rbac_update_course(
   p_course_id uuid,
   p_course_name text,
