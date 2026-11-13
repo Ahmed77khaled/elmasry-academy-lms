@@ -1,31 +1,41 @@
-# الحالة الفعلية لإصلاحات Phase 0
+# Phase 0 — الحالة بعد المراجعة المستقلة
 
-## ما تم إنجازه في هذه الجلسة
+**المستودع:** `Ahmed77khaled/elmasry-academy-lms`  
+**الفرع:** `phase0/shared-workspace`  
+**Supabase:** `urmkcixqpoqkiosihhal`  
+**آخر تحديث:** 13 نوفمبر 2026
 
-- مراجعة حزمة الأدلة المرفوعة، بما فيها ملفات الـ20 Migration وكود 70 دالة SECURITY DEFINER.
-- تجهيز أربع ملفات Migration جديدة Forward-only للمشاكل المؤكدة.
-- مراجعة مسودات SQL وتصحيح نقاط ظهرت أثناء المراجعة، منها الحفاظ على Default الخاص بـ`added_by` وعدم تغييره بلا ضرورة، وإضافة حد أعلى لرصيد USD.
-- إضافة استعلامات فحص بعد التطبيق وخطة اختبارات Staging، مع Probe للـDefault Privileges ينتهي بـROLLBACK.
-- توثيق نقاط عدم اليقين التي لا يجوز التعامل معها بالتخمين.
+## ما أنجزه ChatGPT
 
-## ما لم يحدث
+- راجع ملفات Migration الأصلية ذات الصلة، ومسودات الإصلاح الأربعة.
+- راجع أدلة Default ACL، ودوال SECURITY DEFINER، والجداول، والفيوز، والتريجرز.
+- راجع استخدام `is_admin()` داخل AuthContext وApp.
+- راجع منطق `rbac_create_cash_box_v2` وحدّ الرصيد الافتتاحي.
+- قارن محاولة ضبط FK في Migration 008 وتحديث trigger في Migration 21171218 مع حالة FK الحية.
 
-- لم يتم الاتصال بقاعدة Supabase الحية من هذه الجلسة.
-- لم يتم تنفيذ أي SQL أو DDL أو DML.
-- لم يتم تعديل أي بيانات أو صلاحيات أو Views أو Triggers على Production.
-- لم يتم تعديل ملفات المستودع أو الفرع المحلي.
-- لم يتم إنشاء Commit أو Push أو Deployment.
-- لم يتم تشغيل PostgreSQL parser؛ لا يوجد في بيئة التنفيذ الحالية `psql` أو PostgreSQL server، لذلك لا أدّعي أن ملفات SQL اجتازت اختبار parser أو Staging.
+## قرارات المراجعة
 
-## قرار الإطلاق
+| المسودة | القرار |
+|---|---|
+| Default Privileges | مرشحة لاختبار Staging بشرط فحص أثر تعديل PUBLIC EXECUTE العام على كل الـSchemas |
+| is_admin active status | مرشحة لاختبار Staging |
+| Cash box USD + creator FK | مرشحة لاختبار Staging واختبار حذف مستخدم Auth تجريبي |
+| Legacy financial views EGP-only | موقوفة لحين تأكيد مالك البيانات أن المصروفات والتحويلات التاريخية كلها بالجنيه، وحسم تعارض أدلة اعتماد الدوال |
 
-**NO-GO على Production حاليًا.** تقرير التسليم يقول إنه لا توجد Staging مستقلة، كما أن Migration Ledger غير متصالح (20 ملفًا محليًا مقابل 4 إصدارات مسجلة مع تعارضات). يلزم Staging معزولة قبل تجربة أي من الملفات الأربعة. لا تستخدم `supabase db push` أو `supabase migration repair` لتجاوز هذه المشكلة.
+تفاصيل المراجعة في `REMEDIATION_CODE_REVIEW.md`.
 
-## الإصلاحات المرشحة
+## الممنوع حاليًا
 
-1. إزالة الصلاحيات الافتراضية الزائدة للكائنات المستقبلية التي ينشئها postgres في public، مع إزالة PUBLIC EXECUTE الافتراضي عالميًا للدوال الجديدة.
-2. جعل `public.is_admin()` يشترط أن يكون سجل المسؤول نشطًا.
-3. حماية رصيد الخزينة الافتتاحي بالدولار، وتصحيح ON DELETE SET NULL لعلاقة منشئ الخزينة.
-4. جعل القيم المالية في الـlegacy views بالجنيه فقط، مع إبقاء العدادات التشغيلية كما هي.
+- لا تطبيق على Production.
+- لا `supabase db push`.
+- لا `supabase migration repair`.
+- لا تعديل يدوي لـ `schema_migrations`.
+- لا تشغيل `PHASE0_STAGING_DEFAULT_ACL_PROBE.sql` على Production.
+- لا اعتبار أي مسودة Migration معتمدة لمجرد وجودها في GitHub.
 
-كل ما سبق **مكتوب كملفات إصلاح مرشحة** ولم يُطبق بعد.
+## الحالة الفعلية
+
+- التعديلات على Supabase: **لا يوجد**.
+- اختبارات PostgreSQL/Staging: **لم تُنفذ**.
+- Migration Ledger: **ما زال غير محسوم**.
+- Production approval: **NO-GO**.
