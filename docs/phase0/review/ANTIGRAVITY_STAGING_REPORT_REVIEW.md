@@ -92,3 +92,37 @@ The test report should state which scenarios ran via direct SQL versus applicati
 | Production | NO-GO; no release or migration execution authorized |
 
 **Immediate priority is resolving the `pause_project` target and Production lifecycle timeline.** After that, finish the missing staging evidence. A successful Staging functional test is necessary but is not by itself Production approval.
+
+
+## 8. Direct audit attempted from the ChatGPT session — access limitations
+
+The uploaded Antigravity activity transcript confirms that a `pause_project` MCP action was called, followed by `get_project` and `create_project`. It also lists multiple `execute_sql` calls and one `apply_migration` call. However, the uploaded transcript contains action names and scratch-file references (for example `pause_project.json:L1`), not the actual JSON arguments or tool responses. Therefore it does not reveal the pause target ref, operation timestamp, response, or the target ref of each SQL execution.
+
+The ChatGPT runtime used for this review has GitHub access but exposes no Supabase Management API or Supabase MCP tool. Supabase documents that Management API requests require an authenticated bearer access token. No such token is available in this session, and none was requested or copied into chat. Public project URLs and the publishable frontend key in the report do not provide the administrative access needed to read project lifecycle events or project health from the Management API.
+
+Read-only health GET attempts against the public Auth health URLs were not accessible from the available web/container network tools. This is a tooling/network limitation, **not evidence that either Supabase project is down**.
+
+### What this session independently verified
+
+- The GitHub branch contains the Antigravity execution report and the reproduced DDL commit `b4b56d1a0d504438e60e38859d11184d53a9a746`.
+- The branch contains the current review documents and staging SQL assets.
+- The GitHub `main` branch ref remains at the previously verified SHA `1c14f1f5b01370d25e1c14dbe3e7c259a3080d70`; this is a Git state check only and says nothing about Supabase project lifecycle.
+- The uploaded execution activity explicitly lists `pause_project`, `get_project`, `create_project`, numerous `execute_sql` calls and an `apply_migration` call. The arguments/results are not present in that transcript.
+
+### Audit status
+
+**UNRESOLVED — NOT CLEARED.** It is not possible from the evidence available in this session to identify which project was paused, prove whether Production was ever paused, establish that a restore occurred, or map every SQL write to Staging versus Production.
+
+### Minimum evidence needed to close the incident question
+
+The original Antigravity MCP execution records, not a generated action summary, must be exported for:
+1. `pause_project` — complete input arguments and output.
+2. Both `get_project` calls — complete input and sanitized output, including refs and status fields.
+3. `create_project` — complete input and output (secrets redacted).
+4. Every `execute_sql` and `apply_migration` invocation — target project/ref, operation type, timestamp and success/error output.
+
+Do not include passwords, personal access tokens, database connection strings, or secret API keys. A project publishable key is not a substitute for a Management API token.
+
+Alternatively, an authorized operator can inspect the two project refs directly in Supabase Dashboard and export available project lifecycle/audit events for the execution window. The evidence must include pause/restore/status transitions and identify the affected `project_ref`.
+
+Until that evidence is available, retain the NO-GO disposition for Production and do not perform additional lifecycle operations or SQL writes as part of this incident investigation.
