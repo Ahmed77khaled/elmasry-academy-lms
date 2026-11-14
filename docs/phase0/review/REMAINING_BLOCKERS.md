@@ -10,12 +10,12 @@
 
 ## Remaining blockers
 
-1. **No confirmed Staging project.** The supplied handoff states that Production is the only known database. Reconfirm, and provision an isolated restored Staging environment before running any DDL.
+1. **Staging execution is not currently authorized.** The current handoff identifies the existing Staging project as `kxdfconqflveqeozanaw` and the archived execution log contains historical Staging operations. Before any future Staging operation, independently verify that project ref immediately beforehand and obtain the specific authorization required by the handoff. No SQL is authorized by this blocker update.
 2. **Migration ledger drift is unresolved.** The current evidence captures 20 local files and 4 ledger rows. Most files are not registered, but the previous FULLY APPLIED classifications rely heavily on object existence, not statement-level proof. See `evidence/MIGRATION_RECONCILIATION.md`. No blanket `migration repair`.
 3. **Remaining function/API inventory.** The handoff fully documents 70 SECURITY DEFINER functions, but complete INVOKER function grants, every effective ACL, schema privileges, and all policies need review from `validation/PHASE0_REMAINING_SECURITY_GAPS_READONLY.sql`.
 4. **Telegram archive trigger evidence conflicts.** Summary metadata says AFTER STATEMENT while `pg_get_triggerdef()` says `FOR EACH ROW`. Read the raw `tgtype` bits and trigger definition; this package does not modify this trigger.
 5. **Expense/transfer currency semantics.** Neither table has a currency column. Current v2 cash-box RPC treats the amounts as EGP, but that does not independently prove all historical records follow the convention. Data-owner confirmation is mandatory before EGP-only legacy view changes.
-6. **Legacy view dependency report needs reconciliation.** The table in `FINANCIAL_VIEWS_AND_DEPENDENCIES.md` says the v1 course-summary routine references the legacy view, while the extracted v1 function body delegates to `rbac_course_financial_summary_v2`. The dependency scan may have matched the v2 routine name as text. Recheck the live function body and avoid treating text substring matches as SQL dependencies.
+6. **Legacy view dependency needs same-project confirmation.** The archived Production function definition and migration snapshot show the v1-named course-summary wrapper delegating to `rbac_course_financial_summary_v2`. The older “Mentions” result can match that function name as a substring and is not catalog dependency evidence. Confirm the current Staging body/dependencies before Candidate 4 sign-off; a prepared SELECT-only capture exists and has not been run.
 7. **Application source branch matters.** AuthContext/App/Supabase client sources were retrieved from the GitHub default branch for review. Reconfirm they are identical to the intended release branch before changing application behavior.
 
 ## Release blockers

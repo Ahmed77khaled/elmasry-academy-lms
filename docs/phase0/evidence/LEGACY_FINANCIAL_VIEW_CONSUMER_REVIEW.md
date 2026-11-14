@@ -10,30 +10,30 @@
 | --- | --- | --- | --- |
 | `enrollment_balances` | No | Enrollment rows use `rbac_list_enrollments` in `CourseDetailsPage.tsx`, `StudentDetailsPage.tsx`, `EnrollmentsPage.tsx`, `CoursesPage.tsx`, and enrollment/payment forms. | No direct view read found. RPC implementations remain the relevant contract. |
 | `cash_box_balances` | No | Cash box screens/forms use `rbac_list_cash_boxes` (`CashBoxesPage.tsx`, `SettingsPage.tsx`, `PaymentForm.tsx`, `ExpenseForm.tsx`, `QuickEnrollModal.tsx`). | No direct view read found. |
-| `course_financial_summary` | No | `CourseDetailsPage.tsx:97` calls `rbac_course_financial_summary` (without `_v2`). | Indirect compatibility-RPC path; retained sources conflict on whether this routine reads the legacy view. |
+| `course_financial_summary` | No | `CourseDetailsPage.tsx:97` calls `rbac_course_financial_summary` (without `_v2`). | Indirect compatibility-RPC path; archived Production definition delegates to v2, while the current Staging definition still needs confirmation. |
 | `dashboard_metrics` | No | `DashboardPage.tsx:57-59` calls `rbac_operational_dashboard_metrics` and `rbac_finance_dashboard_metrics`. | No direct view read found. The nearby JSX comment at line 118 says the KPI data comes from `dashboard_metrics`, but the actual calls are RPCs. |
 
 The search across `src/` and `supabase/functions/` found no `.from()` reads of the four view names. This only establishes the checked repository's direct-client behavior; it does not establish that no external scripts, integrations, or separately deployed clients use the views.
 
 ## Conflicting evidence: course summary RPC
 
-The application call at `src/pages/CourseDetailsPage.tsx:97` uses `rbac_course_financial_summary`. Two retained artifacts disagree about its dependency:
+The application call at `src/pages/CourseDetailsPage.tsx:97` uses `rbac_course_financial_summary`. The retained evidence has an apparent dependency conflict, which local inspection can explain:
 
-- `docs/phase0/evidence/FINANCIAL_VIEWS_AND_DEPENDENCIES.md`, sections 1 and 4, says this routine references `course_financial_summary`.
+- `docs/phase0/evidence/FINANCIAL_VIEWS_AND_DEPENDENCIES.md`, section 4, labels a text-search result as “Mentions course_financial_summary = true.”
 - That same report's sections 1 and 5 incorrectly describe the app call as `rbac_course_financial_summary_v2`; current checked source calls `rbac_course_financial_summary`.
 - The retained Production function definition in `docs/phase0/evidence/PHASE0_RPC_SECURITY_DEFINER_SOURCE_EVIDENCE.md` (routine 15) returns rows from `public.rbac_course_financial_summary_v2(p_course_id)`.
 - The migration snapshot `docs/phase0/migrations-snapshot/20261030130000_course_enrollment_currency_v2.sql` defines that wrapper in the same way, and the v2 function body calculates results from source tables.
-- Candidate 4's header comments claim that the application RPC is backed by the legacy view. That claim is not supported by the retained Production function definition above.
+- The substring `course_financial_summary` occurs inside `rbac_course_financial_summary_v2`, so the report's “Mentions” boolean can be true even when the function body does not reference the legacy view. The archived function definition therefore explains the apparent conflict; the retained text-match is not catalog dependency evidence.
 
-The source evidence and the view dependency report therefore cannot both describe the same routine definition. Until this is reconciled against a captured, same-project function definition and dependency result, do not treat the v1-named application call as proof either that the view is used or that it is unused. The archived dependency report also misstates the current UI RPC name; this correction is recorded at the top of that report without deleting its original evidence tables.
+The available Production definition supports that the archived v1-named wrapper delegates to v2, not directly to the legacy view. Staging/current deployment is not established by this historical artifact; use a fresh same-project function definition and catalog dependency capture before sign-off. The archived report also misstates the current UI RPC name; the correction is recorded at its top without deleting the original evidence table.
 
 ## Candidate 4 review implications
 
 1. The checked client code does not directly select any of the four views.
-2. Existing RPCs and non-application consumers still need contract review; the `course_financial_summary` evidence conflict blocks a clean dependency conclusion.
+2. Existing RPCs and non-application consumers still need contract review; same-project confirmation of the wrapper definition remains outstanding.
 3. `DashboardPage.tsx` has a stale comment naming `dashboard_metrics`; its data is loaded through two RBAC RPCs.
 4. The code search cannot establish that third-party/reporting clients do not depend on the existing monetary semantics or column contracts.
-5. Candidate 4 changes four view definitions and monetary aggregation behavior. Its staged validation must cover the RPC dependency discrepancy, output column contracts, EGP/USD separation, and external consumer inventory before a sign-off decision.
+5. Candidate 4 changes four view definitions and monetary aggregation behavior. Its staged validation must confirm the current wrapper definition, output column contracts, EGP/USD separation, and external consumer inventory before a sign-off decision.
 
 ## Evidence inspected
 

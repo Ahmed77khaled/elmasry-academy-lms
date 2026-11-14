@@ -44,10 +44,10 @@ SELECT
   p.oid::regprocedure AS signature,
   l.lanname AS language_name,
   p.prosecdef AS security_definer,
-  p.prosrc ILIKE '%enrollment_balances%' AS mentions_enrollment_balances,
-  p.prosrc ILIKE '%cash_box_balances%' AS mentions_cash_box_balances,
-  p.prosrc ILIKE '%course_financial_summary%' AS mentions_course_financial_summary,
-  p.prosrc ILIKE '%dashboard_metrics%' AS mentions_dashboard_metrics,
+  p.prosrc ~* '(^|[^[:alnum:]_])("?public"?[.])?"?enrollment_balances"?([^[:alnum:]_]|$)' AS mentions_enrollment_balances,
+  p.prosrc ~* '(^|[^[:alnum:]_])("?public"?[.])?"?cash_box_balances"?([^[:alnum:]_]|$)' AS mentions_cash_box_balances,
+  p.prosrc ~* '(^|[^[:alnum:]_])("?public"?[.])?"?course_financial_summary"?([^[:alnum:]_]|$)' AS mentions_course_financial_summary,
+  p.prosrc ~* '(^|[^[:alnum:]_])("?public"?[.])?"?dashboard_metrics"([^[:alnum:]_]|$)' AS mentions_dashboard_metrics,
   pg_get_functiondef(p.oid) AS full_definition
 FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -55,10 +55,10 @@ JOIN pg_language l ON l.oid = p.prolang
 WHERE n.nspname IN ('public', 'private')
   AND p.prokind IN ('f', 'p')
   AND (
-    p.prosrc ILIKE '%enrollment_balances%'
-    OR p.prosrc ILIKE '%cash_box_balances%'
-    OR p.prosrc ILIKE '%course_financial_summary%'
-    OR p.prosrc ILIKE '%dashboard_metrics%'
+    p.prosrc ~* '(^|[^[:alnum:]_])("?public"?[.])?"?enrollment_balances"?([^[:alnum:]_]|$)'
+    OR p.prosrc ~* '(^|[^[:alnum:]_])("?public"?[.])?"?cash_box_balances"?([^[:alnum:]_]|$)'
+    OR p.prosrc ~* '(^|[^[:alnum:]_])("?public"?[.])?"?course_financial_summary"?([^[:alnum:]_]|$)'
+    OR p.prosrc ~* '(^|[^[:alnum:]_])("?public"?[.])?"?dashboard_metrics"([^[:alnum:]_]|$)'
   )
 ORDER BY n.nspname, p.proname, p.oid::regprocedure::text;
 

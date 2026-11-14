@@ -13,10 +13,11 @@
 --
 -- The checked application code calls RPCs, not these views directly. It calls
 -- rbac_course_financial_summary (without the v2 suffix) for course details.
--- Retained evidence conflicts on whether that routine reads the legacy view or
--- delegates to rbac_course_financial_summary_v2. Resolve that discrepancy with
--- same-project function/dependency evidence before staging sign-off. Four
--- existing view signatures and security_invoker=true are preserved.
+-- The archived Production body delegates to rbac_course_financial_summary_v2;
+-- an older text-search report may have matched that routine name as a substring
+-- and is not proof of a view dependency. Confirm the current Staging definition
+-- and dependencies before sign-off. Four existing view signatures and
+-- security_invoker=true are preserved.
 --
 -- IMPORTANT: The no-currency-column EGP assumption for expenses/transfers is a
 -- business/data convention, not provable from schema alone. Verify it with the
@@ -94,9 +95,9 @@ BEGIN
   END IF;
 
   -- Do not change a view while any v2 RPC source references it. The supplied
-  -- audit found no such references. Separately reconcile the retained v1
-  -- course-summary function definition/dependency discrepancy before staging
-  -- sign-off; this preflight is not evidence that the v1 routine is independent.
+  -- audit found no such references. The v1-named wrapper's archived Production
+  -- body delegates to v2, but this preflight does not verify its current
+  -- deployed definition or dependencies; confirm separately before sign-off.
   IF EXISTS (
     SELECT 1
     FROM pg_proc p
