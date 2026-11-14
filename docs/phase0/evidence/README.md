@@ -2,7 +2,7 @@
 
 **Target Supabase Project:** `urmkcixqpoqkiosihhal` (TrainerPro — eu-central-1)  
 **Repository:** `D:\Fel7o Gamal Project\LMS_platform-main\LMS_platform-main` (Branch: `feat/lms-v2-phases`)  
-**Inspection Mode:** Archived source package plus fresh read-only Production/Staging catalog captures (14 November 2026); no database writes were performed in this follow-up.
+**Inspection Mode:** Archived source package plus fresh Production/Staging catalog captures (14 November 2026), and one approved Staging-only EXECUTE ACL correction for two service-worker routines. No application table data or Production state was changed.
 **Date:** 14 November 2026
 
 > **Status note:** This README preserves an earlier evidence package. Its historic takeaways below include stale claims (for example, no Staging environment and no live current routine inventory). For current execution state, candidate status, and authorization boundaries, use `../README.md`, `../CODEX_HANDOFF.md`, `../review/PHASE0_STATUS_AR.md`, and the fresh [callable routine privilege matrix](CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md). The 70-row Production SECURITY DEFINER source remains an archived subset, not the full current callable inventory.

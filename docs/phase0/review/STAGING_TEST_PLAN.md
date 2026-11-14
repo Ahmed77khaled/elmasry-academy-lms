@@ -73,11 +73,11 @@ Do not run this probe in Production.
 4. Confirm every exposed SECURITY DEFINER endpoint enforces the correct permission or ownership boundary.
 5. Run the complete app test suite, then `npm run typecheck`, `npm run lint`, and `npm run build` against the same source branch that will be released.
 
-### E1. Staging service-worker RPC grants (prepared, not executed)
+### E1. Staging service-worker RPC grants (executed and verified)
 
-Fresh read-only evidence found PUBLIC/anon/authenticated EXECUTE on two SECURITY INVOKER service-worker routines in Staging: `public.claim_telegram_notifications(integer,integer)` and `public.enqueue_admin_login_notification(uuid,text)`. Their intended caller is `service_role`. Anon has no table privileges on the routines' outbox/audit targets, so an unauthorized write was not demonstrated. Do not invoke either function during the grant test because they mutate notification state.
+Fresh evidence found PUBLIC/anon/authenticated EXECUTE on two SECURITY INVOKER service-worker routines in Staging: `public.claim_telegram_notifications(integer,integer)` and `public.enqueue_admin_login_notification(uuid,text)`. Their intended caller is `service_role`. Anon had no table privileges on the routines' outbox/audit targets, so an unauthorized write was not demonstrated. With explicit operation-specific approval, the exact ACL correction below was executed on Staging and verified after commit. Neither worker function was invoked.
 
-Target: `kxdfconqflveqeozanaw` (`trainerpro-phase0-staging`). Verify this exact ref immediately before any execution. The proposed narrow transaction is:
+Target: `kxdfconqflveqeozanaw` (`trainerpro-phase0-staging`). Transaction committed at `2026-11-14T14:00:21Z`; independent post-commit SELECT verification completed at `2026-11-14T14:01:09.742690Z`. For both exact signatures, effective EXECUTE is false for anon/authenticated and true for service_role; PUBLIC EXECUTE is absent. ACLs are `{postgres=X/postgres,service_role=X/postgres}`. No rows or migration ledger entries changed. The SQL below documents the executed transaction and is not pending work.
 
 ```sql
 BEGIN;
@@ -108,7 +108,7 @@ GROUP BY p.oid;
 -- Commit only after the exact expected result is reviewed; otherwise ROLLBACK.
 ```
 
-Expected results: anon/authenticated are false for both; service_role is true for both; `public_execute` is false for both. Roll back with:
+Verified results: anon/authenticated are false for both; service_role is true for both; `public_execute` is false for both. The following is a recovery reference only; it would restore the former broad ACL and must not be run absent a separate incident-specific decision:
 
 ```sql
 GRANT EXECUTE ON FUNCTION public.claim_telegram_notifications(integer, integer)
@@ -117,7 +117,7 @@ GRANT EXECUTE ON FUNCTION public.enqueue_admin_login_notification(uuid, text)
   TO PUBLIC, anon, authenticated;
 ```
 
-Keep service_role grants. This is a proposed Staging-only ACL correction, not authorization to run it. Production had no anon-executable public non-trigger function candidate in the fresh capture, so do not apply this change there.
+Keep service_role grants. Production had no anon-executable public non-trigger function candidate in the fresh capture; no Production change was made.
 
 ## Approval rule
 

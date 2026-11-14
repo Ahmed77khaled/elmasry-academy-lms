@@ -20,7 +20,7 @@ A ledger row proves only that the version is recorded in the captured ledger. It
 
 The audit reports 20 local files and only these 4 registered versions. The other 16 files do not have a corresponding captured ledger row.
 
-Fresh Supabase `list_migrations` read-only results reconfirmed this state on 2026-11-14: Production still reports exactly the four versions above; Staging reports **zero registered migrations**. The Staging result says nothing by itself about whether direct SQL changes exist there; the historical raw log separately records direct Staging SQL. No ledger write or migration operation was performed.
+Fresh Supabase `list_migrations` results reconfirmed this state on 2026-11-14: Production still reports exactly the four versions above; Staging reports **zero registered migrations**. The Staging result says nothing by itself about whether direct SQL changes exist there; the historical raw log separately records direct Staging SQL. One separately approved Staging ACL-only transaction later changed EXECUTE grants on two service-worker routines; it is not represented in the migration ledger. No ledger write, migration application, or repair was performed.
 
 ## 2. Reassessment of the former classifications
 
