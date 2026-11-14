@@ -1,7 +1,7 @@
 # Staging RPC Body Review
 
-**Target:** Staging `kxdfconqflveqeozanaw` (`trainerpro-phase0-staging`)  
-**Evidence date:** 2026-11-14  
+**Target:** Staging `kxdfconqflveqeozanaw` (`trainerpro-phase0-staging`)
+**Evidence date:** 2026-11-14
 **Method:** Read-only catalog queries of effective EXECUTE, exact routine definitions (`pg_get_functiondef`), and Supabase Security Advisor results. No RPC was invoked during this review.
 
 This is a Staging body/authorization review. It does not describe Production. The complete per-signature privilege inventory is in [CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md](CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md); this document classifies the currently reachable SECURITY DEFINER function bodies and their intended caller boundary.
