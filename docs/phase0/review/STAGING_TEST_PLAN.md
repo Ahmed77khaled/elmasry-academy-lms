@@ -1,6 +1,6 @@
 # Staging test plan — required before any production release
 
-This is a test plan, not evidence that tests have passed. Use a dedicated restored Staging project with disposable test accounts and cash boxes only.
+This plan records both required coverage and the executed Staging evidence below. Use a dedicated Staging project with synthetic test accounts and rollback-only fixtures.
 
 ## A. Admin activation
 
@@ -21,23 +21,27 @@ This is a test plan, not evidence that tests have passed. Use a dedicated restor
 6. Create a disposable Auth user, link it as `added_by` to a disposable cash box in the supported test setup, delete that test Auth user, and verify `added_by` becomes NULL while both opening balances remain unchanged. Do not use a real administrator account for this test.
 7. Verify the archive notification trigger still fires exactly once for an active-to-inactive transition and not for unrelated metadata updates.
 
-### B1. Missing candidate-3 cases (prepared, not executed)
+### B1. Candidate-3 cases (executed 2026-11-14)
 
 Run only after explicit approval for the specific Staging operation and independently verify ref `kxdfconqflveqeozanaw` immediately before execution. Use synthetic fixtures; wrap reversible database checks in a transaction and roll back. Never call a live Telegram/email/webhook dispatcher.
 
 | Case | Action | Expected result | Evidence to retain |
 |---|---|---|---|
-| Approved archive RPC | Call `rbac_archive_cash_box(p_cash_box_id)` on an active disposable box using an identity with `finance.cash_boxes.update` | Active→inactive succeeds once; notification trigger queues one outbox item | RPC result, before/after row, outbox event IDs/count |
+| Approved archive RPC | Call `rbac_archive_cash_box(p_cash_box_id)` on an active disposable box using a synthetic platform-owner identity with `finance.cash_boxes.archive` | Active→inactive succeeds once; notification trigger queues one outbox item | RPC result, before/after row, outbox event IDs/count |
 | Negative EGP opening balance | Call `rbac_create_cash_box_v2` with `p_opening_balance < 0` | Rejected; no cash box persists | SQLSTATE/message and post-check row count |
 | Negative USD opening balance | Call the same RPC with nonnegative EGP and `p_opening_balance_usd < 0` | Rejected; no cash box persists | SQLSTATE/message and post-check row count |
 | EGP upper bound | Test the documented inclusive maximum and maximum plus one precision unit | At maximum accepted if contract is inclusive; over-limit rejected | Returned value or SQLSTATE/message |
 | USD upper bound | Repeat upper-bound test for USD independently | Same documented bound behavior as EGP | Returned value or SQLSTATE/message |
-| Hard-delete rejection | Attempt direct `DELETE` of a disposable cash box under the authenticated test role | Rejected by policy/trigger; box remains | SQLSTATE/message and row snapshot |
+| Hard-delete rejection | Attempt direct `DELETE` of a disposable cash box from the SQL owner test session; separately verify API roles lack direct relation DELETE | Rejected by the trigger; box remains | SQLSTATE/message and row snapshot |
 | Arbitrary creator reassignment | Change `added_by` from creator UUID to a different synthetic Auth UUID | Rejected; original creator remains | SQLSTATE/message and row snapshot |
-| Auth user deletion | Create a fresh synthetic Auth user, bind as creator through supported setup, delete that user in Staging | FK sets `added_by` to NULL and preserves both balances | Auth deletion result and before/after balance/creator values |
+| Auth user deletion | Use a synthetic Auth identity as creator, delete it inside the rollback fixture | FK sets `added_by` to NULL and preserves both balances; fixture rollback restores the account | Auth deletion result and before/after balance/creator values |
 | Outbox transition scope | Snapshot outbox, archive via RPC, then update unrelated metadata on another box | Exactly one archive event; no event for metadata-only update; do not invoke dispatcher | Outbox rows, trigger definition and worker/dispatch exclusion |
 
-Use fresh synthetic Auth accounts. Historical credentials for four existing disposable accounts are considered exposed; reset or recreate those accounts before any interactive login test. Do not use real administrator identities.
+**Executed evidence:** With the user's operation-specific approval, `validation/PHASE0_STAGING_APPROVED_BEHAVIOR_TESTS.sql` ran against verified project `kxdfconqflveqeozanaw` (`trainerpro-phase0-staging`) on 2026-11-14. All 26 reported cases passed, including the final fixture rollback assertion. Active/inactive/regular `is_admin` results were true/false/false; temporary academy/finance manager checks passed; authorized and denied RPC paths matched their mapped permissions; EGP/USD negative and over-limit amounts were rejected and maximum inclusive amounts accepted; EGP/USD opening balances and creator reassignment were blocked by the trigger; metadata-only update created no archive event; hard delete was rejected; archive RPC made the box inactive and queued exactly one unsent outbox row; Auth deletion set `added_by` to NULL while preserving both balances. No dispatcher ran. API-role RPC behavior was tested under the `authenticated` database role with synthetic JWT subjects; direct table-trigger checks ran as the database owner and are not evidence of a client metadata-update endpoint. See [the detailed results](../evidence/STAGING_APPROVED_TEST_RESULTS_20261114.md).
+
+A separate SELECT-only cleanup check verified all four synthetic Auth users remained, no temporary academy/finance admin rows remained, none of the observed student/course/expense/cash-box/audit/outbox fixture IDs remained, and no default-ACL probe objects remained. Historical credentials for the four synthetic accounts are considered exposed; no credentials or interactive login were used. Do not use real administrator identities.
+
+**Authorization detail:** `rbac_archive_cash_box(uuid)` checks `finance.cash_boxes.archive`, which is platform-owner-gated in the current Staging definition; `finance.cash_boxes.update` alone is insufficient. The current inventory has no cash-box metadata update RPC, so metadata-only behavior can be checked at the trigger/catalog level but does not establish a client-authorized update path.
 
 ## C. Financial view correctness
 
@@ -59,9 +63,9 @@ Run `validation/PHASE0_STAGING_DEFAULT_ACL_PROBE.sql` on Staging only. It create
 - `service_role` retains the documented public-schema defaults.
 - Future `postgres`-created functions in other relevant schemas also receive no PUBLIC EXECUTE by default; explicitly grant EXECUTE to intended callers after creation.
 
-### D1. Strengthened cross-schema coverage (prepared, not executed)
+### D1. Strengthened cross-schema coverage (executed 2026-11-14)
 
-The current `validation/PHASE0_STAGING_DEFAULT_ACL_PROBE.sql` retains the public table/sequence/function checks and adds a `private`-schema function to test the global PUBLIC EXECUTE default outside `public`. It checks effective EXECUTE for `anon`/`authenticated`/`service_role`, explodes both function ACLs (including PUBLIC), asserts no anon/authenticated/PUBLIC EXECUTE on either, and ends with a SELECT-only cleanup check after ROLLBACK. A read-only Staging catalog capture now shows no `private` schema-specific defaults and no global PUBLIC function entry; the probe has not run, so effective ACL on a newly created private function remains unverified. `storage` has separate platform defaults including API roles and is intentionally excluded from this application probe; do not change those defaults based on this evidence alone.
+The current `validation/PHASE0_STAGING_DEFAULT_ACL_PROBE.sql` retains the public table/sequence/function checks and adds a `private`-schema function to test the global PUBLIC EXECUTE default outside `public`. It checks effective privileges, explodes the function ACLs (including PUBLIC), asserts no anon/authenticated/PUBLIC access, and ends with a SELECT-only cleanup check after ROLLBACK. With separate user approval and immediate target verification, the probe ran on Staging on 2026-11-14. Its assertion block completed without error, so every expected table, sequence, and function ACL check passed; the returned cleanup check showed all four probe objects removed. The script's intermediate ACL result sets are not retained by the MCP response, so the assertion block is the pass/fail evidence. `storage` has separate platform defaults including API roles and is intentionally excluded; no storage defaults were changed.
 
 Do not run this probe in Production.
 
@@ -119,11 +123,11 @@ GRANT EXECUTE ON FUNCTION public.enqueue_admin_login_notification(uuid, text)
 
 Keep service_role grants. Production had no anon-executable public non-trigger function candidate in the fresh capture; no Production change was made.
 
-### E2. Legacy admin RPC vs RBAC boundary (ACL corrected; behavior tests prepared, not run)
+### E2. Legacy admin RPC vs RBAC boundary (ACL corrected; behavior tests executed)
 
 The eight legacy RPC ACLs were corrected on Staging after explicit approval. Post-commit SELECT verification shows `anon=false`, `authenticated=false`, `service_role=true`, and no PUBLIC EXECUTE on every exact signature; the corresponding RBAC wrappers retain authenticated EXECUTE. See [the Staging body review](../evidence/STAGING_RPC_BODY_REVIEW.md) for the results and [the ACL remediation record](STAGING_LEGACY_RPC_ACL_REMEDIATION.md). No RPC was invoked during the ACL change.
 
-Behavior tests remain unrun. The current Staging aggregate had one active owner and one inactive superadmin, so no active restricted test identity exists. After separately approving synthetic account setup and the specific test operation, use an `academy_manager` to confirm finance write operations are denied and a `finance_manager` to confirm student/course creation operations are denied through the RBAC wrappers. Test an allowed operation for each role as a positive control. Use disposable fixtures in rollback transactions, inspect audit/outbox effects before rollback, and never invoke notification dispatchers. Capture the role permission set, exact RPC signature and response/SQLSTATE, before/after fixture snapshots, and evidence that rollback removed test rows. Do not use real administrator identities or historically exposed account passwords.
+The behavior script above temporarily attached synthetic accounts to `academy_manager` and `finance_manager` roles inside the rollback fixture. It confirmed finance-manager student/course creation was denied, academy-manager expense recording was denied, and each role's expected positive control succeeded. These results confirm the tested Staging RPC permission boundaries; they do not test interactive AuthContext/live login or legacy service-role-only endpoints. No credentials were used and no dispatcher ran.
 
 ## Approval rule
 

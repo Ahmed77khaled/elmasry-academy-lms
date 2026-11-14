@@ -19,7 +19,9 @@
 
 **تحديث أدلة القراءة فقط (14 نوفمبر):** جردت القراءة الحديثة 76 routine بكل مشروع مع احتساب `USAGE` للـschema، وأكدت عدم وجود صلاحيات مباشرة لـ`anon`/`authenticated` على 16 جدولًا و4 views. Production لديه 4 إصدارات في سجل migrations؛ Staging لا يحتوي schema أو جدول السجل. مصفوفة الـ641 statement أصبحت: 410 `UNVERIFIABLE`، و33 `NOT APPLICABLE`، و5 `ABSENT`، و166 `EQUIVALENT` للحالة الحالية، و27 `DIFFERENT`. وفي Candidate 4، ثبت من تعريفات الدوال في المشروعين أن wrapper الملخص يستدعي v2، وأن v2 لا يقرأ الـviews القديمة؛ يظل تأكيد معنى العملة والمستهلكين الخارجيين مطلوبًا. التفاصيل في [التقاط الكتالوج](../evidence/PHASE0_READONLY_CATALOG_CAPTURE_20261114.md).
 
-**حالة المرحلة:** أعمال المستودع والتوثيق الأساسية مكتملة وموجودة في PR #1، لكن Phase 0 لم تُغلق بعد: اختبارات Staging السلوكية وprobe الامتيازات لم تُشغل، و410 statement ما زالت بلا دليل كافٍ، وCandidate 4 على HOLD. لا يوجد تصريح بتغييرات Production أو إصلاح migration ledger.
+**تحديث اختبارات Staging بعد موافقة محددة (14 نوفمبر):** على Staging فقط (`kxdfconqflveqeozanaw`)، نجحت 26 حالة Cash Box وRBAC و`is_admin` داخل fixtures متراجعة، مع تأكيد عدم إرسال إشعار وبقاء outbox غير مرسل. نجح أيضًا probe الامتيازات المقوّى عبر assertions ثم أظهر فحص التنظيف إزالة الجدول والتسلسل والدالتين. فحص SELECT مستقل أكد بقاء حسابات الاختبار الأربعة وعدم بقاء fixture rows أو أحداث/outbox مرتبطة بها. لا تغييرات دائمة على schema أو ACL، ولا أي عملية Production. النتائج التفصيلية في [خطة اختبارات Staging](STAGING_TEST_PLAN.md) و[تقرير النتائج](../evidence/STAGING_APPROVED_TEST_RESULTS_20261114.md).
+
+**حالة المرحلة:** اختبارات السلوك وprobe الامتيازات المصرّح بهما نجحا، لكن Phase 0 لم تُغلق بعد: 410 من 641 statement ما زالت `UNVERIFIABLE`، وCandidate 4 على HOLD بانتظار اعتماد معنى العملة ومراجعة المستهلكين الخارجيين، واختبارات React/Supabase الحية لتدفق AuthContext غير منفذة. لا يوجد تصريح بتغييرات Production أو إصلاح migration ledger.
 
 ## قرارات Supabase
 
@@ -32,9 +34,9 @@
 
 | المرشح | الحالة |
 |---|---|
-| Default Privileges | نُفذ على Staging؛ الاختبار المنفذ كان نسخة أقدم مختصرة، ويلزم تشغيل الـProbe الكامل الحالي |
+| Default Privileges | نجحت assertions في الـprobe المقوّى على Staging؛ تم التراجع عن كل probe objects وتأكيد إزالتها |
 | is_admin active status | نُفذ على Staging؛ اختبار SQL أكد active=true وinactive=false وnormal=false |
-| Cash Box USD + creator FK | نُفذ على Staging؛ اختبارات أساسية نجحت، والتغطية ليست كاملة |
+| Cash Box USD + creator FK | نجحت حالات السلوك المعتمدة على Staging، بما فيها EGP/USD والـcreator FK والأرشفة/outbox؛ لم تختبر واجهة metadata في التطبيق |
 | Legacy Financial Views EGP-only | HOLD — لا تطبقه حتى حسم المستهلكين ومعنى العملة |
 
 ## ملاحظة أمان تخص حسابات الاختبار
@@ -43,10 +45,10 @@
 
 ## أهم المهام المفتوحة لـCodex
 
-1. استكمال تأكيد عدم وجود مستهلكات خارجية خاملة للدوال الثماني، وتشغيل اختبارات RBAC السلوكية بعد تجهيز هويات اختبار Staging بموافقة منفصلة.
+1. تأكيد عدم وجود مستهلكات خارجية خاملة للدوال الثماني؛ اختبارات RBAC السلوكية بالهويات الاصطناعية نجحت على Staging، لكن سجلات 24 ساعة لا تنفي التكاملات النائمة.
 2. اكتملت مراجعة تدفق `AuthContext` وإصلاحات التعافي المحلية؛ اختبارات React/Supabase المتكاملة وتسجيل الدخول الحي ما زالت غير منفذة.
-3. حالات Cash Box والـoutbox الناقصة محضّرة في `STAGING_TEST_PLAN.md`، ولم تُشغّل.
-4. تشغيل ACL probe المقوّى على Staging بعد موافقة واضحة والتحقق الفوري من ref.
+3. نجحت حالات Cash Box والـoutbox المعتمدة، وتأكد rollback وعدم إرسال dispatcher. تحقق تفاصيلها في `STAGING_TEST_PLAN.md`.
+4. نجح ACL probe المقوّى على Staging وتأكدت إزالة عناصر الاختبار الأربعة.
 5. مصفوفة statement-level جاهزة لـ641 سطرًا؛ 410 ما زالت `UNVERIFIABLE`. Production لديه 4 ledger rows وStaging ليس لديه schema/جدول ledger؛ لا يوجد أي إذن لإصلاح السجل.
 6. Candidate 4: تعارض اعتماد الـRPC حُسم بالقراءة الحديثة، لكن تأكيد معنى EGP/USD للمصروفات والتحويلات ومراجعة المستهلكين الخارجيين ما زالا مطلوبين؛ يظل HOLD.
 

@@ -56,9 +56,9 @@ All four SQL candidates remain in `docs/phase0/drafts/migrations/`, not in activ
 
 | Candidate | Current factual status |
 |---|---|
-| `20261113190000_harden_postgres_default_privileges.sql` | Executed on Staging. The executed probe was an older reduced probe, not the current strengthened probe. Global function-default behavior across schemas remains to verify. |
+| `20261113190000_harden_postgres_default_privileges.sql` | Executed on Staging. The strengthened rollback-only cross-schema probe passed its assertions on 2026-11-14; all four temporary objects were confirmed removed. |
 | `20261113190100_fix_is_admin_active_status.sql` | Executed on Staging. SQL tests support active=true, inactive=false, normal=false. App AuthContext regression still needed. |
-| `20261113190200_fix_cash_box_usd_immutability_and_creator_fk.sql` | Executed on Staging. Core USD/EGP immutability and creator FK SET NULL behavior were observed. Approved archive RPC, negative/over-limit values, hard-delete, arbitrary creator reassignment, and notification side effects are not all evidenced. |
+| `20261113190200_fix_cash_box_usd_immutability_and_creator_fk.sql` | Executed on Staging. The approved rollback-only behavior suite passed EGP/USD immutability, limits, creator reassignment/deletion, archive RPC, hard-delete, and outbox-only checks. No Production changes. |
 | `20261113190300_make_legacy_financial_views_egp_only.sql` | HOLD. Do not apply. It changes a legacy multi-currency output contract; inspect frontend/external consumers and get business confirmation first. |
 
 The initial Antigravity summary overstated Candidate 1 probe coverage, Candidate 3 test completeness, schema parity, and Production-readiness. Use the corrected execution report and raw operation log instead.
@@ -80,7 +80,7 @@ For every migration statement, classify the expected live effect as equivalent, 
 - The current per-signature inventory is `docs/phase0/evidence/CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md`; Staging body classes, exact routine group membership, findings and recommended caller boundaries are in `docs/phase0/evidence/STAGING_RPC_BODY_REVIEW.md`.
 - The 69/70 historical aggregate was Staging and included a broader routine count. After the worker and legacy-write ACL corrections, current Staging has 55 anon / 56 authenticated SECURITY DEFINER endpoints confirmed by Security Advisor.
 - Two separately approved Staging-only ACL corrections narrowed the two Telegram service-worker functions and eight legacy write functions to service_role. No other blanket grant change was made.
-- Eight legacy mutation RPCs had broad body checks but are now service_role-only on Staging; post-commit SELECT verified `anon=false`, `authenticated=false`, `service_role=true`, and no PUBLIC EXECUTE. All eight `rbac_*` wrappers retain authenticated execution. No RPC behavior test was run and no restricted admin is currently active. A 24-hour read-only REST-log scan found no direct calls to those legacy paths; dormant external consumers remain unverified. Details are in `docs/phase0/review/STAGING_LEGACY_RPC_ACL_REMEDIATION.md`.
+- Eight legacy mutation RPCs had broad body checks but are now service_role-only on Staging; post-commit SELECT verified `anon=false`, `authenticated=false`, `service_role=true`, and no PUBLIC EXECUTE. All eight `rbac_*` wrappers retain authenticated execution. Approved synthetic-role tests passed academy-manager/finance-manager allow/deny cases; a 24-hour read-only REST-log scan found no direct calls to those legacy paths, but dormant external consumers remain unverified. Details are in `docs/phase0/review/STAGING_LEGACY_RPC_ACL_REMEDIATION.md` and `docs/phase0/review/STAGING_TEST_PLAN.md`.
 - Do not blanket-revoke the remaining routines; preserve intentional authenticated app paths and service-role operations. Production remains read-only.
 
 ### P2 — Application auth regression review
@@ -90,8 +90,8 @@ For every migration statement, classify the expected live effect as equivalent, 
 - Do not change role semantics without documenting affected routes and RPCs.
 
 ### P3 — Cash-box and notification test completeness
-- The missing Cash Box cases are prepared in `docs/phase0/review/STAGING_TEST_PLAN.md` §B1; legacy-admin/RBAC negative cases are prepared in §E2. Neither section has been executed.
-- Execution requires separate operation-specific Staging approval and immediate project-ref verification. Use outbox-only checks; never dispatch live Telegram/email/webhook notifications.
+- Cash Box cases in `docs/phase0/review/STAGING_TEST_PLAN.md` §B1 and RBAC cases in §E2 were executed against verified Staging after operation-specific approval. All 26 result cases passed; fixture rollback and a separate cleanup SELECT were verified. See `docs/phase0/evidence/STAGING_APPROVED_TEST_RESULTS_20261114.md`.
+- The strengthened default-ACL probe in §D1 passed its assertions and all four probe objects were confirmed removed. These tests made no persistent schema/ACL changes. No live notification dispatcher ran.
 - Use synthetic identities only. Four disposable Staging Auth accounts (`a0000000-0000-0000-0000-000000000001` through `...0004`, `example.invalid`) were created during the previous tests. Their fixed passwords were redacted from the current raw log, but older Git commits contained those values. Treat their credentials as exposed. Before further interactive Staging login tests, reset or delete/recreate those synthetic accounts on Staging only, after explicit user authorization and fresh target-ref verification. Never touch Production identities.
 - Do not run any test that sends live Telegram/email/webhook notifications. Use outbox-only or mocked dispatch paths.
 
