@@ -1,8 +1,8 @@
 # Phase 0 Codex Takeover Findings
 
 **Branch:** `codex/phase0-next`
-**Review date:** 2026-11-14
-**Database access this task:** Read-only catalog captures on Production (`urmkcixqpoqkiosihhal`) and Staging (`kxdfconqflveqeozanaw`), plus one explicitly approved, narrowly scoped Staging EXECUTE ACL transaction for two service-worker functions. No Production permissions/data, application data, migrations, or migration ledger were changed.
+**Review date:** 2026-11-15
+**Database access:** Read-only metadata captures on Production (`urmkcixqpoqkiosihhal`) and Staging (`kxdfconqflveqeozanaw`), plus two explicitly approved, narrowly scoped Staging EXECUTE ACL operations for service-worker and legacy-write functions. No Production permissions/data, application rows, migrations, or migration ledger were changed.
 
 ## Repository baseline
 
@@ -15,10 +15,10 @@ The checkout contains the React/TypeScript application (`src/`), Supabase Edge F
 | `npm run typecheck` | PASS (`tsc --noEmit -p tsconfig.app.json`) |
 | `npm run lint` | PASS (`eslint .`) |
 | `npm run build` | PASS (Vite 8.3.5; 1,661 modules) |
-| `npm run test` | PASS: 16 tests (4 request-epoch tests + 12 existing Edge Function tests) |
+| `npm run test` | PASS: 27 tests (16 Node tests + 11 mounted React tests) |
 | `npm run test:telegram` | PASS: 12 tests, 0 failures; uses mocked delivery and no live Telegram call |
 
-Dependencies were installed from the existing lockfile with `npm ci`; it reported 7 moderate audit findings. No package or lockfile edits were made.
+Dependencies were installed from the lockfile; this follow-up added Vitest, jsdom, and Testing Library dependencies for mounted provider tests and updated the lockfile. npm reports 7 moderate audit findings; no `npm audit fix` was run.
 
 ## RPC exposure and security findings
 
@@ -52,9 +52,9 @@ Implemented in this follow-up:
 1. Added a shared request epoch checked after async session/admin/authorization operations and invalidated on auth events, sign-out, and provider cleanup. Removed the unused `userId` parameter; server identity still comes from `auth.uid()`.
 2. Initial session loading now fetches authorization only after a positive admin check, matching the auth-event path.
 3. Explicit refresh starts a new request epoch, blocks app content while loading, and ignores stale results.
-4. Added four Node tests for current-request selection, invalidation, next request, and ignoring late responses. Added an `npm test` script that runs these and the existing 12 Edge Function tests.
+4. Added four Node tests for current-request selection, invalidation, next request, and ignoring late responses, plus eleven mounted React tests with mocked Supabase for provider session/auth races and login form errors/retryability. `npm test` runs the full Node and Vitest suites.
 
-Remaining: tests cover the epoch helper but do not mount `AuthProvider` or mock the Supabase client. Add integration cases for sign-in, token refresh, account switch, sign-out rejection, inactive admin, normal user, and expired session when the project has a React testing environment. A transient `get_my_authorization()` failure intentionally keeps `authorizationReady=false`; `isAdmin` can remain true until a successful recheck, while protected route content stays blocked. Route gating remains a UX layer; server-side `has_permission` / `is_admin` checks are the enforcement boundary.
+Remaining: no live sign-in was performed; previous Git history contains the synthetic credentials, so those accounts need a separately approved reset before interactive use. The mocked provider tests do not prove deployed Auth behavior. A transient `get_my_authorization()` failure intentionally keeps `authorizationReady=false`; `isAdmin` can remain true until a successful recheck, while protected route content stays blocked. Route gating remains a UX layer; server-side `has_permission` / `is_admin` checks are the enforcement boundary.
 
 ## Missing Staging cases prepared (not executed)
 
@@ -109,14 +109,14 @@ Source set: 20 files under `migrations-snapshot/`; captured ledger: four version
 
 ## Prioritized implementation plan
 
-1. **Resolved on Staging — direct access to legacy writes:** eight exact functions are now service_role-only, matching Production. A 24-hour REST-log scan found no direct calls, but dormant external consumers remain unverified. Restricted-role RBAC behavior tests are still open and require separately approved synthetic identities/fixtures.
+1. **Resolved on Staging — direct access to legacy writes:** eight exact functions are now service_role-only, matching Production. The 24-hour REST-log scan found no direct calls, and the approved restricted-role RBAC behavior tests passed; dormant external consumers remain unverified.
 2. **P1 — reduce remaining anonymous grants:** 55 anon-callable Staging SECURITY DEFINER functions still have both PUBLIC and explicit anon EXECUTE. Review the exact remaining 55 before proposing any further ACL change; preserve authenticated app paths and do not blanket-revoke.
-3. **P1 — finish Staging validation:** execute only specifically approved Cash Box and strengthened Default ACL probes against verified Staging; synthetic identities only; outbox-only assertions.
-4. **P1 — AuthContext integration coverage:** the request epoch guard and unit tests are implemented; add mocked Supabase/React integration cases before treating sign-in, token refresh, account switch, sign-out rejection, inactive admin, normal user, and expired-session flows as verified.
+3. **Resolved — Staging validation:** the 26-case Cash Box/RBAC behavior suite and strengthened Default Privileges probe passed on verified Staging with rollback/cleanup checks.
+4. **Partly resolved — AuthContext integration coverage:** eleven mounted provider/login tests pass against mocked Supabase. Live sign-in remains open until exposed synthetic credentials are reset with separate approval.
 5. **P2 — migration statement reconciliation:** retain the 31 unresolved rows in [MIGRATION_STATEMENT_MATRIX.md](../evidence/MIGRATION_STATEMENT_MATRIX.md) as open evidence gaps. Six would require a separately approved, privacy-bounded historical data check; 24 require trustworthy historical execution evidence because later DDL masks their intermediate effects; one `NOTIFY` cannot be proved from current catalog state. Keep the ledger untouched.
-6. **P2 — currency consumer review:** inventory internal UI and external consumers; keep Candidate 4 **HOLD** until EGP/USD business contract is approved.
-7. **P3 — PR review:** commit documentation/test-plan-only updates on `codex/phase0-next`, update PR #1 to `phase0/shared-workspace`; do not merge or deploy.
+6. **P2 — currency consumer review:** repository search found no direct view usage under `src/`; page RPC call sites use permission-checked endpoints. External consumers and the EGP/USD business contract remain unknown; keep Candidate 4 **HOLD**.
+7. **P3 — PR review:** push the remaining evidence and test updates to PR #1 targeting `phase0/shared-workspace`; leave it open for review and do not merge or deploy.
 
 ## Safety disposition
 
-Read-only catalog and migration-list captures were obtained from both projects. One approved ACL-only transaction changed the two named Staging worker functions; it did not invoke them or modify table data. Production was untouched. No migration application/repair, project lifecycle action, push/deployment, ledger edit, or Candidate 4 application occurred. Candidate 4 remains **HOLD**.
+Read-only catalog and migration-list captures were obtained from both projects. Two explicitly approved ACL-only operations changed the two named Staging worker functions and eight named legacy write functions; they did not invoke those routines or modify table data. Production was untouched. No migration application/repair, project lifecycle action, push/deployment, ledger edit, or Candidate 4 application occurred. Candidate 4 remains **HOLD**.

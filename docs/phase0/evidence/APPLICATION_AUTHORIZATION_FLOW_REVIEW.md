@@ -42,33 +42,32 @@ The local `20261021224440_rbac_role_aware_data_endpoints.sql` source checks `pri
 
 Initial `getSession()` and auth-state callbacks can overlap. Each event schedules an untracked timeout and async `is_admin()` / authorization requests. A shared monotonically increasing request epoch now guards state writes after every await and invalidates pending work on logout/unmount. The unused `userId` argument was removed; `is_admin()` continues to derive identity from the current JWT. This is a defense-in-depth and state correctness fix; server-side RPC enforcement remains the data protection boundary.
 
-**Verification:** four Node unit tests cover current-request selection, invalidation, post-invalidation requests, and ignoring a late response. They test the shared guard, not a mounted React provider.
+**Verification:** four Node unit tests cover current-request selection, invalidation, post-invalidation requests, and ignoring a late response. Eleven mocked React/Supabase tests cover `AuthProvider` session and authorization paths plus `LoginPage` returned/rejected sign-in errors and retryability. No live credentials or Supabase connection are used by these tests.
 
 ### P2 — Initial and event-driven non-admin paths differ — addressed
 
 `initAuth()` now only loads `get_my_authorization()` when `is_admin()` returns true, matching the auth-event path.
 
-### Resolved — Sign-in rejection path is handled
+### Resolved by source review; component regression remains open — Sign-in rejection path is handled
 
-`LoginPage.handleSubmit()` now handles both returned authentication errors and thrown/rejected requests. Rejections show a generic connection message rather than internal details, and `finally` always restores the loading state so the user can retry. No auth regression test or live sign-in was run.
+`LoginPage.handleSubmit()` now handles both returned authentication errors and thrown/rejected requests. Rejections show a generic connection message rather than internal details, and `finally` always restores the loading state so the user can retry. The form submission component itself is not yet covered by a mounted regression test; no live sign-in was run.
 
 ### Resolved — Authorization failure offers recovery
 
 When `is_admin()` succeeds but `get_my_authorization()` returns an error or throws, `refreshAuthorization()` retains the positive active-admin result while clearing permission data and leaving `authorizationReady=false`. AppShell blocks all route content in that state. The failure panel now offers a retry plus sign-out; no server authorization semantics changed.
 
-## Focused regression cases to add
+## Focused regression coverage and remaining cases
 
-Four focused tests were added for the request epoch using Node's built-in test runner; the repo's `npm test` script now runs these plus the 12 existing mocked Edge Function tests. No dependency was added. The current suite does not mount AuthProvider, simulate Supabase auth events end-to-end, or use live credentials. Keep those cases in the integration-test backlog until the project chooses a React test environment and a disposable Staging login is approved.
+Four focused request-epoch tests use Node's built-in test runner, while eleven mounted React tests use Vitest, jsdom, and mocked Supabase calls; `npm test` runs them alongside the 12 existing mocked Edge Function tests. They cover provider auth-state transitions and login form failure/retry behavior. Live credential sign-in and actual Supabase Auth behavior remain untested because the synthetic account credentials were exposed in prior Git history and require reset before another interactive Staging login.
 
 | Case | Expected assertion |
 |---|---|
-| No stored session | Login path, no role/owner/permission state |
-| Active admin sign-in | Admin shell only after admin check and authorization fetch succeed |
-| Inactive admin / normal user | No application shell and no protected page content |
-| Sign-in returned error and rejected promise | Generic error is surfaced and form returns to retryable state (implemented; not component-tested) |
-| Token refresh with changed role/permissions | Old permissions hidden during fetch; new permissions used after success |
-| Account switch while prior RPC is pending | Late response from earlier transition cannot overwrite current identity state |
-| Logout while authorization RPC is pending | Late result cannot restore admin/permission state; login screen remains |
-| `is_admin()` error / authorization error | Sensitive routes remain blocked and user sees recoverable failure state |
-| Settings as non-owner active admin | Self-account settings visible; owner controls and owner RPC data absent |
-| RPC invoked after bypassing client UI | Server returns authorization error for a role without the required permission |
+| No stored session | Tested: provider has no identity or permissions |
+| Active admin / normal user | Tested: only active admin loads authorization; normal user gets no permissions |
+| Sign-in returned error and rejected promise | Tested: generic errors are shown and submit becomes retryable |
+| Token refresh with changed role/permissions | Tested with mocked auth event |
+| Account switch while prior RPC is pending | Tested: late earlier result cannot replace current account |
+| Logout while authorization RPC is pending | Tested: late result cannot restore admin/permission state |
+| `get_my_authorization()` failure and rejected sign-out | Tested: authorization stays unavailable; local auth state clears on sign-out rejection |
+| Settings as non-owner active admin | Not mounted-tested; route/component integration follow-up |
+| RPC invoked after bypassing client UI | Staging synthetic-role allow/deny cases passed; these were SQL/RPC tests, not browser UI tests |

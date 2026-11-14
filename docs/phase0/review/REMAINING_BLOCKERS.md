@@ -17,12 +17,12 @@
 5. **Expense/transfer currency semantics.** Neither table has a currency column. Current v2 cash-box RPC treats the amounts as EGP, but that does not independently prove all historical records follow the convention. Data-owner confirmation is mandatory before EGP-only legacy view changes.
 6. **Resolved — database routine dependency conflict for Candidate 4.** Fresh SELECT-only captures in both projects confirm `rbac_course_financial_summary(uuid)` delegates to `rbac_course_financial_summary_v2(uuid)`. The v2 body reads base tables and does not reference the four legacy financial views; text scans of all routine bodies and direct `pg_depend` queries found no references. See `evidence/PHASE0_READONLY_CATALOG_CAPTURE_20261114.md`. This does not rule out dynamic SQL or external/non-routine consumers.
 7. **Candidate 4 business contract and external consumers remain open.** The data owner must confirm EGP-only semantics for legacy monetary views, especially expenses/transfers that have no currency column. Inventory external reports, SQL clients, and third-party consumers before any view contract change. Candidate 4 remains HOLD.
-8. **Resolved — AuthContext source branch provenance.** The `phase0/shared-workspace` PR base was fetched read-only and compared with `codex/phase0-next`; the PR head explicitly includes the AuthContext request-epoch guard and its four unit tests. The code is therefore part of the reviewed branch diff. Mounted React/Supabase integration coverage and live sign-in remain untested.
+8. **Partly resolved — AuthContext integration.** Eleven local mounted React tests exercise provider session/auth transitions and the login form's returned/rejected sign-in error recovery using mocked Supabase calls. They pass without project access. Actual Staging sign-in remains untested because the synthetic credentials were exposed in older Git history; resetting them requires separate explicit authorization. The PR base comparison confirms these changes are in the reviewed branch.
 
 ## Release blockers
 
 - Confirm the existing Staging project is an isolated, restorable test baseline; do not create or alter projects as part of this work.
-- Complete read-only function/RLS/schema/trigger evidence review.
+- Resolve the 31 historical statement evidence gaps described in `evidence/MIGRATION_RECONCILIATION.md`; current catalog reads cannot prove historical data mutations or transient DDL.
 - Record the passed Staging behavior and ACL probes; no additional candidate SQL application is implied.
-- Reconcile migration history statement-by-statement, with evidence for every effect.
+- Obtain the data-owner's currency contract decision and complete external-consumer inventory before any Candidate 4 decision.
 - Never run `supabase db push` until all local/remote migration drift is fully understood.

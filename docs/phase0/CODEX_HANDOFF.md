@@ -57,7 +57,7 @@ All four SQL candidates remain in `docs/phase0/drafts/migrations/`, not in activ
 | Candidate | Current factual status |
 |---|---|
 | `20261113190000_harden_postgres_default_privileges.sql` | Executed on Staging. The strengthened rollback-only cross-schema probe passed its assertions on 2026-11-14; all four temporary objects were confirmed removed. |
-| `20261113190100_fix_is_admin_active_status.sql` | Executed on Staging. SQL tests support active=true, inactive=false, normal=false. App AuthContext regression still needed. |
+| `20261113190100_fix_is_admin_active_status.sql` | Executed on Staging. SQL tests support active=true, inactive=false, normal=false. Eleven local mocked React tests cover AuthProvider transitions and login form error recovery; live sign-in remains untested. |
 | `20261113190200_fix_cash_box_usd_immutability_and_creator_fk.sql` | Executed on Staging. The approved rollback-only behavior suite passed EGP/USD immutability, limits, creator reassignment/deletion, archive RPC, hard-delete, and outbox-only checks. No Production changes. |
 | `20261113190300_make_legacy_financial_views_egp_only.sql` | HOLD. Do not apply. It changes a legacy multi-currency output contract; inspect frontend/external consumers and get business confirmation first. |
 
@@ -86,7 +86,7 @@ For every migration statement, classify the expected live effect as equivalent, 
 ### P2 — Application auth regression review
 - Source review is recorded in `docs/phase0/evidence/APPLICATION_AUTHORIZATION_FLOW_REVIEW.md`.
 - The request-epoch guard and four unit tests cover stale async auth results. Sign-in request rejection now clears loading and shows a generic retryable message; failed authorization loading remains blocked and offers retry/sign-out.
-- No mounted React/Supabase integration tests or live sign-in were run. Add those only with an approved test harness and fresh disposable Staging identities.
+- Eleven mounted React/AuthProvider and LoginPage tests now use a mocked Supabase client and do not connect to either project. Live sign-in remains untested; the four synthetic Staging credentials were present in prior Git history, so reset them only after explicit approval and fresh target verification.
 - Do not change role semantics without documenting affected routes and RPCs.
 
 ### P3 — Cash-box and notification test completeness
@@ -98,6 +98,7 @@ For every migration statement, classify the expected live effect as equivalent, 
 ### P4 — Migration and currency reconciliation
 - The 641-statement matrix is built from the 20 archived snapshots; 31 rows remain `UNVERIFIABLE` (34 not applicable, 61 absent, 455 equivalent to current captured state, 60 different). Their evidence limits are itemized in `evidence/MIGRATION_RECONCILIATION.md`: six require historical row/sequence evidence, 24 are transient/intermediate DDL effects, and one is a historical `NOTIFY`. Migration 008's Production `NO ACTION` versus declared `SET NULL` is explicitly classified as `DIFFERENT`. Do not repair the migration ledger.
 - The former `rbac_course_financial_summary` dependency conflict is resolved by fresh read-only captures: the v1 wrapper delegates to v2 in both projects; v2 and the routine scan do not reference legacy views. External consumers and business currency semantics still require confirmation; Candidate 4 remains HOLD.
+- A repository source scan found no direct references to the four legacy financial views under `src/`; application finance data flows use `rbac_*` RPCs (`CourseDetailsPage` and `DashboardPage`). This narrows the internal UI review but cannot identify SQL clients, reports, or other external consumers.
 - The current database dependency conflict is resolved, but external consumers and the EGP/USD expense/transfer convention remain unconfirmed; Candidate 4 stays HOLD.
 
 ## 7. Local code checks
@@ -106,6 +107,7 @@ Available package scripts:
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`
+- `npm test` (Node unit/Edge Function tests plus mocked mounted AuthProvider tests)
 - `npm run test:telegram`
 
 Run these using the repository's existing lockfile. Report exact pass/fail output. Do not claim checks passed unless executed.

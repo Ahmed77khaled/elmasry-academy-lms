@@ -13,7 +13,7 @@
 ## Candidate decisions
 
 1. **Default privileges** — executed on Staging. The captured execution used an earlier reduced probe; the current strengthened probe and cross-schema global default implications still require verification.
-2. **Active-admin `is_admin()`** — executed on Staging; SQL behavior tests support active=true, inactive=false, non-admin=false. Frontend AuthContext regression is still not evidenced.
+2. **Active-admin `is_admin()`** — executed on Staging; SQL behavior tests support active=true, inactive=false, non-admin=false. Later local mocked React/AuthProvider regression tests are documented in `../evidence/APPLICATION_AUTHORIZATION_FLOW_REVIEW.md`; live Staging sign-in remains untested.
 3. **Cash-box USD immutability + creator FK** — executed on Staging; core invariants passed. Archive RPC, negative/over-limit validation, hard-delete/reassignment rejection, and notification-side-effect coverage remain incomplete.
 4. **Legacy financial views EGP-only** — HOLD. Do not apply before UI/external consumer inventory, a confirmed expense/transfer currency convention, and approved multi-currency contract.
 
