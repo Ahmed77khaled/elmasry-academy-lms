@@ -4,7 +4,21 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 
 **Total executable statement rows:** 641. Current classification: 496 `UNVERIFIABLE`, 33 `NOT APPLICABLE` (24 transaction-control + 9 read-only preflight statements), 5 `ABSENT` (five table-specific statements in Draft Only migration 20261023090000), 105 `EQUIVALENT` (six currency-column/constraint effects; 59 Production function-definition matches; one captured cash-box function definition; 32 effective privilege effects across the student, language, and currency migrations; and seven exact index-definition matches), and 2 `DIFFERENT` (Migration 008 creator FK and the legacy `idx_payments_voided` definition). The `NOT APPLICABLE` rows do not represent proven migration execution.
 
-### `20261015024100_001_create_core_tables.sql` — 79 executable statements
+## Evidence source index
+
+Each statement row is grouped under its archived migration snapshot; the heading links directly to that SQL file, and the row number is the executable-statement ordinal from that snapshot. This preserves the exact local statement source even when its live effect remains unknown.
+
+| Evidence source | Scope and result | Matrix use |
+|---|---|---|
+| [Production schema capture](RELEVANT_TABLE_SCHEMAS.md) | Retained Production columns, constraints, and index definitions for core financial tables | Direct `EQUIVALENT` or `DIFFERENT` classifications cite the exact object definition in this capture. |
+| [Production routine source and ACL capture](PHASE0_RPC_SECURITY_DEFINER_SOURCE_EVIDENCE.md) | 70 archived Production SECURITY DEFINER signatures, definitions, settings, and effective role privileges | Supports only the exact routine-definition and privilege rows that cite this source; not a complete callable routine inventory. |
+| [Production precheck and reconciliation output](PHASE0_PRECHECK_AND_RECONCILIATION_RESULTS.md) | Historical read-only query outputs, including captured FK behavior, live object inventory, and migration ledger rows | Supports the Migration 008 FK difference, absent branding table effects, and ledger-presence statements where cited. |
+| [Remaining security gap query](../validation/PHASE0_REMAINING_SECURITY_GAPS_READONLY.sql) and [schema audit query](../../../supabase/audits/trainerpro_schema_audit.sql) | Prepared SELECT-only catalog queries; not executed for this update | Suggested evidence sources for unresolved routine, ACL, policy, RLS, trigger, constraint, and index rows. A query template is not evidence of its result. |
+| [Financial view dependency capture](../validation/PHASE0_FINANCIAL_VIEW_DEPENDENCY_READONLY.sql) | Prepared SELECT-only query; not executed | Suggested source for unresolved current view-definition/dependency statements. |
+
+`UNVERIFIABLE` means the retained package has no exact statement-specific output; it does not imply that the effect is absent. `NOT APPLICABLE` applies only to transaction control or read-only preflight statements. Current-object equivalence does not prove historical migration execution.
+
+### [`20261015024100_001_create_core_tables.sql`](../migrations-snapshot/20261015024100_001_create_core_tables.sql) — 79 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -82,13 +96,13 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 72 | `CREATE INDEX IF NOT EXISTS idx_enrollments_course ON enrollments(course_id)` | **EQUIVALENT** | `RELEVANT_TABLE_SCHEMAS.md` records the exact Production definition `CREATE INDEX idx_enrollments_course ON public.enrollments USING btree (course_id)`. Confirms current definition only, not historical statement execution. |
 | 73 | `CREATE INDEX IF NOT EXISTS idx_payments_enrollment ON payments(enrollment_id)` | **EQUIVALENT** | `RELEVANT_TABLE_SCHEMAS.md` records the exact Production definition `CREATE INDEX idx_payments_enrollment ON public.payments USING btree (enrollment_id)`. Confirms current definition only, not historical statement execution. |
 | 74 | `CREATE INDEX IF NOT EXISTS idx_payments_cash_box ON payments(cash_box_id)` | **EQUIVALENT** | `RELEVANT_TABLE_SCHEMAS.md` records the exact Production definition `CREATE INDEX idx_payments_cash_box ON public.payments USING btree (cash_box_id)`. Confirms current definition only, not historical statement execution. |
-| 75 | `CREATE INDEX IF NOT EXISTS idx_payments_voided ON payments(voided)` | **DIFFERENT** | `RELEVANT_TABLE_SCHEMAS.md` records the same-named Production index on `payments(voided_at)`, while this archived statement indexes `payments(voided)`. This is a confirmed current-definition mismatch; it does not establish migration history. |
+| 75 | `CREATE INDEX IF NOT EXISTS idx_payments_voided ON payments(voided)` | **DIFFERENT** | [`RELEVANT_TABLE_SCHEMAS.md`](RELEVANT_TABLE_SCHEMAS.md), §4, records `CREATE INDEX idx_payments_voided ON public.payments USING btree (voided_at)`; this source snapshot targets `payments(voided)`. Confirmed current-definition mismatch; it does not establish migration history. |
 | 76 | `CREATE INDEX IF NOT EXISTS idx_expenses_cash_box ON expenses(cash_box_id)` | **EQUIVALENT** | `RELEVANT_TABLE_SCHEMAS.md` records the exact Production definition `CREATE INDEX idx_expenses_cash_box ON public.expenses USING btree (cash_box_id)`. Confirms current definition only, not historical statement execution. |
 | 77 | `CREATE INDEX IF NOT EXISTS idx_expenses_course ON expenses(course_id)` | **EQUIVALENT** | `RELEVANT_TABLE_SCHEMAS.md` records the exact Production definition `CREATE INDEX idx_expenses_course ON public.expenses USING btree (course_id)`. Confirms current definition only, not historical statement execution. |
 | 78 | `CREATE INDEX IF NOT EXISTS idx_cash_transfers_from ON cash_transfers(from_box_id)` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 79 | `CREATE INDEX IF NOT EXISTS idx_cash_transfers_to ON cash_transfers(to_box_id)` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 
-### `20261015024134_002_create_database_views.sql` — 4 executable statements
+### [`20261015024134_002_create_database_views.sql`](../migrations-snapshot/20261015024134_002_create_database_views.sql) — 4 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -97,7 +111,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 3 | `CREATE OR REPLACE VIEW course_financial_summary AS WITH course_exp AS ( SELECT course_id, COALESCE(SUM(amount), 0) AS total_expenses FROM expense…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `CREATE OR REPLACE VIEW dashboard_metrics AS SELECT (SELECT COUNT(*) FROM students) AS total_students, (SELECT COUNT(*) FROM students WHERE create…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 
-### `20261015024155_003_create_rpc_functions.sql` — 10 executable statements
+### [`20261015024155_003_create_rpc_functions.sql`](../migrations-snapshot/20261015024155_003_create_rpc_functions.sql) — 10 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -112,7 +126,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 9 | `GRANT EXECUTE ON FUNCTION record_expense TO anon, authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 10 | `GRANT EXECUTE ON FUNCTION transfer_between_boxes TO anon, authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 
-### `20261015024209_004_fix_constraint_and_seed.sql` — 3 executable statements
+### [`20261015024209_004_fix_constraint_and_seed.sql`](../migrations-snapshot/20261015024209_004_fix_constraint_and_seed.sql) — 3 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -120,7 +134,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 2 | `ALTER TABLE cash_boxes ADD CONSTRAINT cash_boxes_box_type_check CHECK (box_type IN ('Main', 'Branch', 'Online', 'Petty Cash', 'Bank'))` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 3 | `INSERT INTO cash_boxes (name, box_type, owner, opening_balance) VALUES ('الخزنة الرئيسية (الكاش)', 'Main', 'م/ أحمد الفلاح', 0), ('فودافون كاش', …` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 
-### `202610210005_production_hardening.sql` — 68 executable statements
+### [`202610210005_production_hardening.sql`](../migrations-snapshot/202610210005_production_hardening.sql) — 68 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -193,7 +207,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 67 | `GRANT SELECT ON public.cash_box_balances, public.course_financial_summary, public.dashboard_metrics, public.enrollment_balances TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 68 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
-### `202610210006_security_and_authorization_hardening.sql` — 56 executable statements
+### [`202610210006_security_and_authorization_hardening.sql`](../migrations-snapshot/202610210006_security_and_authorization_hardening.sql) — 56 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -254,7 +268,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 55 | `CREATE POLICY "transfers_admin_only_policy" ON public.cash_box_transfers FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 56 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
-### `202610210007_purge_legacy_rls_and_revoke_public.sql` — 35 executable statements
+### [`202610210007_purge_legacy_rls_and_revoke_public.sql`](../migrations-snapshot/202610210007_purge_legacy_rls_and_revoke_public.sql) — 35 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -294,13 +308,13 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 34 | `DO $$ DECLARE p RECORD; BEGIN FOR p IN ( SELECT proname, oid FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname IN ( 'is_admin'…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 35 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
-### `202610210008_protect_cash_boxes_opening_balance.sql` — 17 executable statements
+### [`202610210008_protect_cash_boxes_opening_balance.sql`](../migrations-snapshot/202610210008_protect_cash_boxes_opening_balance.sql) — 17 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
 | 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 | 2 | `DO $preflight$ BEGIN IF to_regclass('public.cash_boxes') IS NULL THEN RAISE EXCEPTION 'Migration 008 preflight failed: table public.cash_boxes do…` | **NOT APPLICABLE (preflight only)** | This guard only checks prerequisites and raises on failure; it has no persistent catalog or data effect. |
-| 3 | `ALTER TABLE public.cash_boxes ADD COLUMN IF NOT EXISTS added_by uuid REFERENCES auth.users(id) ON DELETE SET NULL` | **DIFFERENT (confirmed)** | Captured Production FK `cash_boxes_added_by_fkey` is `ON DELETE NO ACTION`; expected SET NULL. Production evidence: `docs/phase0/evidence/CASH_BOX_TRIGGER_EVIDENCE.md` records `cash_boxes_added_by_fkey` with `confdeltype = a` (NO ACTION); `MIGRATION_RECONCILIATION.md` identifies this mismatch for 202610210008. |
+| 3 | `ALTER TABLE public.cash_boxes ADD COLUMN IF NOT EXISTS added_by uuid REFERENCES auth.users(id) ON DELETE SET NULL` | **DIFFERENT (confirmed)** | [`CASH_BOX_TRIGGER_EVIDENCE.md`](CASH_BOX_TRIGGER_EVIDENCE.md), §4, reports `cash_boxes_added_by_fkey` with `confdeltype = 'a'` and no delete action in the definition, meaning `NO ACTION`; this archived statement requires `SET NULL`. [`MIGRATION_RECONCILIATION.md`](MIGRATION_RECONCILIATION.md) records the migration-level consequence. |
 | 4 | `COMMENT ON COLUMN public.cash_boxes.added_by IS 'UUID of administrator who created this cash box. NULL for legacy records created prior to Migrat…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 5 | `CREATE OR REPLACE FUNCTION public.prevent_cash_box_mutation() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$ BEGIN -…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 6 | `COMMENT ON FUNCTION public.prevent_cash_box_mutation() IS 'SECURITY INVOKER trigger function guarding cash_boxes against DELETE, invalid initial …` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -316,7 +330,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 16 | `GRANT UPDATE (name, type, owner, is_active, notes) ON TABLE public.cash_boxes TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 17 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
-### `20261021171218_allow_cash_box_creator_nullification_on_auth_delete.sql` — 5 executable statements
+### [`20261021171218_allow_cash_box_creator_nullification_on_auth_delete.sql`](../migrations-snapshot/20261021171218_allow_cash_box_creator_nullification_on_auth_delete.sql) — 5 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -326,7 +340,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 4 | `COMMENT ON FUNCTION public.prevent_cash_box_mutation() IS 'Guards cash_boxes against deletion, invalid opening balances, creator reassignment, an…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 5 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
-### `20261021214608_add_login_alert_dedupe.sql` — 8 executable statements
+### [`20261021214608_add_login_alert_dedupe.sql`](../migrations-snapshot/20261021214608_add_login_alert_dedupe.sql) — 8 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -339,7 +353,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 7 | `GRANT SELECT, INSERT, DELETE ON TABLE public.login_alert_dedupe TO service_role` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 8 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
-### `20261021223822_rbac_catalog_and_authorization_primitives.sql` — 46 executable statements
+### [`20261021223822_rbac_catalog_and_authorization_primitives.sql`](../migrations-snapshot/20261021223822_rbac_catalog_and_authorization_primitives.sql) — 46 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -390,7 +404,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 45 | `COMMENT ON COLUMN public.admins.is_owner IS 'Protected platform owner marker; unique across admins and not assignable through normal role changes…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 46 | `COMMENT ON COLUMN public.admins.is_active IS 'Database-enforced administrator enablement state for future RBAC cutover.'` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 
-### `20261021224440_rbac_role_aware_data_endpoints.sql` — 44 executable statements
+### [`20261021224440_rbac_role_aware_data_endpoints.sql`](../migrations-snapshot/20261021224440_rbac_role_aware_data_endpoints.sql) — 44 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -439,7 +453,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 43 | `COMMENT ON FUNCTION public.rbac_finance_dashboard_metrics() IS 'RBAC draft endpoint. Financial metrics only; requires dashboard.finance.read.'` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 44 | `COMMENT ON FUNCTION public.rbac_course_financial_summary(uuid) IS 'RBAC draft endpoint. Course-level financial metrics require finance.reports.re…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 
-### `20261021224905_rbac_permission_checked_write_endpoints.sql` — 73 executable statements
+### [`20261021224905_rbac_permission_checked_write_endpoints.sql`](../migrations-snapshot/20261021224905_rbac_permission_checked_write_endpoints.sql) — 73 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -517,7 +531,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 72 | `GRANT EXECUTE ON FUNCTION public.rbac_update_custom_role_permissions(text,text[]) TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 73 | `GRANT EXECUTE ON FUNCTION public.rbac_delete_custom_role(text) TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 
-### `20261022225500_rbac_multiple_platform_owners.sql` — 14 executable statements
+### [`20261022225500_rbac_multiple_platform_owners.sql`](../migrations-snapshot/20261022225500_rbac_multiple_platform_owners.sql) — 14 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -536,7 +550,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 13 | `GRANT EXECUTE ON FUNCTION public.rbac_set_admin_active(uuid, boolean) TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 14 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
-### `20261022230000_rbac_authorization_cutover.sql` — 13 executable statements
+### [`20261022230000_rbac_authorization_cutover.sql`](../migrations-snapshot/20261022230000_rbac_authorization_cutover.sql) — 13 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -554,7 +568,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 12 | `GRANT EXECUTE ON FUNCTION public.rbac_set_admin_owner(uuid, boolean) TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 13 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
-### `20261023090000_branding_and_admin_avatars.sql` — 36 executable statements
+### [`20261023090000_branding_and_admin_avatars.sql`](../migrations-snapshot/20261023090000_branding_and_admin_avatars.sql) — 36 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -595,7 +609,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 35 | `ALTER TABLE public.admin_audit_log ADD CONSTRAINT admin_audit_log_action_check CHECK (action IN ( 'owner_claimed', 'owner_transferred', 'owner_ad…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 36 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
-### `20261023100000_platform_audit_and_telegram_outbox.sql` — 48 executable statements
+### [`20261023100000_platform_audit_and_telegram_outbox.sql`](../migrations-snapshot/20261023100000_platform_audit_and_telegram_outbox.sql) — 48 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -648,7 +662,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 47 | `COMMENT ON FUNCTION public.enqueue_admin_login_notification(uuid, text) IS 'Atomically deduplicates a session hash and records a successful LMS a…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 48 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
-### `20261023110000_telegram_notification_language.sql` — 17 executable statements
+### [`20261023110000_telegram_notification_language.sql`](../migrations-snapshot/20261023110000_telegram_notification_language.sql) — 17 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -670,7 +684,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 16 | `COMMENT ON TABLE public.platform_notification_settings IS 'Owner-controlled settings for shared platform notifications; group language defaults t…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 17 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
-### `20261030120000_student_profile_directory_v2.sql` — 13 executable statements
+### [`20261030120000_student_profile_directory_v2.sql`](../migrations-snapshot/20261030120000_student_profile_directory_v2.sql) — 13 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
@@ -688,7 +702,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | 12 | `COMMENT ON FUNCTION public.rbac_list_students_v2(text, integer, integer, uuid, text, text) IS 'Paginated student directory with permission-filter…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 13 | `NOTIFY pgrst, 'reload schema'` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 
-### `20261030130000_course_enrollment_currency_v2.sql` — 52 executable statements
+### [`20261030130000_course_enrollment_currency_v2.sql`](../migrations-snapshot/20261030130000_course_enrollment_currency_v2.sql) — 52 executable statements
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
