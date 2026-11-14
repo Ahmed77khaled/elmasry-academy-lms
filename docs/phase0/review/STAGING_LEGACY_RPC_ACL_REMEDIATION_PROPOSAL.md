@@ -1,7 +1,7 @@
 # Staging Legacy Write RPC ACL Remediation Proposal
 
-**Status:** prepared for review only; not executed and not an active migration.  
-**Target if separately approved:** Staging `kxdfconqflveqeozanaw`.  
+**Status:** prepared for review only; not executed and not an active migration.
+**Target if separately approved:** Staging `kxdfconqflveqeozanaw`.
 **Production:** read-only; no Production operation is proposed.
 
 ## Finding and evidence
