@@ -29,7 +29,7 @@ No second confirmed SECURITY DEFINER privilege bypass was identified in the supp
 ## Not safe to change from current evidence
 
 - Migration ledger reconciliation: 20 local files versus 4 live ledger rows, plus conflicting source comments and object-state evidence. No historical migration repair is prepared.
-- Telegram archive notification trigger: report metadata and `pg_get_triggerdef` disagree on ROW vs STATEMENT; this patch does not touch it.
+- Telegram archive notification trigger: the report metadata and `pg_get_triggerdef` had disagreed on ROW vs STATEMENT. **Resolved 2026-11-14:** fresh Production and Staging `tgtype=17` plus trigger definitions both confirm AFTER UPDATE OF `is_active` FOR EACH ROW; the old STATEMENT label was wrong. This patch does not touch the trigger.
 - Expense/transfer currency history: the present schema and v2 RPC treat these as EGP, but lack of a currency column is not proof of historic accounting intent. The academy data owner must confirm this before enabling the EGP-only views on Staging.
 - Frontend AuthContext code: source file contents were not included in the evidence package, so no source code patch is fabricated.
 

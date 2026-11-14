@@ -1,5 +1,6 @@
-# PHASE 0 — الأدلة الجنائية المصدرية الكاملة لدوال SECURITY DEFINER
+# Production RPC SECURITY DEFINER Source Evidence — Archived 70-Routine Subset
 
+> **Scope:** Historical Production-only evidence for the 70 SECURITY DEFINER routines captured in this source set. This is not a fresh catalog inventory, not an exhaustive inventory of all callable routines, and not the Staging 69/70 aggregate. For current all-routine callable counts, use [CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md](CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md).
 > **المشروع المستهدف المؤكد:** `urmkcixqpoqkiosihhal` (الاسم: TrainerPro — المنطقة: eu-central-1)
 > **المصدر الاستدلالي:** ناتج استعلام `PHASE0_RPC_SOURCE_AUDIT.sql` المنفذ حياً على السيرفر.
 > **إجمالي الدوال المفحوصة والموثقة:** 70 دالة SECURITY DEFINER.

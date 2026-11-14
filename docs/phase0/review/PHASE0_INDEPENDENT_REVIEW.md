@@ -64,7 +64,7 @@ However, a more important inconsistency appears in the same evidence:
 
 If the live FK is indeed `NO ACTION`, deleting an Auth user referenced by `cash_boxes.added_by` will not invoke SET NULL and will be blocked by the FK. The trigger's allowance for a NULL transition does not change the FK action. The USD immutability patch does not fix this mismatch.
 
-The trigger metadata table also labels the archive trigger as `AFTER / STATEMENT` while the supplied `CREATE TRIGGER` definition says `FOR EACH ROW`. Those cannot both be true. Re-query the raw `pg_trigger.tgtype` and `pg_get_triggerdef()` before relying on the trigger summary.
+The trigger metadata table also labelled the archive trigger as `AFTER / STATEMENT` while the supplied `CREATE TRIGGER` definition said `FOR EACH ROW`. Those cannot both be true. **Resolved 2026-11-14:** fresh raw `pg_trigger.tgtype=17` and `pg_get_triggerdef()` queries on Production and Staging confirm `AFTER UPDATE OF is_active ... FOR EACH ROW`; the summary label was wrong.
 
 ### 2.5 Migration ledger and source provenance
 

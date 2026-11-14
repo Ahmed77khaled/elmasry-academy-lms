@@ -5,13 +5,25 @@
 **فرع Codex:** `codex/phase0-next`  
 **Production:** `urmkcixqpoqkiosihhal`  
 **Staging:** `kxdfconqflveqeozanaw`  
-**آخر تحديث:** 13 نوفمبر 2026
+**آخر تحديث:** 14 نوفمبر 2026
 
 ## الخلاصة
 
 ملفات المشروع موجودة على GitHub: كود React/TypeScript، Supabase Functions، migrations الحالية، 20 migration snapshots، أدلة Phase 0، ملفات SQL المرشحة، Schema snapshot، validation scripts، وسجل تنفيذ Supabase بعد إزالة كلمات مرور الاختبار.
 
 تم إنشاء فرع مستقل لـCodex حتى يشتغل بعيدًا عن `main` ويحافظ على فرع الأدلة.
+
+**تحديث متابعة Codex (14 نوفمبر):** بعد موافقة محددة، تم تضييق EXECUTE في Staging على دالتي Telegram worker إلى `service_role`، ثم على دوال الكتابة القديمة الثماني إلى `service_role` فقط. تم التحقق بعد كل تغيير. الجرد الحالي يؤكد 55 دالة anon و56 authenticated قابلة لـRPC حسب Security Advisor؛ كانت الأعداد 63/64 قبل التغيير الثاني. لم تتغير Production أو بيانات التطبيق أو migration ledger، ولم تُستدعَ دوال كتابة. أجسام الدوال القديمة ما زالت تعتمد على فحص admin عام، لكن لا يمكن استدعاؤها مباشرة من anon/authenticated الآن؛ اختبارات سلوك RBAC لا تزال غير منفذة. فحص سجلات REST لآخر 24 ساعة لم يجد استدعاءات مباشرة للأسماء الثمانية، لكنه لا ينفي تكاملات خارجية خاملة. التفاصيل في [تقرير مراجعة أجسام RPC](../evidence/STAGING_RPC_BODY_REVIEW.md)، [مصفوفة الصلاحيات](../evidence/CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md)، و[سجل معالجة ACL](STAGING_LEGACY_RPC_ACL_REMEDIATION.md).
+
+**تحديث محلي إضافي:** أُصلح مسار رفض/فشل طلب تسجيل الدخول كي يعود النموذج لحالة قابلة لإعادة المحاولة برسالة عامة، وأُضيفت إعادة محاولة عند تعذر تحميل الصلاحيات مع استمرار حجب المحتوى المحمي. اختبارات `typecheck` و`lint` و`build` و`test` و`test:telegram` نجحت. كما فُصل توثيق `cash_boxes.added_by` حسب البيئة: Production = `NO ACTION`، ونتيجة Staging المحفوظة في العملية 91 = `SET NULL`. لم تُنفذ أي عملية جديدة على Supabase.
+
+**تحديث اختبارات التطبيق (15 نوفمبر):** أضيفت 11 اختبار React mounted بمحاكاة Supabase، تشمل انتقالات AuthProvider وأخطاء تسجيل الدخول وإمكانية إعادة المحاولة. إجمالي `npm test` الآن 27 اختبارًا ناجحًا (16 Node/Edge + 11 React). أضيفت dependencies للاختبارات فقط؛ لم يُضف أي اتصال حي أو سر.
+
+**تحديث أدلة القراءة فقط (14 نوفمبر):** جردت القراءة الحديثة 76 routine بكل مشروع مع احتساب `USAGE` للـschema، وأكدت عدم وجود صلاحيات مباشرة لـ`anon`/`authenticated` على 16 جدولًا و4 views. Production لديه 4 إصدارات في سجل migrations؛ Staging لا يحتوي schema أو جدول السجل. بعد مقارنة تعريفات الدوال والكتالوجات الإضافية، مصفوفة الـ641 statement هي: 31 `UNVERIFIABLE`، و34 `NOT APPLICABLE`، و61 `ABSENT`، و455 `EQUIVALENT` للحالة الحالية، و60 `DIFFERENT`. وتتضمن الفروق صراحةً `cash_boxes.added_by`: Production لديه `ON DELETE NO ACTION` مقابل `SET NULL` في Migration 008. وفي Candidate 4، ثبت من تعريفات الدوال في المشروعين أن wrapper الملخص يستدعي v2، وأن v2 لا يقرأ الـviews القديمة؛ يظل تأكيد معنى العملة والمستهلكين الخارجيين مطلوبًا. التفاصيل في [التقاط الكتالوج](../evidence/PHASE0_READONLY_CATALOG_CAPTURE_20261114.md) و[تقرير المصالحة](../evidence/MIGRATION_RECONCILIATION.md).
+
+**تحديث اختبارات Staging بعد موافقة محددة (14 نوفمبر):** على Staging فقط (`kxdfconqflveqeozanaw`)، نجحت 26 حالة Cash Box وRBAC و`is_admin` داخل fixtures متراجعة، مع تأكيد عدم إرسال إشعار وبقاء outbox غير مرسل. نجح أيضًا probe الامتيازات المقوّى عبر assertions ثم أظهر فحص التنظيف إزالة الجدول والتسلسل والدالتين. فحص SELECT مستقل أكد بقاء حسابات الاختبار الأربعة وعدم بقاء fixture rows أو أحداث/outbox مرتبطة بها. لا تغييرات دائمة على schema أو ACL، ولا أي عملية Production. النتائج التفصيلية في [خطة اختبارات Staging](STAGING_TEST_PLAN.md) و[تقرير النتائج](../evidence/STAGING_APPROVED_TEST_RESULTS_20261114.md).
+
+**حالة المرحلة:** اختبارات السلوك وprobe الامتيازات المصرّح بهما نجحا، واكتملت 11 اختبار React محلية بمحاكاة Supabase دون اتصال بالمشاريع. لكن Phase 0 لم تُغلق بعد: 31 من 641 statement ما زالت `UNVERIFIABLE` لأسباب موثقة (ستة آثار بيانات تاريخية، 24 خطوة DDL وسيطة، وإشعار واحد)، وCandidate 4 على HOLD بانتظار اعتماد معنى العملة ومراجعة المستهلكين الخارجيين. تسجيل الدخول الحي لم يُختبر لأن حسابات Staging الاصطناعية وكلمات مرورها ظهرت في تاريخ Git القديم وتحتاج إعادة ضبط بموافقة مستقلة. لا تغييرات Production ولا إصلاح migration ledger.
 
 ## قرارات Supabase
 
@@ -24,9 +36,9 @@
 
 | المرشح | الحالة |
 |---|---|
-| Default Privileges | نُفذ على Staging؛ الاختبار المنفذ كان نسخة أقدم مختصرة، ويلزم تشغيل الـProbe الكامل الحالي |
+| Default Privileges | نجحت assertions في الـprobe المقوّى على Staging؛ تم التراجع عن كل probe objects وتأكيد إزالتها |
 | is_admin active status | نُفذ على Staging؛ اختبار SQL أكد active=true وinactive=false وnormal=false |
-| Cash Box USD + creator FK | نُفذ على Staging؛ اختبارات أساسية نجحت، والتغطية ليست كاملة |
+| Cash Box USD + creator FK | نجحت حالات السلوك المعتمدة على Staging، بما فيها EGP/USD والـcreator FK والأرشفة/outbox؛ لم تختبر واجهة metadata في التطبيق |
 | Legacy Financial Views EGP-only | HOLD — لا تطبقه حتى حسم المستهلكين ومعنى العملة |
 
 ## ملاحظة أمان تخص حسابات الاختبار
@@ -35,12 +47,12 @@
 
 ## أهم المهام المفتوحة لـCodex
 
-1. بناء inventory لكل الدوال العامة القابلة للتنفيذ بواسطة `anon` و`authenticated` (المسجل 69 و70)، ومراجعة السلوك الفعلي قبل اقتراح أي revoke.
-2. مراجعة تدفق `AuthContext` واختبارات تسجيل الدخول وتحديث الجلسة والخروج للمسؤول المعطّل.
-3. استكمال اختبارات Cash Box عبر RPC المعتمد، واختبارات limits والحذف وتغيير creator وإشعارات outbox دون إرسال خارجي.
-4. تشغيل الـACL probe الأحدث على Staging بعد موافقة واضحة.
-5. بناء Migration statement-level reconciliation للـ20 ملفًا مقابل 4 ledger rows.
-6. إبقاء Candidate 4 على HOLD إلى أن يتفق عقد الواجهة/التقارير على تمثيل EGP وUSD.
+1. تأكيد عدم وجود مستهلكات خارجية خاملة للدوال الثماني؛ اختبارات RBAC السلوكية بالهويات الاصطناعية نجحت على Staging، لكن سجلات 24 ساعة لا تنفي التكاملات النائمة.
+2. اكتملت مراجعة تدفق `AuthContext`، وأضيفت 11 اختبار mounted بمحاكاة Supabase تشمل أخطاء LoginPage؛ تسجيل الدخول الحي فقط ما زال غير منفذ. مسح `src/` لا يجد استدعاءً مباشرًا للـlegacy financial views؛ الصفحات تستخدم RPCs محمية، لكن لا يمكن بهذا المسح نفي مستهلك خارجي.
+3. نجحت حالات Cash Box والـoutbox المعتمدة، وتأكد rollback وعدم إرسال dispatcher. تحقق تفاصيلها في `STAGING_TEST_PLAN.md`.
+4. نجح ACL probe المقوّى على Staging وتأكدت إزالة عناصر الاختبار الأربعة.
+5. مصفوفة statement-level جاهزة لـ641 سطرًا؛ 31 ما زالت `UNVERIFIABLE` ومفصلة في تقرير المصالحة. Production لديه 4 ledger rows وStaging ليس لديه schema/جدول ledger؛ لا يوجد أي إذن لإصلاح السجل.
+6. Candidate 4: تعارض اعتماد الـRPC حُسم بالقراءة الحديثة، لكن تأكيد معنى EGP/USD للمصروفات والتحويلات ومراجعة المستهلكين الخارجيين ما زالا مطلوبين؛ يظل HOLD.
 
 ## ممنوع
 

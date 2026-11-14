@@ -115,7 +115,7 @@ export function DashboardPage() {
           {translate("تحديث البيانات")}</button>
       </div>
 
-      {/* 7 KPI Cards (Zero client calculation — all from dashboard_metrics view) */}
+      {/* KPI values come from permission-checked dashboard RPCs; the client does not calculate financial totals. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <KPICard
           label={translate("إجمالي الطلاب")}

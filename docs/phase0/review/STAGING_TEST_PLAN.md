@@ -1,6 +1,6 @@
 # Staging test plan — required before any production release
 
-This is a test plan, not evidence that tests have passed. Use a dedicated restored Staging project with disposable test accounts and cash boxes only.
+This plan records both required coverage and the executed Staging evidence below. Use a dedicated Staging project with synthetic test accounts and rollback-only fixtures.
 
 ## A. Admin activation
 
@@ -20,6 +20,28 @@ This is a test plan, not evidence that tests have passed. Use a dedicated restor
 5. Verify hard DELETE from `cash_boxes` remains blocked.
 6. Create a disposable Auth user, link it as `added_by` to a disposable cash box in the supported test setup, delete that test Auth user, and verify `added_by` becomes NULL while both opening balances remain unchanged. Do not use a real administrator account for this test.
 7. Verify the archive notification trigger still fires exactly once for an active-to-inactive transition and not for unrelated metadata updates.
+
+### B1. Candidate-3 cases (executed 2026-11-14)
+
+Run only after explicit approval for the specific Staging operation and independently verify ref `kxdfconqflveqeozanaw` immediately before execution. Use synthetic fixtures; wrap reversible database checks in a transaction and roll back. Never call a live Telegram/email/webhook dispatcher.
+
+| Case | Action | Expected result | Evidence to retain |
+|---|---|---|---|
+| Approved archive RPC | Call `rbac_archive_cash_box(p_cash_box_id)` on an active disposable box using a synthetic platform-owner identity with `finance.cash_boxes.archive` | Active→inactive succeeds once; notification trigger queues one outbox item | RPC result, before/after row, outbox event IDs/count |
+| Negative EGP opening balance | Call `rbac_create_cash_box_v2` with `p_opening_balance < 0` | Rejected; no cash box persists | SQLSTATE/message and post-check row count |
+| Negative USD opening balance | Call the same RPC with nonnegative EGP and `p_opening_balance_usd < 0` | Rejected; no cash box persists | SQLSTATE/message and post-check row count |
+| EGP upper bound | Test the documented inclusive maximum and maximum plus one precision unit | At maximum accepted if contract is inclusive; over-limit rejected | Returned value or SQLSTATE/message |
+| USD upper bound | Repeat upper-bound test for USD independently | Same documented bound behavior as EGP | Returned value or SQLSTATE/message |
+| Hard-delete rejection | Attempt direct `DELETE` of a disposable cash box from the SQL owner test session; separately verify API roles lack direct relation DELETE | Rejected by the trigger; box remains | SQLSTATE/message and row snapshot |
+| Arbitrary creator reassignment | Change `added_by` from creator UUID to a different synthetic Auth UUID | Rejected; original creator remains | SQLSTATE/message and row snapshot |
+| Auth user deletion | Use a synthetic Auth identity as creator, delete it inside the rollback fixture | FK sets `added_by` to NULL and preserves both balances; fixture rollback restores the account | Auth deletion result and before/after balance/creator values |
+| Outbox transition scope | Snapshot outbox, archive via RPC, then update unrelated metadata on another box | Exactly one archive event; no event for metadata-only update; do not invoke dispatcher | Outbox rows, trigger definition and worker/dispatch exclusion |
+
+**Executed evidence:** With the user's operation-specific approval, `validation/PHASE0_STAGING_APPROVED_BEHAVIOR_TESTS.sql` ran against verified project `kxdfconqflveqeozanaw` (`trainerpro-phase0-staging`) on 2026-11-14. All 26 reported cases passed, including the final fixture rollback assertion. Active/inactive/regular `is_admin` results were true/false/false; temporary academy/finance manager checks passed; authorized and denied RPC paths matched their mapped permissions; EGP/USD negative and over-limit amounts were rejected and maximum inclusive amounts accepted; EGP/USD opening balances and creator reassignment were blocked by the trigger; metadata-only update created no archive event; hard delete was rejected; archive RPC made the box inactive and queued exactly one unsent outbox row; Auth deletion set `added_by` to NULL while preserving both balances. No dispatcher ran. API-role RPC behavior was tested under the `authenticated` database role with synthetic JWT subjects; direct table-trigger checks ran as the database owner and are not evidence of a client metadata-update endpoint. See [the detailed results](../evidence/STAGING_APPROVED_TEST_RESULTS_20261114.md).
+
+A separate SELECT-only cleanup check verified all four synthetic Auth users remained, no temporary academy/finance admin rows remained, none of the observed student/course/expense/cash-box/audit/outbox fixture IDs remained, and no default-ACL probe objects remained. Historical credentials for the four synthetic accounts are considered exposed; no credentials or interactive login were used. Do not use real administrator identities.
+
+**Authorization detail:** `rbac_archive_cash_box(uuid)` checks `finance.cash_boxes.archive`, which is platform-owner-gated in the current Staging definition; `finance.cash_boxes.update` alone is insufficient. The current inventory has no cash-box metadata update RPC, so metadata-only behavior can be checked at the trigger/catalog level but does not establish a client-authorized update path.
 
 ## C. Financial view correctness
 
@@ -41,6 +63,10 @@ Run `validation/PHASE0_STAGING_DEFAULT_ACL_PROBE.sql` on Staging only. It create
 - `service_role` retains the documented public-schema defaults.
 - Future `postgres`-created functions in other relevant schemas also receive no PUBLIC EXECUTE by default; explicitly grant EXECUTE to intended callers after creation.
 
+### D1. Strengthened cross-schema coverage (executed 2026-11-14)
+
+The current `validation/PHASE0_STAGING_DEFAULT_ACL_PROBE.sql` retains the public table/sequence/function checks and adds a `private`-schema function to test the global PUBLIC EXECUTE default outside `public`. It checks effective privileges, explodes the function ACLs (including PUBLIC), asserts no anon/authenticated/PUBLIC access, and ends with a SELECT-only cleanup check after ROLLBACK. With separate user approval and immediate target verification, the probe ran on Staging on 2026-11-14. Its assertion block completed without error, so every expected table, sequence, and function ACL check passed; the returned cleanup check showed all four probe objects removed. The script's intermediate ACL result sets are not retained by the MCP response, so the assertion block is the pass/fail evidence. `storage` has separate platform defaults including API roles and is intentionally excluded; no storage defaults were changed.
+
 Do not run this probe in Production.
 
 ## E. Security/RLS/API
@@ -50,6 +76,58 @@ Do not run this probe in Production.
 3. Review all schema CREATE/USAGE privileges and every RLS policy against intended roles.
 4. Confirm every exposed SECURITY DEFINER endpoint enforces the correct permission or ownership boundary.
 5. Run the complete app test suite, then `npm run typecheck`, `npm run lint`, and `npm run build` against the same source branch that will be released.
+
+### E1. Staging service-worker RPC grants (executed and verified)
+
+Fresh evidence found PUBLIC/anon/authenticated EXECUTE on two SECURITY INVOKER service-worker routines in Staging: `public.claim_telegram_notifications(integer,integer)` and `public.enqueue_admin_login_notification(uuid,text)`. Their intended caller is `service_role`. Anon had no table privileges on the routines' outbox/audit targets, so an unauthorized write was not demonstrated. With explicit operation-specific approval, the exact ACL correction below was executed on Staging and verified after commit. Neither worker function was invoked.
+
+Target: `kxdfconqflveqeozanaw` (`trainerpro-phase0-staging`). Transaction committed at `2026-11-14T14:00:21Z`; independent post-commit SELECT verification completed at `2026-11-14T14:01:09.742690Z`. For both exact signatures, effective EXECUTE is false for anon/authenticated and true for service_role; PUBLIC EXECUTE is absent. ACLs are `{postgres=X/postgres,service_role=X/postgres}`. No rows or migration ledger entries changed. The SQL below documents the executed transaction and is not pending work.
+
+```sql
+BEGIN;
+REVOKE EXECUTE ON FUNCTION public.claim_telegram_notifications(integer, integer)
+  FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.enqueue_admin_login_notification(uuid, text)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_telegram_notifications(integer, integer)
+  TO service_role;
+GRANT EXECUTE ON FUNCTION public.enqueue_admin_login_notification(uuid, text)
+  TO service_role;
+SELECT
+  has_function_privilege('anon', 'public.claim_telegram_notifications(integer,integer)', 'EXECUTE') AS anon_claim,
+  has_function_privilege('authenticated', 'public.claim_telegram_notifications(integer,integer)', 'EXECUTE') AS auth_claim,
+  has_function_privilege('service_role', 'public.claim_telegram_notifications(integer,integer)', 'EXECUTE') AS service_claim,
+  has_function_privilege('anon', 'public.enqueue_admin_login_notification(uuid,text)', 'EXECUTE') AS anon_enqueue,
+  has_function_privilege('authenticated', 'public.enqueue_admin_login_notification(uuid,text)', 'EXECUTE') AS auth_enqueue,
+  has_function_privilege('service_role', 'public.enqueue_admin_login_notification(uuid,text)', 'EXECUTE') AS service_enqueue;
+SELECT p.oid::regprocedure AS signature,
+       COALESCE(bool_or(a.grantee = 0 AND a.privilege_type = 'EXECUTE'), false) AS public_execute
+FROM pg_proc p
+CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
+WHERE p.oid IN (
+  'public.claim_telegram_notifications(integer,integer)'::regprocedure,
+  'public.enqueue_admin_login_notification(uuid,text)'::regprocedure
+)
+GROUP BY p.oid;
+-- Commit only after the exact expected result is reviewed; otherwise ROLLBACK.
+```
+
+Verified results: anon/authenticated are false for both; service_role is true for both; `public_execute` is false for both. The following is a recovery reference only; it would restore the former broad ACL and must not be run absent a separate incident-specific decision:
+
+```sql
+GRANT EXECUTE ON FUNCTION public.claim_telegram_notifications(integer, integer)
+  TO PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.enqueue_admin_login_notification(uuid, text)
+  TO PUBLIC, anon, authenticated;
+```
+
+Keep service_role grants. Production had no anon-executable public non-trigger function candidate in the fresh capture; no Production change was made.
+
+### E2. Legacy admin RPC vs RBAC boundary (ACL corrected; behavior tests executed)
+
+The eight legacy RPC ACLs were corrected on Staging after explicit approval. Post-commit SELECT verification shows `anon=false`, `authenticated=false`, `service_role=true`, and no PUBLIC EXECUTE on every exact signature; the corresponding RBAC wrappers retain authenticated EXECUTE. See [the Staging body review](../evidence/STAGING_RPC_BODY_REVIEW.md) for the results and [the ACL remediation record](STAGING_LEGACY_RPC_ACL_REMEDIATION.md). No RPC was invoked during the ACL change.
+
+The behavior script above temporarily attached synthetic accounts to `academy_manager` and `finance_manager` roles inside the rollback fixture. It confirmed finance-manager student/course creation was denied, academy-manager expense recording was denied, and each role's expected positive control succeeded. These results confirm the tested Staging RPC permission boundaries; they do not test interactive AuthContext/live login or legacy service-role-only endpoints. No credentials were used and no dispatcher ran.
 
 ## Approval rule
 

@@ -2,26 +2,27 @@
 
 ## Defects with candidate remediation drafts
 
-- `public.is_admin()` currently does not require `admins.is_active IS TRUE`; candidate migration exists.
-- `prevent_cash_box_mutation()` does not prevent modification of `opening_balance_usd`; candidate migration exists.
-- The live `cash_boxes_added_by_fkey` evidence reports `NO ACTION`, conflicting with migration 008's `ON DELETE SET NULL` intent and the trigger's nullification allowance; candidate migration exists.
+- Production `public.is_admin()` does not require `admins.is_active IS TRUE`; the candidate was applied and SQL-checked on Staging, but the Production finding remains.
+- Production `prevent_cash_box_mutation()` does not prevent modification of `opening_balance_usd`; the candidate was applied on Staging and the approved rollback-only behavior suite passed all tested EGP/USD and creator invariants. Production remains unchanged.
+- Production `cash_boxes_added_by_fkey` is validated `NO ACTION`, conflicting with Migration 008's `ON DELETE SET NULL` intent and the trigger's nullification allowance. Staging currently reports `SET NULL`; no Production change is authorized.
 - Legacy financial views aggregate EGP and USD monetary amounts without currency filters; candidate EGP-only migration exists but is on HOLD pending business confirmation.
-- Future postgres-created public objects have broad default grants; candidate default-ACL migration exists and needs all-schema staging review because it also removes the global default PUBLIC EXECUTE grant for future postgres-created functions.
+- Production `postgres` defaults in `public` include anon/authenticated for tables, sequences, and functions; Staging defaults are hardened. The strengthened rollback-only cross-schema probe passed its assertions on Staging; Production is unchanged.
 
 ## Remaining blockers
 
-1. **No confirmed Staging project.** The supplied handoff states that Production is the only known database. Reconfirm, and provision an isolated restored Staging environment before running any DDL.
-2. **Migration ledger drift is unresolved.** The current evidence captures 20 local files and 4 ledger rows. Most files are not registered, but the previous FULLY APPLIED classifications rely heavily on object existence, not statement-level proof. See `evidence/MIGRATION_RECONCILIATION.md`. No blanket `migration repair`.
-3. **Remaining function/API inventory.** The handoff fully documents 70 SECURITY DEFINER functions, but complete INVOKER function grants, every effective ACL, schema privileges, and all policies need review from `validation/PHASE0_REMAINING_SECURITY_GAPS_READONLY.sql`.
-4. **Telegram archive trigger evidence conflicts.** Summary metadata says AFTER STATEMENT while `pg_get_triggerdef()` says `FOR EACH ROW`. Read the raw `tgtype` bits and trigger definition; this package does not modify this trigger.
+1. **Further Staging changes require operation-specific approval.** The approved Cash Box/RBAC behavior suite and default-ACL probe ran against verified ref `kxdfconqflveqeozanaw` using rollback-only fixtures. All 26 behavior cases passed; the ACL probe's assertions passed and all four probe objects were removed. Any different Staging operation still requires its own authorization and immediate independent verification of the ref. No persistent ACL/schema changes were made by these tests. See `STAGING_TEST_PLAN.md` and `../evidence/STAGING_APPROVED_TEST_RESULTS_20261114.md`.
+2. **Migration ledger drift is unresolved.** The current evidence captures 20 local files and 4 Production ledger rows; Staging has no `supabase_migrations` schema or ledger relation. The 641-row matrix records 31 `UNVERIFIABLE` (six data-bearing effects, 24 transient/intermediate DDL effects, and one historical notification). Current object existence/ACLs do not prove full historical file execution. See `evidence/MIGRATION_RECONCILIATION.md` and `evidence/MIGRATION_STATEMENT_MATRIX.md`. No blanket `migration repair`.
+3. **Resolved on Staging — direct legacy RPC reachability and tested RBAC boundaries.** The eight legacy write functions now have service_role-only EXECUTE; post-commit SELECT verified anon/authenticated/PUBLIC are blocked and RBAC wrappers retain authenticated EXECUTE. The approved synthetic-role tests passed for academy-manager and finance-manager allow/deny cases. A 24-hour REST-log scan found no direct calls, but dormant external consumers have not been ruled out. See [the Staging remediation record](STAGING_LEGACY_RPC_ACL_REMEDIATION.md) and [the executed Staging test plan](STAGING_TEST_PLAN.md). Other schema/RLS policy review remains separate.
+4. **Resolved: archive trigger level.** Fresh read-only Production and Staging `pg_trigger` checks report `tgtype=17` (row-level) and `pg_get_triggerdef()` says `FOR EACH ROW`; the former `STATEMENT` summary label was wrong. See `evidence/CASH_BOX_TRIGGER_EVIDENCE.md`. No trigger or data was changed.
 5. **Expense/transfer currency semantics.** Neither table has a currency column. Current v2 cash-box RPC treats the amounts as EGP, but that does not independently prove all historical records follow the convention. Data-owner confirmation is mandatory before EGP-only legacy view changes.
-6. **Legacy view dependency report needs reconciliation.** The table in `FINANCIAL_VIEWS_AND_DEPENDENCIES.md` says the v1 course-summary routine references the legacy view, while the extracted v1 function body delegates to `rbac_course_financial_summary_v2`. The dependency scan may have matched the v2 routine name as text. Recheck the live function body and avoid treating text substring matches as SQL dependencies.
-7. **Application source branch matters.** AuthContext/App/Supabase client sources were retrieved from the GitHub default branch for review. Reconfirm they are identical to the intended release branch before changing application behavior.
+6. **Resolved — database routine dependency conflict for Candidate 4.** Fresh SELECT-only captures in both projects confirm `rbac_course_financial_summary(uuid)` delegates to `rbac_course_financial_summary_v2(uuid)`. The v2 body reads base tables and does not reference the four legacy financial views; text scans of all routine bodies and direct `pg_depend` queries found no references. See `evidence/PHASE0_READONLY_CATALOG_CAPTURE_20261114.md`. This does not rule out dynamic SQL or external/non-routine consumers.
+7. **Candidate 4 business contract and external consumers remain open.** The data owner must confirm EGP-only semantics for legacy monetary views, especially expenses/transfers that have no currency column. Inventory external reports, SQL clients, and third-party consumers before any view contract change. Candidate 4 remains HOLD.
+8. **Partly resolved — AuthContext integration.** Eleven local mounted React tests exercise provider session/auth transitions and the login form's returned/rejected sign-in error recovery using mocked Supabase calls. They pass without project access. Actual Staging sign-in remains untested because the synthetic credentials were exposed in older Git history; resetting them requires separate explicit authorization. The PR base comparison confirms these changes are in the reviewed branch.
 
 ## Release blockers
 
-- Establish a separate restored Staging database.
-- Complete read-only function/RLS/schema/trigger evidence review.
-- Apply candidate SQL only on Staging and pass the test plan.
-- Reconcile migration history statement-by-statement, with evidence for every effect.
+- Confirm the existing Staging project is an isolated, restorable test baseline; do not create or alter projects as part of this work.
+- Resolve the 31 historical statement evidence gaps described in `evidence/MIGRATION_RECONCILIATION.md`; current catalog reads cannot prove historical data mutations or transient DDL.
+- Record the passed Staging behavior and ACL probes; no additional candidate SQL application is implied.
+- Obtain the data-owner's currency contract decision and complete external-consumer inventory before any Candidate 4 decision.
 - Never run `supabase db push` until all local/remote migration drift is fully understood.

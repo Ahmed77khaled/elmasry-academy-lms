@@ -93,6 +93,7 @@ const en: Record<string, string> = {
   'مثال: تم إدخال المبلغ أو الطالب بالخطأ': 'Example: The amount or student was entered incorrectly.', 'اذكر سبب إلغاء المصروف': 'Explain why this expense is being voided.',
   'البريد الإلكتروني الإداري': 'Administrator email', 'تسجيل الدخول للنظام': 'Sign in', 'يرجى إدخال البريد الإلكتروني وكلمة المرور': 'Enter your email and password.',
   'بيانات الدخول غير صحيحة، يرجى التحقق من البريد وكلمة المرور': 'The email or password is incorrect. Check your details and try again.',
+  'تعذر الاتصال بخدمة تسجيل الدخول. حاول مرة أخرى.': 'Could not reach the sign-in service. Try again.',
   'نظام إدارة التدريب المعتمد': 'Training management system', 'بوابة الإدارة المركزية الآمنة': 'Secure administration portal',
   'ملخص الأداء المالي والتشغيلي للأكاديمية': 'Academy financial and operational overview', 'ملخص أداء الأكاديمية والدورات والتسجيلات': 'Academy, course, and enrollment overview',
   'الدورات التدريبية المتاحة حاليًا': 'Training courses currently available', 'تسجيلات نشطة في الدورات': 'Active course enrollments',

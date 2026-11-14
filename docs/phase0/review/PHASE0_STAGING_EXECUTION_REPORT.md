@@ -32,7 +32,7 @@ Some non-personal application reference/configuration values (role, permission, 
 | Candidate | Actual Staging execution | Verification status |
 |---|---|---|
 | 1. Harden PostgreSQL default privileges | Executed through `execute_sql` | Applied; the executed probe was an older, reduced probe. Run the current strengthened probe and cross-schema checks before calling it fully validated. |
-| 2. Require active admin in `public.is_admin()` | Executed through `execute_sql` | SQL behavior verified: active admin=true, inactive admin=false, normal user=false. Frontend AuthContext regression not evidenced. |
+| 2. Require active admin in `public.is_admin()` | Executed through `execute_sql` | SQL behavior verified: active admin=true, inactive admin=false, normal user=false. A later 2026-11-15 local mocked React test suite covers AuthProvider active-admin and normal-user behavior; live Staging sign-in remains untested (see `../evidence/APPLICATION_AUTHORIZATION_FLOW_REVIEW.md`). |
 | 3. USD immutability + creator FK | Executed through `execute_sql` | Core immutability and SET NULL tests evidenced. Full plan incomplete: approved archive RPC, validation limits, hard-delete/creator reassignment rejection, and notification side effects need evidence. |
 | 4. EGP-only legacy views | Not applied | HOLD pending consumer-contract and business-semantics review. |
 

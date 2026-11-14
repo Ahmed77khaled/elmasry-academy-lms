@@ -2,8 +2,10 @@
 
 **Target Supabase Project:** `urmkcixqpoqkiosihhal` (TrainerPro — eu-central-1)  
 **Repository:** `D:\Fel7o Gamal Project\LMS_platform-main\LMS_platform-main` (Branch: `feat/lms-v2-phases`)  
-**Inspection Mode:** STRICTLY READ-ONLY (0 DDL, 0 DML, 0 Mutations, 0 Git commits)  
-**Date:** 13 November 2026  
+**Inspection Mode:** Archived source package plus fresh Production/Staging catalog captures (14 November 2026), and one approved Staging-only EXECUTE ACL correction for two service-worker routines. No application table data or Production state was changed.
+**Date:** 14 November 2026
+
+> **Status note:** This README preserves an earlier evidence package. Its historic takeaways below include stale claims (for example, no Staging environment and no live current routine inventory). For current execution state, candidate status, and authorization boundaries, use `../README.md`, `../CODEX_HANDOFF.md`, `../review/PHASE0_STATUS_AR.md`, and the fresh [callable routine privilege matrix](CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md). The 70-row Production SECURITY DEFINER source remains an archived subset, not the full current callable inventory.
 
 ## Package Contents Directory
 1. `README.md` — This master index and handoff guide.
@@ -18,11 +20,15 @@
 10. `DEFAULT_PRIVILEGES_EVIDENCE.md` — Audit of `pg_default_acl` and proof of future object inheritance risks in `public`.
 11. `MIGRATION_RECONCILIATION.md` — Complete file-by-file database evidence classification (Fully Applied, Draft, etc.) for all 20 local migrations.
 12. `APPLICATION_RPC_USAGE.md` — Code search across `src/` mapping all RPC and view references with line numbers and snippets.
+13. `CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md` — Fresh read-only per-signature routine EXECUTE/schema-usage capture for Production and Staging; explicitly separates database privileges from conditional Data API RPC exposure.
+14. `STAGING_RPC_BODY_REVIEW.md` — Post-correction review of the current 55 anon / 56 authenticated SECURITY DEFINER endpoints in Staging, with evidence for the eight legacy-write ACL correction.
+15. `PHASE0_READONLY_CATALOG_CAPTURE_20261114.md` — Fresh 2026-11-14 SELECT-only cross-project evidence for routines, schema USAGE, relation/column ACLs, views, Cash Box FK/comments, default ACLs, and migration-ledger state.
 
 ## Key Engineering Takeaways for Reviewer
-1. **Zero Direct Table Access:** The frontend never queries tables directly via PostgREST; all operations go through `v2` RPCs.
-2. **Default ACLs:** `postgres` default privileges in `public` still grant `ALL` on future tables and `EXECUTE` on future functions to `anon`/`authenticated`. Remediation migration 1 is validated and required.
-3. **Multi-Currency Commingling:** Legacy financial views sum USD and EGP indiscriminately. Modifying views to filter EGP-only is safe because 0 v2 RPCs depend on them.
-4. **Cash Box USD Opening Balance Loophole:** `prevent_cash_box_mutation()` lacks protection for `opening_balance_usd`, permitting mutation. Remediation migration 3 is validated.
-5. **Migration Drift:** 20 local files vs 4 remote ledger entries. 15 applied-unregistered, 1 unapplied draft, 4 registered. Running `supabase db push` will crash.
-6. **Staging Availability:** There is NO staging environment. Production is the single source of truth; all remediations must be atomic and reversible.
+1. **Direct relation privileges:** Fresh Production and Staging captures show no direct `anon`/`authenticated` SELECT/INSERT/UPDATE/DELETE on the 16 public tables or four views. The app's data access is RPC-mediated.
+2. **Default ACLs:** Fresh Production `postgres` defaults in `public` still include `anon`/`authenticated` for tables, sequences, and functions. Staging `postgres` defaults are hardened to owner and `service_role`. Both projects separately retain broad `storage` defaults; no change is authorized or evidenced here.
+3. **RPC exposure:** The complete fresh inventory covers all 76 public/private routines per project and accounts for schema USAGE. Staging has 55 anon / 56 authenticated public non-trigger RPC candidates; the separate archived Production 70-row matrix is a SECURITY DEFINER subset, not the complete callable inventory.
+4. **Cash Box creator FK:** Production `cash_boxes.added_by` is `ON DELETE NO ACTION`, while Staging is `ON DELETE SET NULL`; Migration 008 requests `SET NULL`. Candidate 4 remains HOLD pending approved remediation and verification.
+5. **Migration ledger:** Production contains four recorded versions. Staging has no `supabase_migrations` schema or ledger relation. Current catalog evidence does not prove historical file execution; no ledger repair or `db push` is authorized.
+6. **Staging availability:** A Staging project exists (`kxdfconqflveqeozanaw`). The approved synthetic behavior tests (26 cases) and rollback-only default-ACL probe passed; see [test results](STAGING_APPROVED_TEST_RESULTS_20261114.md). The catalog capture itself is read-only.
+7. **Migration statement evidence:** Supplemental Production `pg_proc` and catalog captures record routine ACLs/bodies/comments, table privileges, schemas, constraints, sequence metadata, and Storage state. The 641-row matrix has 31 `UNVERIFIABLE` rows (34 `NOT APPLICABLE`, 61 `ABSENT`, 455 `EQUIVALENT` to captured current state, and 60 `DIFFERENT`). Current state does not prove historical execution. The remaining evidence limits are broken down in [migration reconciliation](MIGRATION_RECONCILIATION.md); see [routine ACL capture](PRODUCTION_ROUTINE_ACL_COMMENT_CAPTURE_20261114.md), [RLS/privilege capture](CURRENT_TABLE_RLS_PRIVILEGE_CAPTURE_20261114.md), [schema/comment/constraint capture](PRODUCTION_SCHEMA_COMMENT_CONSTRAINT_CAPTURE_20261114.md), [residual catalog capture](PRODUCTION_RESIDUAL_CATALOG_CAPTURE_20261114.md), and [matrix](MIGRATION_STATEMENT_MATRIX.md).

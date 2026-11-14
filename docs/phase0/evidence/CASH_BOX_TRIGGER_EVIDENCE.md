@@ -1,7 +1,9 @@
 # Cash Box Trigger & Immutability Evidence — Elmasry Academy LMS
 
-> **Target Supabase Project:** `urmkcixqpoqkiosihhal` (TrainerPro)  
+> **Target Supabase Project for §§1–5:** Production `urmkcixqpoqkiosihhal` (TrainerPro)
 > **Table:** `public.cash_boxes`  
+
+This file's catalog definitions and foreign-key result in §§1–5 are Production evidence. A separately captured Staging result is recorded in §7; do not combine the two project states.
 
 ## 1. Executive Summary
 1. **Loophole Discovered:** `prevent_cash_box_mutation()` checks `opening_balance` (EGP) for immutability, but **completely omits checking `opening_balance_usd`**.
@@ -23,7 +25,7 @@
 
 | Trigger Name | Status | Timing | Level | Trigger Definition |
 | --- | --- | --- | --- | --- |
-| trg_cash_boxes_archive_telegram_notification | ENABLED (origin/local) | AFTER | STATEMENT | CREATE TRIGGER trg_cash_boxes_archive_telegram_notification AFTER UPDATE OF is_active ON public.cash_boxes FOR EACH ROW WHEN (((old.is_active IS TRUE) AND (new.is_active IS FALSE))) EXECUTE FUNCTION private.route_financial_telegram_notification() |
+| trg_cash_boxes_archive_telegram_notification | ENABLED (origin/local) | AFTER | ROW | CREATE TRIGGER trg_cash_boxes_archive_telegram_notification AFTER UPDATE OF is_active ON public.cash_boxes FOR EACH ROW WHEN (((old.is_active IS TRUE) AND (new.is_active IS FALSE))) EXECUTE FUNCTION private.route_financial_telegram_notification() |
 | trg_cash_boxes_immutability | ENABLED (origin/local) | BEFORE | ROW | CREATE TRIGGER trg_cash_boxes_immutability BEFORE INSERT OR DELETE OR UPDATE ON public.cash_boxes FOR EACH ROW EXECUTE FUNCTION prevent_cash_box_mutation() |
 
 ## 4. Foreign Key & Constraint Behavior
@@ -132,3 +134,11 @@ END;
 
 $function$
 ```
+
+## 6. Current trigger-level cross-check (read-only, 2026-11-14)
+
+Fresh `pg_trigger` queries decoded `tgtype` and compared it with `pg_get_triggerdef()` on both Production (`urmkcixqpoqkiosihhal`) and Staging (`kxdfconqflveqeozanaw`). In both projects, `trg_cash_boxes_archive_telegram_notification` is enabled (`tgenabled='O'`), AFTER UPDATE OF `is_active`, **FOR EACH ROW** (`tgtype=17`, row bit set), with the expected active→inactive WHEN condition. Production also reports the cash-box immutability trigger enabled BEFORE ROW (`tgtype=31`). The archived `STATEMENT` label in section 3 was incorrect; the raw definition and trigger bits agree on ROW. These were SELECT-only catalog checks; no trigger or data was changed.
+
+## 7. Staging foreign-key evidence (captured 2026-11-13)
+
+Staging `kxdfconqflveqeozanaw` returned `cash_boxes_added_by_fkey` as validated `ON DELETE SET NULL` (`confdeltype='n'`) in the read-only result retained as Operation 91 of [the raw execution log](../review/SUPABASE_MCP_RAW_EXECUTION_LOG.md). This is distinct from the Production result in §4 (`NO ACTION`, `confdeltype='a'`). The Staging result followed the earlier Staging candidate run; it does not change the Production finding or prove that Migration 008 was registered in either project's migration ledger. No SQL was executed for this clarification.

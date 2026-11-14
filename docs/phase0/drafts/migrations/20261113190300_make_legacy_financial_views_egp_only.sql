@@ -11,10 +11,13 @@
 -- remain cross-currency operational counts. Every monetary column in these
 -- legacy views represents EGP only.
 --
--- Application code in the evidence bundle calls v2 RPCs, not these views
--- directly. rbac_course_financial_summary v1 does reference the legacy view;
--- it will consequently continue to expose the legacy EGP-only compatibility
--- result. Four existing view signatures and security_invoker=true are preserved.
+-- The checked application code calls RPCs, not these views directly. It calls
+-- rbac_course_financial_summary (without the v2 suffix) for course details.
+-- The archived Production body delegates to rbac_course_financial_summary_v2;
+-- an older text-search report may have matched that routine name as a substring
+-- and is not proof of a view dependency. Confirm the current Staging definition
+-- and dependencies before sign-off. Four existing view signatures and
+-- security_invoker=true are preserved.
 --
 -- IMPORTANT: The no-currency-column EGP assumption for expenses/transfers is a
 -- business/data convention, not provable from schema alone. Verify it with the
@@ -92,8 +95,9 @@ BEGIN
   END IF;
 
   -- Do not change a view while any v2 RPC source references it. The supplied
-  -- audit found no such references; the v1 course-summary wrapper is excluded
-  -- intentionally and remains an EGP compatibility endpoint.
+  -- audit found no such references. The v1-named wrapper's archived Production
+  -- body delegates to v2, but this preflight does not verify its current
+  -- deployed definition or dependencies; confirm separately before sign-off.
   IF EXISTS (
     SELECT 1
     FROM pg_proc p

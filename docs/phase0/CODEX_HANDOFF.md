@@ -56,9 +56,9 @@ All four SQL candidates remain in `docs/phase0/drafts/migrations/`, not in activ
 
 | Candidate | Current factual status |
 |---|---|
-| `20261113190000_harden_postgres_default_privileges.sql` | Executed on Staging. The executed probe was an older reduced probe, not the current strengthened probe. Global function-default behavior across schemas remains to verify. |
-| `20261113190100_fix_is_admin_active_status.sql` | Executed on Staging. SQL tests support active=true, inactive=false, normal=false. App AuthContext regression still needed. |
-| `20261113190200_fix_cash_box_usd_immutability_and_creator_fk.sql` | Executed on Staging. Core USD/EGP immutability and creator FK SET NULL behavior were observed. Approved archive RPC, negative/over-limit values, hard-delete, arbitrary creator reassignment, and notification side effects are not all evidenced. |
+| `20261113190000_harden_postgres_default_privileges.sql` | Executed on Staging. The strengthened rollback-only cross-schema probe passed its assertions on 2026-11-14; all four temporary objects were confirmed removed. |
+| `20261113190100_fix_is_admin_active_status.sql` | Executed on Staging. SQL tests support active=true, inactive=false, normal=false. Eleven local mocked React tests cover AuthProvider transitions and login form error recovery; live sign-in remains untested. |
+| `20261113190200_fix_cash_box_usd_immutability_and_creator_fk.sql` | Executed on Staging. The approved rollback-only behavior suite passed EGP/USD immutability, limits, creator reassignment/deletion, archive RPC, hard-delete, and outbox-only checks. No Production changes. |
 | `20261113190300_make_legacy_financial_views_egp_only.sql` | HOLD. Do not apply. It changes a legacy multi-currency output contract; inspect frontend/external consumers and get business confirmation first. |
 
 The initial Antigravity summary overstated Candidate 1 probe coverage, Candidate 3 test completeness, schema parity, and Production-readiness. Use the corrected execution report and raw operation log instead.
@@ -76,27 +76,30 @@ For every migration statement, classify the expected live effect as equivalent, 
 - Inspect existing CI workflows and run the local checks below.
 - Do not change the migration ledger or any Supabase environment.
 
-### P1 — Complete the existing RPC exposure/security inventory
-- Use `docs/phase0/validation/PHASE0_REMAINING_SECURITY_GAPS_READONLY.sql` and the existing evidence to build a routine-by-routine matrix.
-- For each public/private routine capture: signature, owner, SECURITY DEFINER/INVOKER, fixed search_path, effective EXECUTE for PUBLIC/anon/authenticated/service_role, implementation authorization boundary, table/data scope, application call site, and recommended minimum grant.
-- Reconcile the reported 69 anon-callable / 70 authenticated-callable public routines. Callable does not automatically mean vulnerable; analyze routine behavior and intended public access.
-- Separate trigger-only routines, safe self-scoped readers, permission-checked RBAC RPCs, legacy routes, and routines that should be unreachable.
-- Produce findings with evidence and confidence, not blanket revokes.
+### P1 — RPC exposure/security inventory (body inventory complete; remediation unresolved)
+- The current per-signature inventory is `docs/phase0/evidence/CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md`; Staging body classes, exact routine group membership, findings and recommended caller boundaries are in `docs/phase0/evidence/STAGING_RPC_BODY_REVIEW.md`.
+- The 69/70 historical aggregate was Staging and included a broader routine count. After the worker and legacy-write ACL corrections, current Staging has 55 anon / 56 authenticated SECURITY DEFINER endpoints confirmed by Security Advisor.
+- Two separately approved Staging-only ACL corrections narrowed the two Telegram service-worker functions and eight legacy write functions to service_role. No other blanket grant change was made.
+- Eight legacy mutation RPCs had broad body checks but are now service_role-only on Staging; post-commit SELECT verified `anon=false`, `authenticated=false`, `service_role=true`, and no PUBLIC EXECUTE. All eight `rbac_*` wrappers retain authenticated execution. Approved synthetic-role tests passed academy-manager/finance-manager allow/deny cases; a 24-hour read-only REST-log scan found no direct calls to those legacy paths, but dormant external consumers remain unverified. Details are in `docs/phase0/review/STAGING_LEGACY_RPC_ACL_REMEDIATION.md` and `docs/phase0/review/STAGING_TEST_PLAN.md`.
+- Do not blanket-revoke the remaining routines; preserve intentional authenticated app paths and service-role operations. Production remains read-only.
 
 ### P2 — Application auth regression review
-- Inspect `src/context/AuthContext.tsx`, `src/App.tsx`, all Supabase RPC call sites, and current role/permission UI gating.
-- Propose and add focused tests for sign-in, auth-state refresh, logout, inactive admin, non-admin, and expired-session behavior where feasible.
+- Source review is recorded in `docs/phase0/evidence/APPLICATION_AUTHORIZATION_FLOW_REVIEW.md`.
+- The request-epoch guard and four unit tests cover stale async auth results. Sign-in request rejection now clears loading and shows a generic retryable message; failed authorization loading remains blocked and offers retry/sign-out.
+- Eleven mounted React/AuthProvider and LoginPage tests now use a mocked Supabase client and do not connect to either project. Live sign-in remains untested; the four synthetic Staging credentials were present in prior Git history, so reset them only after explicit approval and fresh target verification.
 - Do not change role semantics without documenting affected routes and RPCs.
 
 ### P3 — Cash-box and notification test completeness
-- Prepare reproducible Staging-only test scripts for the gaps in `STAGING_TEST_PLAN.md`: approved archive RPC, negative/over-limit insert validation, direct hard-delete rejection, creator reassignment rejection, Auth user deletion behavior, and Telegram outbox side effects.
+- Cash Box cases in `docs/phase0/review/STAGING_TEST_PLAN.md` §B1 and RBAC cases in §E2 were executed against verified Staging after operation-specific approval. All 26 result cases passed; fixture rollback and a separate cleanup SELECT were verified. See `docs/phase0/evidence/STAGING_APPROVED_TEST_RESULTS_20261114.md`.
+- The strengthened default-ACL probe in §D1 passed its assertions and all four probe objects were confirmed removed. These tests made no persistent schema/ACL changes. No live notification dispatcher ran.
 - Use synthetic identities only. Four disposable Staging Auth accounts (`a0000000-0000-0000-0000-000000000001` through `...0004`, `example.invalid`) were created during the previous tests. Their fixed passwords were redacted from the current raw log, but older Git commits contained those values. Treat their credentials as exposed. Before further interactive Staging login tests, reset or delete/recreate those synthetic accounts on Staging only, after explicit user authorization and fresh target-ref verification. Never touch Production identities.
 - Do not run any test that sends live Telegram/email/webhook notifications. Use outbox-only or mocked dispatch paths.
 
 ### P4 — Migration and currency reconciliation
-- Build the migration statement matrix from the 20 archived source snapshots and the 4 ledger rows.
-- Investigate the `rbac_course_financial_summary` dependency discrepancy with exact function definitions/catalog dependency data.
-- Inspect UI and external consumers of legacy financial views. Candidate 4 remains HOLD until EGP/USD semantics and the expense/transfer convention are confirmed.
+- The 641-statement matrix is built from the 20 archived snapshots; 31 rows remain `UNVERIFIABLE` (34 not applicable, 61 absent, 455 equivalent to current captured state, 60 different). Their evidence limits are itemized in `evidence/MIGRATION_RECONCILIATION.md`: six require historical row/sequence evidence, 24 are transient/intermediate DDL effects, and one is a historical `NOTIFY`. Migration 008's Production `NO ACTION` versus declared `SET NULL` is explicitly classified as `DIFFERENT`. Do not repair the migration ledger.
+- The former `rbac_course_financial_summary` dependency conflict is resolved by fresh read-only captures: the v1 wrapper delegates to v2 in both projects; v2 and the routine scan do not reference legacy views. External consumers and business currency semantics still require confirmation; Candidate 4 remains HOLD.
+- A repository source scan found no direct references to the four legacy financial views under `src/`; application finance data flows use `rbac_*` RPCs (`CourseDetailsPage` and `DashboardPage`). This narrows the internal UI review but cannot identify SQL clients, reports, or other external consumers.
+- The current database dependency conflict is resolved, but external consumers and the EGP/USD expense/transfer convention remain unconfirmed; Candidate 4 stays HOLD.
 
 ## 7. Local code checks
 
@@ -104,6 +107,7 @@ Available package scripts:
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`
+- `npm test` (Node unit/Edge Function tests plus mocked mounted AuthProvider tests)
 - `npm run test:telegram`
 
 Run these using the repository's existing lockfile. Report exact pass/fail output. Do not claim checks passed unless executed.
