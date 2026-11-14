@@ -55,11 +55,11 @@ The inventory and live audit must be treated as separate sources. In particular,
 
 ### Remaining `UNVERIFIABLE` statement load by snapshot
 
-The current 641-row statement matrix contains 299 `UNVERIFIABLE` rows after matching current Production routine ACLs and comments against the specific GRANT/REVOKE/COMMENT statements they can inform. Each such row is explicitly labeled current-state evidence; it does not establish when or by which migration that state was produced. This breakdown is a prioritization aid only; it does not reclassify statements or imply that any migration version ran:
+The current 641-row statement matrix contains 243 `UNVERIFIABLE` rows after matching current Production routine ACLs/comments and the retained full current policy result against the exact statements they can inform. Each such row is explicitly labeled current-state evidence; it does not establish when or by which migration that state was produced. This breakdown is a prioritization aid only; it does not imply that any migration version ran:
 
 | Snapshot | Statements | `UNVERIFIABLE` |
 |---|---:|---:|
-| `20261015024100_001_create_core_tables.sql` | 79 | 72 |
+| `20261015024100_001_create_core_tables.sql` | 79 | 16 |
 | `20261015024134_002_create_database_views.sql` | 4 | 4 |
 | `20261015024155_003_create_rpc_functions.sql` | 10 | 5 |
 | `20261015024209_004_fix_constraint_and_seed.sql` | 3 | 3 |
@@ -79,9 +79,9 @@ The current 641-row statement matrix contains 299 `UNVERIFIABLE` rows after matc
 | `20261023110000_telegram_notification_language.sql` | 17 | 9 |
 | `20261030120000_student_profile_directory_v2.sql` | 13 | 3 |
 | `20261030130000_course_enrollment_currency_v2.sql` | 52 | 6 |
-| **Total** | **641** | **299** |
+| **Total** | **641** | **243** |
 
-The largest remaining batches are the initial core-table snapshot (72), Production hardening (38), authorization hardening (36), platform audit/outbox (26), RBAC catalog/authorization primitives (25), legacy branding (23), and RLS purge/revokes (20). Keep statement-level classifications tied to exact retained evidence; use these counts only to sequence review.
+The largest remaining batches are Production hardening (38), authorization hardening (36), platform audit/outbox (26), RBAC catalog/authorization primitives (25), legacy branding (23), RLS purge/revokes (20), and the core-table snapshot (16). Keep statement-level classifications tied to exact retained evidence; use these counts only to sequence review.
 
 ## 3. Why blanket migration repair is unsafe
 
