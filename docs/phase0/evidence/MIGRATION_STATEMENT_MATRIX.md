@@ -1,8 +1,8 @@
 # Migration Statement Inventory and Reconciliation
 
-Executable statements in 20 archived SQL snapshots. Each row is individually classified against retained remote evidence. `UNVERIFIABLE` means no exact statement-specific result was retained; it is not proof of absence.
+Executable statements in 20 archived SQL snapshots. Each row is individually classified against retained remote evidence. `UNVERIFIABLE` means no exact statement-specific result was retained; it is not proof of absence. Read-only preflight/guard blocks and transaction-control statements are `NOT APPLICABLE` to persistent-effect comparison.
 
-**Total executable statement rows:** 641. Transaction-control statements (`BEGIN` / `COMMIT`) are classified **NOT APPLICABLE** because they have no independently observable persistent catalog/data effect.
+**Total executable statement rows:** 641. Current classification: 601 `UNVERIFIABLE`, 33 `NOT APPLICABLE` (24 transaction-control + 9 read-only preflight statements), 5 `ABSENT` (five table-specific statements in Draft Only migration 20261023090000), 1 `EQUIVALENT` (captured Production function definition for 20261021171218 statement 3), and 1 `DIFFERENT` (Migration 008 creator FK). The `NOT APPLICABLE` rows do not represent proven migration execution.
 
 ### `20261015024100_001_create_core_tables.sql` — 79 executable statements
 
@@ -125,7 +125,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
 | 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
-| 2 | `DO $preflight$ BEGIN IF to_regclass('public.payments') IS NULL OR to_regclass('public.expenses') IS NULL OR to_regclass('public.cash_box_transfer…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 2 | `DO $preflight$ BEGIN IF to_regclass('public.payments') IS NULL OR to_regclass('public.expenses') IS NULL OR to_regclass('public.cash_box_transfer…` | **NOT APPLICABLE (preflight only)** | This guard only checks prerequisites and raises on failure; it has no persistent catalog or data effect. |
 | 3 | `ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS receipt_number bigint` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `CREATE SEQUENCE IF NOT EXISTS public.payment_receipt_number_seq AS bigint` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 5 | `ALTER SEQUENCE public.payment_receipt_number_seq OWNED BY public.payments.receipt_number` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -299,7 +299,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
 | 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
-| 2 | `DO $preflight$ BEGIN IF to_regclass('public.cash_boxes') IS NULL THEN RAISE EXCEPTION 'Migration 008 preflight failed: table public.cash_boxes do…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 2 | `DO $preflight$ BEGIN IF to_regclass('public.cash_boxes') IS NULL THEN RAISE EXCEPTION 'Migration 008 preflight failed: table public.cash_boxes do…` | **NOT APPLICABLE (preflight only)** | This guard only checks prerequisites and raises on failure; it has no persistent catalog or data effect. |
 | 3 | `ALTER TABLE public.cash_boxes ADD COLUMN IF NOT EXISTS added_by uuid REFERENCES auth.users(id) ON DELETE SET NULL` | **DIFFERENT (confirmed)** | Captured Production FK `cash_boxes_added_by_fkey` is `ON DELETE NO ACTION`; expected SET NULL. Production evidence: `docs/phase0/evidence/CASH_BOX_TRIGGER_EVIDENCE.md` records `cash_boxes_added_by_fkey` with `confdeltype = a` (NO ACTION); `MIGRATION_RECONCILIATION.md` identifies this mismatch for 202610210008. |
 | 4 | `COMMENT ON COLUMN public.cash_boxes.added_by IS 'UUID of administrator who created this cash box. NULL for legacy records created prior to Migrat…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 5 | `CREATE OR REPLACE FUNCTION public.prevent_cash_box_mutation() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$ BEGIN -…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -321,8 +321,8 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
 | 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
-| 2 | `DO $$ BEGIN IF to_regprocedure('public.prevent_cash_box_mutation()') IS NULL THEN RAISE EXCEPTION 'Migration 008 is required: public.prevent_cash…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 3 | `CREATE OR REPLACE FUNCTION public.prevent_cash_box_mutation() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$ BEGIN -…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 2 | `DO $$ BEGIN IF to_regprocedure('public.prevent_cash_box_mutation()') IS NULL THEN RAISE EXCEPTION 'Migration 008 is required: public.prevent_cash…` | **NOT APPLICABLE (preflight only)** | This guard only checks prerequisites and raises on failure; it has no persistent catalog or data effect. |
+| 3 | `CREATE OR REPLACE FUNCTION public.prevent_cash_box_mutation() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$ BEGIN -…` | **EQUIVALENT** | The full captured Production definition in `CASH_BOX_TRIGGER_EVIDENCE.md` matches this statement body, trigger return type, language, and search_path. This proves current definition equivalence, not migration-ledger registration or historical execution. |
 | 4 | `COMMENT ON FUNCTION public.prevent_cash_box_mutation() IS 'Guards cash_boxes against deletion, invalid opening balances, creator reassignment, an…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 5 | `COMMIT` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
 
@@ -343,7 +343,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
-| 1 | `DO $preflight$ BEGIN IF to_regclass('public.admins') IS NULL OR NOT EXISTS ( SELECT 1 FROM information_schema.columns WHERE table_schema = 'publi…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 1 | `DO $preflight$ BEGIN IF to_regclass('public.admins') IS NULL OR NOT EXISTS ( SELECT 1 FROM information_schema.columns WHERE table_schema = 'publi…` | **NOT APPLICABLE (preflight only)** | This guard only checks prerequisites and raises on failure; it has no persistent catalog or data effect. |
 | 2 | `CREATE SCHEMA IF NOT EXISTS private` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 3 | `REVOKE ALL ON SCHEMA private FROM PUBLIC, anon, authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `GRANT USAGE ON SCHEMA private TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -394,7 +394,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
-| 1 | `DO $preflight$ BEGIN IF to_regclass('public.students') IS NULL OR to_regclass('public.courses') IS NULL OR to_regclass('public.enrollments') IS N…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 1 | `DO $preflight$ BEGIN IF to_regclass('public.students') IS NULL OR to_regclass('public.courses') IS NULL OR to_regclass('public.enrollments') IS N…` | **NOT APPLICABLE (preflight only)** | This guard only checks prerequisites and raises on failure; it has no persistent catalog or data effect. |
 | 2 | `CREATE OR REPLACE FUNCTION public.rbac_list_students( p_search text DEFAULT NULL, p_limit integer DEFAULT 100, p_offset integer DEFAULT 0, p_stud…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 3 | `CREATE OR REPLACE FUNCTION public.rbac_list_courses( p_limit integer DEFAULT 200, p_offset integer DEFAULT 0, p_course_id uuid DEFAULT NULL ) RET…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `CREATE OR REPLACE FUNCTION public.rbac_list_enrollments( p_search text DEFAULT NULL, p_limit integer DEFAULT 200, p_offset integer DEFAULT 0, p_s…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -443,7 +443,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
-| 1 | `DO $preflight$ BEGIN IF to_regprocedure('private.has_permission(text)') IS NULL OR to_regprocedure('public.enroll_student(uuid,uuid,numeric,text)…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 1 | `DO $preflight$ BEGIN IF to_regprocedure('private.has_permission(text)') IS NULL OR to_regprocedure('public.enroll_student(uuid,uuid,numeric,text)…` | **NOT APPLICABLE (preflight only)** | This guard only checks prerequisites and raises on failure; it has no persistent catalog or data effect. |
 | 2 | `CREATE OR REPLACE FUNCTION public.rbac_create_student( p_name text, p_phone text DEFAULT NULL, p_employment_status text DEFAULT NULL, p_grad_stat…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 3 | `CREATE OR REPLACE FUNCTION public.rbac_update_student( p_student_id uuid, p_name text, p_phone text DEFAULT NULL, p_employment_status text DEFAUL…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `CREATE OR REPLACE FUNCTION public.rbac_create_course( p_course_name text, p_description text DEFAULT NULL, p_level text DEFAULT NULL, p_duration_…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -541,7 +541,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
 | 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
-| 2 | `DO $preflight$ DECLARE v_function text; v_oid oid; v_required_functions text[] := ARRAY[ 'private.has_permission(text)', 'private.is_platform_own…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 2 | `DO $preflight$ DECLARE v_function text; v_oid oid; v_required_functions text[] := ARRAY[ 'private.has_permission(text)', 'private.is_platform_own…` | **NOT APPLICABLE (preflight only)** | This guard only checks prerequisites and raises on failure; it has no persistent catalog or data effect. |
 | 3 | `REVOKE ALL PRIVILEGES ON TABLE public.admins, public.students, public.courses, public.enrollments, public.payments, public.expenses, public.cash_…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `REVOKE UPDATE (name, type, owner, is_active, notes) ON TABLE public.cash_boxes FROM PUBLIC, anon, authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 5 | `REVOKE ALL PRIVILEGES ON TABLE public.enrollment_balances, public.cash_box_balances, public.course_financial_summary, public.dashboard_metrics FR…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -559,11 +559,11 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
 | 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
-| 2 | `CREATE TABLE IF NOT EXISTS public.academy_branding ( singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton IS TRUE), logo_path text, update…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 3 | `INSERT INTO public.academy_branding (singleton) VALUES (true) ON CONFLICT (singleton) DO NOTHING` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 4 | `ALTER TABLE public.academy_branding ENABLE ROW LEVEL SECURITY` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 5 | `ALTER TABLE public.academy_branding FORCE ROW LEVEL SECURITY` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
-| 6 | `REVOKE ALL ON TABLE public.academy_branding FROM PUBLIC, anon, authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 2 | `CREATE TABLE IF NOT EXISTS public.academy_branding ( singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton IS TRUE), logo_path text, update…` | **ABSENT** | The retained Production inventory reports `public.academy_branding` absent. The expected table and its row-level effects/properties therefore are absent in that captured state; this does not assess other statements in the draft. |
+| 3 | `INSERT INTO public.academy_branding (singleton) VALUES (true) ON CONFLICT (singleton) DO NOTHING` | **ABSENT** | The retained Production inventory reports `public.academy_branding` absent. The expected table and its row-level effects/properties therefore are absent in that captured state; this does not assess other statements in the draft. |
+| 4 | `ALTER TABLE public.academy_branding ENABLE ROW LEVEL SECURITY` | **ABSENT** | The retained Production inventory reports `public.academy_branding` absent. The expected table and its row-level effects/properties therefore are absent in that captured state; this does not assess other statements in the draft. |
+| 5 | `ALTER TABLE public.academy_branding FORCE ROW LEVEL SECURITY` | **ABSENT** | The retained Production inventory reports `public.academy_branding` absent. The expected table and its row-level effects/properties therefore are absent in that captured state; this does not assess other statements in the draft. |
+| 6 | `REVOKE ALL ON TABLE public.academy_branding FROM PUBLIC, anon, authenticated` | **ABSENT** | The retained Production inventory reports `public.academy_branding` absent. The expected table and its row-level effects/properties therefore are absent in that captured state; this does not assess other statements in the draft. |
 | 7 | `CREATE OR REPLACE FUNCTION private.is_active_admin() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, public, a…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 8 | `REVOKE ALL ON FUNCTION private.is_active_admin() FROM PUBLIC, anon` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 9 | `GRANT EXECUTE ON FUNCTION private.is_active_admin() TO authenticated` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -600,7 +600,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
 | 1 | `BEGIN` | **NOT APPLICABLE (transaction control)** | BEGIN/COMMIT delimit a transaction and do not correspond to a persistent schema/data effect to compare with live catalog state. Migration-level execution evidence is assessed separately. |
-| 2 | `DO $preflight$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'private') THEN RAISE EXCEPTION 'Preflight failed: expected privat…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 2 | `DO $preflight$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'private') THEN RAISE EXCEPTION 'Preflight failed: expected privat…` | **NOT APPLICABLE (preflight only)** | This guard only checks prerequisites and raises on failure; it has no persistent catalog or data effect. |
 | 3 | `CREATE TABLE IF NOT EXISTS public.platform_audit_events ( event_id uuid PRIMARY KEY DEFAULT gen_random_uuid(), event_type text NOT NULL CHECK (ev…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `CREATE INDEX IF NOT EXISTS platform_audit_events_created_at_idx ON public.platform_audit_events (created_at DESC)` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 5 | `CREATE INDEX IF NOT EXISTS platform_audit_events_type_created_idx ON public.platform_audit_events (event_type, created_at DESC)` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
@@ -674,7 +674,7 @@ Executable statements in 20 archived SQL snapshots. Each row is individually cla
 
 | # | Local statement (normalized excerpt) | Classification | Evidence / next check |
 |---:|---|---|---|
-| 1 | `DO $preflight$ BEGIN IF to_regclass('public.students') IS NULL OR to_regclass('public.enrollments') IS NULL OR to_regprocedure('private.has_permi…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
+| 1 | `DO $preflight$ BEGIN IF to_regclass('public.students') IS NULL OR to_regclass('public.enrollments') IS NULL OR to_regprocedure('private.has_permi…` | **NOT APPLICABLE (preflight only)** | This guard only checks prerequisites and raises on failure; it has no persistent catalog or data effect. |
 | 2 | `ALTER TABLE public.students ADD COLUMN IF NOT EXISTS country text, ADD COLUMN IF NOT EXISTS governorate text, ADD COLUMN IF NOT EXISTS workplace …` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 3 | `CREATE OR REPLACE FUNCTION public.rbac_list_students_v2( p_search text DEFAULT NULL, p_limit integer DEFAULT 10, p_offset integer DEFAULT 0, p_st…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |
 | 4 | `CREATE OR REPLACE FUNCTION public.rbac_create_student_v2( p_name text, p_phone text DEFAULT NULL, p_employment_status text DEFAULT NULL, p_grad_s…` | **UNVERIFIABLE** | No exact retained live definition/ACL/data result maps this statement; compare with read-only catalog/data evidence. |

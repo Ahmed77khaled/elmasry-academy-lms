@@ -36,14 +36,14 @@ Use these conservative classifications instead:
 | 202610210006 | No | `is_admin()` exists, but its live body differs from the desired active-admin invariant and the file replaces several other objects | UNKNOWN / PARTIAL CANDIDATE — FULL DIFF REQUIRED |
 | 202610210007 | No | Effective table grants reported revoked; all policies, column grants and statements not fully reconciled | UNKNOWN — REQUIRES FULL PRIVILEGE DIFF |
 | 202610210008 | No | Trigger function exists, but the live `added_by` FK action is NO ACTION rather than the file's intended SET NULL | PARTIAL / DRIFT CONFIRMED |
-| 20261021171218 | No | Trigger body contains creator nullification logic; file does not itself change FK action | OBJECT EFFECT PRESENT, LEDGER ABSENT; FULL FILE APPLICATION NOT PROVEN |
+| 20261021171218 | No | Captured Production `prevent_cash_box_mutation()` definition matches statement 3; read-only preflight has no persistent effect; comment statement is not independently captured | FUNCTION EFFECT EQUIVALENT IN CAPTURED PRODUCTION; LEDGER ABSENT; FULL FILE APPLICATION NOT PROVEN |
 | 20261021214608 | Yes | Ledger row and `login_alert_dedupe` table reported present | LEDGER-RECORDED; schema/content equivalence still needs validation |
 | 20261021223822 | No | RBAC schema/helpers reported present; no full role/catalog/policy/ACL diff | UNKNOWN — REQUIRES FULL DIFF |
 | 20261021224440 | No | Some `rbac_list_*` functions reported present; no full signature/body/grant diff | UNKNOWN — REQUIRES FULL DIFF |
 | 20261021224905 | No | Some RBAC write functions reported present; no full signature/body/grant diff | UNKNOWN — REQUIRES FULL DIFF |
 | 20261022225500 | No | `admins.is_owner` reported present; the local inventory flags the file as Draft Only | UNKNOWN — DRAFT MARKER CONFLICTS WITH LIVE OBJECT |
 | 20261022230000 | Yes | Ledger row present; local inventory flags file as Draft Only | LEDGER-RECORDED — VERIFY HISTORICAL CONTENT AND DRAFT MARKER |
-| 20261023090000 | No | File explicitly says Draft Only and `academy_branding` table reported absent | DRAFT / NOT APPLIED (supported by current evidence) |
+| 20261023090000 | No | File explicitly says Draft Only; `public.academy_branding` is reported absent. The statement matrix marks the five table-specific create/seed/RLS/ACL effects absent; other bucket, policy, and function statements remain individually unverified. | DRAFT; TABLE EFFECTS ABSENT, FULL FILE NOT PROVEN APPLIED |
 | 20261023100000 | No | Audit reports audit/outbox tables and rows exist; local inventory flags file as Draft Only | UNKNOWN — DRAFT MARKER CONFLICTS WITH LIVE OBJECT |
 | 20261023110000 | Yes | Ledger row and language RPC reported present | LEDGER-RECORDED; verify function body/grants |
 | 20261030120000 | Yes | Ledger row and student profile columns reported present | LEDGER-RECORDED; verify function bodies/grants and exact snapshot |
