@@ -79,7 +79,7 @@ For every migration statement, classify the expected live effect as equivalent, 
 ### P1 — RPC exposure/security inventory (body inventory complete; remediation unresolved)
 - The current per-signature inventory is `docs/phase0/evidence/CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md`; Staging body classes, exact routine group membership, findings and recommended caller boundaries are in `docs/phase0/evidence/STAGING_RPC_BODY_REVIEW.md`.
 - The 69/70 historical aggregate was Staging and included a broader routine count. After the worker and legacy-write ACL corrections, current Staging has 55 anon / 56 authenticated SECURITY DEFINER endpoints confirmed by Security Advisor.
-- An explicitly approved Staging-only ACL correction narrowed the two Telegram service-worker functions to service_role. No other grants were changed.
+- Two separately approved Staging-only ACL corrections narrowed the two Telegram service-worker functions and eight legacy write functions to service_role. No other blanket grant change was made.
 - Eight legacy mutation RPCs had broad body checks but are now service_role-only on Staging; post-commit SELECT verified `anon=false`, `authenticated=false`, `service_role=true`, and no PUBLIC EXECUTE. All eight `rbac_*` wrappers retain authenticated execution. No RPC behavior test was run and no restricted admin is currently active. A 24-hour read-only REST-log scan found no direct calls to those legacy paths; dormant external consumers remain unverified. Details are in `docs/phase0/review/STAGING_LEGACY_RPC_ACL_REMEDIATION.md`.
 - Do not blanket-revoke the remaining routines; preserve intentional authenticated app paths and service-role operations. Production remains read-only.
 
@@ -96,9 +96,9 @@ For every migration statement, classify the expected live effect as equivalent, 
 - Do not run any test that sends live Telegram/email/webhook notifications. Use outbox-only or mocked dispatch paths.
 
 ### P4 — Migration and currency reconciliation
-- The 641-statement matrix is built from the 20 archived snapshots; 452 rows remain `UNVERIFIABLE`. Migration 008's Production `NO ACTION` versus declared `SET NULL` is explicitly classified as `DIFFERENT`. Do not repair the migration ledger.
-- Investigate the `rbac_course_financial_summary` dependency discrepancy with exact function definitions/catalog dependency data.
-- UI consumers have been reviewed; Candidate 4 remains HOLD until live dependency evidence and business confirmation of EGP/USD and expense/transfer conventions are available.
+- The 641-statement matrix is built from the 20 archived snapshots; 410 rows remain `UNVERIFIABLE` (33 not applicable, 5 absent, 166 equivalent to current captured state, 27 different). Migration 008's Production `NO ACTION` versus declared `SET NULL` is explicitly classified as `DIFFERENT`. Do not repair the migration ledger.
+- The former `rbac_course_financial_summary` dependency conflict is resolved by fresh read-only captures: the v1 wrapper delegates to v2 in both projects; v2 and the routine scan do not reference legacy views. External consumers and business currency semantics still require confirmation; Candidate 4 remains HOLD.
+- The current database dependency conflict is resolved, but external consumers and the EGP/USD expense/transfer convention remain unconfirmed; Candidate 4 stays HOLD.
 
 ## 7. Local code checks
 

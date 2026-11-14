@@ -188,6 +188,12 @@ Read-only constraint/column capture:
 
 Production's `added_by` column comment exactly matches Migration 008. The current `prevent_cash_box_mutation()` comment is the later 20261021171218 text (“permits ON DELETE SET NULL…”), not Migration 008's earlier comment. Current `create_cash_box(varchar,varchar,varchar,numeric,text)` comment exactly matches Migration 008; its current ACL is service_role-only.
 
+## Legacy financial-view routine references
+
+On 2026-11-14, after independently verifying the exact ref before each SELECT, current routine source/definition queries were run on both projects. In both, `public.rbac_course_financial_summary(uuid)` delegates to `public.rbac_course_financial_summary_v2(uuid)`. The v2 function's body reads `courses`, `enrollments`, `payments`, and `expenses`, and calls `private.has_permission`; it does not reference the four legacy financial views. A text scan over all `public`/`private` function and procedure bodies returned no routine that mentions any of `enrollment_balances`, `cash_box_balances`, `course_financial_summary`, or `dashboard_metrics`. Catalog-tracked `pg_depend` queries returned no direct routine-to-view dependencies in either project.
+
+This resolves the former report conflict about the course-summary RPC's current database routine path. `pg_depend` alone does not capture PL/pgSQL body references; the source scan and exact wrapper/v2 bodies are the relevant evidence. Dynamic SQL, external reports/SQL clients, and other non-routine consumers are not ruled out.
+
 ## Default privileges
 
 A read-only `pg_default_acl` capture for objects created by `postgres` at `2026-11-14T17:15:31.472Z` found:
