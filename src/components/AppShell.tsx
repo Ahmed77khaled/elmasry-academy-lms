@@ -74,7 +74,7 @@ function canAccessPage(page: Page, permissions: string[]): boolean {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { route, navigate } = useRouter();
   const { locale } = useLocale();
-  const { user, signOut, permissions, authorizationReady, loading: authLoading, isOwner, roleKey } = useAuth();
+  const { user, signOut, refreshAuthorization, permissions, authorizationReady, loading: authLoading, isOwner, roleKey } = useAuth();
   const displayName = getAdminDisplayName(user);
   const roleLabel = isOwner ? translate('مالك المنصة') : translate(getRoleDisplayName(roleKey ?? ''));
   const pageTitle = route.page === 'dashboard' && !permissions.includes('dashboard.finance.read')
@@ -408,7 +408,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ? <PageLoader />
               : <div role="alert" className="card-surface p-6 text-center text-rose-200 space-y-3">
                   <p>{translate("تعذر التحقق من الصلاحيات. تم إيقاف الوصول لحين توفر خدمة الصلاحيات.")}</p>
-                  <button onClick={() => void signOut()} className="btn-secondary">{translate("تسجيل الخروج")}</button>
+                  <div className="flex justify-center gap-3">
+                    <button onClick={() => void refreshAuthorization()} className="btn-primary">{translate("إعادة تحميل")}</button>
+                    <button onClick={() => void signOut()} className="btn-secondary">{translate("تسجيل الخروج")}</button>
+                  </div>
                 </div>
             : !canAccessPage(route.page, permissions)
               ? <div role="alert" className="card-surface p-6 text-center text-rose-200">{translate("غير مصرح لك بعرض هذه الصفحة.")}</div>

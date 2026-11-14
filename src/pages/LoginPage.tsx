@@ -26,10 +26,14 @@ export function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const { error: signInError } = await signIn(email.trim(), password);
-
-    if (signInError) {
-      setError(translate("بيانات الدخول غير صحيحة، يرجى التحقق من البريد وكلمة المرور"));
+    try {
+      const { error: signInError } = await signIn(email.trim(), password);
+      if (signInError) {
+        setError(translate("بيانات الدخول غير صحيحة، يرجى التحقق من البريد وكلمة المرور"));
+      }
+    } catch {
+      setError(translate("تعذر الاتصال بخدمة تسجيل الدخول. حاول مرة أخرى."));
+    } finally {
       setLoading(false);
     }
   };
