@@ -213,4 +213,3 @@ On Staging, `to_regnamespace('supabase_migrations')` and `to_regclass('supabase_
 ## Interpretation boundary
 
 Current definitions and ACLs can classify current effects, but cannot prove when a statement ran, whether a later statement superseded it, or whether a whole migration file completed. Keep ledger repair and `db push` prohibited. Candidate 4 remains HOLD. Behavior tests, default-ACL object probe, and any further database writes were not run.
-
