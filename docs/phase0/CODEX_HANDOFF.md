@@ -96,7 +96,7 @@ For every migration statement, classify the expected live effect as equivalent, 
 - Do not run any test that sends live Telegram/email/webhook notifications. Use outbox-only or mocked dispatch paths.
 
 ### P4 — Migration and currency reconciliation
-- The 641-statement matrix is built from the 20 archived snapshots; 218 rows remain `UNVERIFIABLE` (33 not applicable, 46 absent, 311 equivalent to current captured state, 33 different). Migration 008's Production `NO ACTION` versus declared `SET NULL` is explicitly classified as `DIFFERENT`. Do not repair the migration ledger.
+- The 641-statement matrix is built from the 20 archived snapshots; 204 rows remain `UNVERIFIABLE` (33 not applicable, 47 absent, 315 equivalent to current captured state, 42 different). Migration 008's Production `NO ACTION` versus declared `SET NULL` is explicitly classified as `DIFFERENT`. Do not repair the migration ledger.
 - The former `rbac_course_financial_summary` dependency conflict is resolved by fresh read-only captures: the v1 wrapper delegates to v2 in both projects; v2 and the routine scan do not reference legacy views. External consumers and business currency semantics still require confirmation; Candidate 4 remains HOLD.
 - The current database dependency conflict is resolved, but external consumers and the EGP/USD expense/transfer convention remain unconfirmed; Candidate 4 stays HOLD.
 
