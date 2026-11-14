@@ -28,7 +28,7 @@ Use these conservative classifications instead:
 
 | Version | Ledger | Evidence reported | Revised classification |
 |---|---:|---|---|
-| 20261015024100 | No | Core tables exist, but local source describes an older `id`-based schema and does not prove exact live definitions | UNKNOWN — REQUIRES STATEMENT-LEVEL DIFF |
+| 20261015024100 | No | Core tables exist, but local source describes an older `id`-based schema and does not prove exact live definitions; statement matrix confirms the same-named `idx_payments_voided` targets `voided_at` in captured Production rather than the migration's `voided` | UNKNOWN — PARTIAL INDEX DRIFT CONFIRMED; REQUIRES STATEMENT-LEVEL DIFF |
 | 20261015024134 | No | Four view names exist; no complete statement-by-statement equivalence proof | UNKNOWN — REQUIRES DEFINITION DIFF |
 | 20261015024155 | No | Eight initial RPCs reported present; no proof every function/ACL/side effect matches file | UNKNOWN — REQUIRES FUNCTION/ACL DIFF |
 | 20261015024209 | No | Unique constraint and seed role names reported present; exact seed effects are not reconciled | UNKNOWN — REQUIRES DATA/CONSTRAINT DIFF |
