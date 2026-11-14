@@ -1,25 +1,25 @@
 # Current Callable Routine Privilege Matrix
 
-**Purpose.** Fresh read-only catalog captures of routines in `public` and `private`, before and after one approved Staging ACL correction, with effective schema USAGE and routine EXECUTE for `anon` and `authenticated`, plus effective routine EXECUTE for `service_role`. It includes functions and procedures. This records PostgreSQL routine privilege; Supabase Security Advisor separately confirms the remaining SECURITY DEFINER HTTP RPC endpoint counts. Public-schema functions returning `trigger`, procedures, and schema-exposure configuration require separate interpretation.
+**Purpose.** Fresh read-only catalog captures of routines in `public` and `private`, including Staging before and after two approved, narrowly scoped ACL corrections, with effective schema USAGE and routine EXECUTE for `anon` and `authenticated`, plus effective routine EXECUTE for `service_role`. It includes functions and procedures. This records PostgreSQL routine privilege; Supabase Security Advisor separately confirms the remaining SECURITY DEFINER HTTP RPC endpoint counts. Public-schema functions returning `trigger`, procedures, and schema-exposure configuration require separate interpretation.
 
 | Environment | Project ref | Captured at (UTC) | Total routines | DB-callable anon | DB-callable authenticated | Public function RPC candidates (anon/authenticated) |
 |---|---|---:|---:|---:|---:|---:|
 | Production | `urmkcixqpoqkiosihhal` | 2026-11-14T13:45:32.391896+00:00 | 76 | 4 | 62 | 0 / 56 |
-| Staging, after targeted ACL correction | `kxdfconqflveqeozanaw` | 2026-11-14T14:01:09.742690+00:00 | 76 | 67 | 74 | 63 / 64 |
+| Staging, after worker and legacy RPC ACL corrections | `kxdfconqflveqeozanaw` | 2026-11-14T16:49:24Z | 76 | 59 | 66 | 55 / 56 |
 
 ## Interpretation
 
-- The archived 69 anon / 70 authenticated Staging aggregate corresponds to the public-schema database EXECUTE count before the ACL correction. The fresh capture finds six additional private-schema routines callable by authenticated (70 public + 6 private = 76 total).
+- The archived 69 anon / 70 authenticated Staging aggregate corresponds to the public-schema database EXECUTE count before the ACL corrections. The fresh capture finds six additional private-schema routines callable by authenticated (60 public + 6 private = 66 total).
 - Each project capture contains eight trigger-returning functions. Their EXECUTE grants do not make them direct PostgREST RPC endpoints. Procedures are also excluded from the public function RPC candidate count.
 - Production currently has four anon EXECUTE routines in `public`, all trigger helpers or `set_updated_at()`, so none qualify as direct function RPC candidates. Effective authenticated EXECUTE applies to 56 public, non-trigger functions.
-- Before the approved ACL correction, Staging had 65 anon / 66 authenticated public function RPC candidates. After the correction, 63 / 64 remain. Supabase Security Advisor independently confirms 63 anon-callable and 64 authenticated-callable SECURITY DEFINER endpoints via `/rest/v1/rpc/`. EXECUTE is confirmed, but body authorization must still be reviewed before classifying a data-access vulnerability.
-- A fresh ACL expansion distinguishes PUBLIC from direct role grants for public non-trigger functions: Production has 0 PUBLIC / 0 anon / 56 authenticated; Staging has 63 PUBLIC / 63 anon / 64 authenticated. In Staging, all 63 anon-callable functions have both PUBLIC EXECUTE and an explicit `anon` EXECUTE ACL; all 64 authenticated-callable functions have an explicit `authenticated` EXECUTE ACL. `is_admin()` is the one authenticated-only function. Removing PUBLIC alone would not block anon; a least-privilege change must revoke both PUBLIC and anon on the 63 endpoints while preserving authenticated ACLs where intended. No such bulk ACL change has been approved or made.
+- Before the worker ACL correction, Staging had 65 anon / 66 authenticated public function RPC candidates. The worker correction reduced this to 63 / 64; the approved legacy-write ACL correction then reduced this to 55 / 56. Security Advisor, observed at `2026-11-14T16:49:24.597Z`, independently confirms 55 anon-callable and 56 authenticated-callable SECURITY DEFINER endpoints via `/rest/v1/rpc/`. Body authorization still requires routine-by-routine review; EXECUTE alone does not prove an exploitable path.
+- The current Staging catalog count is 55 PUBLIC / 55 anon / 56 authenticated on public non-trigger functions. The eight legacy write routines no longer grant EXECUTE to PUBLIC, anon, or authenticated; each retains service_role. The other 55 anon-callable functions still have PUBLIC and explicit anon EXECUTE, and all 56 authenticated-callable functions retain explicit authenticated EXECUTE. `is_admin()` is the one authenticated-only function among the remaining endpoints. Removing PUBLIC alone would not block anon on the remaining 55. Production remains 0 PUBLIC / 0 anon / 56 authenticated.
 - Supabase exposes configurable schemas. Therefore “RPC candidate” is conditional on `public` being in the project's exposed Data API schema list; this SQL capture does not read that external API configuration.
-- Captures are separate and sequential, not a transactionally synchronized cross-project snapshot. The approved ACL correction changed only two Staging function grants; no table data or Production permissions were changed.
+- Captures are separate and sequential, not a transactionally synchronized cross-project snapshot. The two approved Staging ACL corrections changed grants on two worker routines and eight legacy write routines; no table data or Production permissions were changed.
 
 ### Staging anon-granted function body review
 
-**Supplemental SELECT capture:** `2026-11-14T13:52:48.918863+00:00` UTC, project `kxdfconqflveqeozanaw`; the correction was committed at `2026-11-14T14:00:21Z` and independently rechecked at `2026-11-14T14:01:09.742690+00:00`.
+**Historical supplemental SELECT capture:** `2026-11-14T13:52:48.918863+00:00` UTC, project `kxdfconqflveqeozanaw`; this was before the worker ACL correction committed at `2026-11-14T14:00:21Z` and independently rechecked at `2026-11-14T14:01:09.742690+00:00`.
 
 | Group among 65 public non-trigger anon EXECUTE candidates before the fix | Count | Assessment |
 |---|---:|---|
@@ -27,11 +27,11 @@
 | Compatibility wrappers delegate to v2 implementation | 3 | `rbac_course_financial_summary(uuid)`, `rbac_enroll_student(uuid,uuid,numeric,text)`, and `rbac_record_payment(uuid,uuid,numeric,date,text,text,text)`. Their callees enforce authorization; no separate unauthenticated invocation test was run. |
 | Service-worker routines have no caller identity check | 2 | `claim_telegram_notifications(integer,integer)` and `enqueue_admin_login_notification(uuid,text)` are SECURITY INVOKER but have effective anon EXECUTE in Staging. Both perform outbox/audit writes. |
 
-The last two routines had an **overbroad grant** before the fix. With the user's explicit approval, on Staging only we revoked EXECUTE from PUBLIC, anon, and authenticated and retained service_role. Independent post-commit SELECT verification now shows both ACL arrays as `{postgres=X/postgres,service_role=X/postgres}`, anon/authenticated/PUBLIC EXECUTE false, and service_role EXECUTE true. Neither function was invoked; no data rows changed. The Supabase Security Advisor confirms 63 remaining anon and 64 authenticated SECURITY DEFINER routines are reachable through `/rest/v1/rpc/`; this is a separate, unresolved body-by-body authorization review, not a blanket-revoke instruction.
+The last two routines had an **overbroad grant** before the worker ACL fix. With the user's explicit approval, on Staging only we revoked EXECUTE from PUBLIC, anon, and authenticated and retained service_role. Independent post-commit SELECT verification showed both ACL arrays as `{postgres=X/postgres,service_role=X/postgres}`, anon/authenticated/PUBLIC EXECUTE false, and service_role EXECUTE true. Neither function was invoked; no data rows changed. A second approved ACL correction has now narrowed the eight legacy write routines; the current Security Advisor reports 55 anon and 56 authenticated SECURITY DEFINER functions via `/rest/v1/rpc/`.
 
 **Behavior test status:** grant assertions were executed without invoking either worker function. A service-role function behavior test remains unrun to avoid dequeuing or enqueuing notification work.
 
-**Follow-up classification:** the 63 remaining anon-callable and 64 authenticated-callable SECURITY DEFINER endpoints have now been classified by exact body guard and intended caller in [STAGING_RPC_BODY_REVIEW.md](STAGING_RPC_BODY_REVIEW.md). The eight broad active-admin legacy writes are an authorization-boundary concern; a restricted-admin exploit was not demonstrated on Staging, whose current aggregate has one active owner and one inactive superadmin.
+**Follow-up classification:** the 55 remaining anon-callable and 56 authenticated-callable SECURITY DEFINER endpoints have been classified by exact body guard and intended caller in [STAGING_RPC_BODY_REVIEW.md](STAGING_RPC_BODY_REVIEW.md). The eight broad active-admin legacy writes are no longer directly callable by anon/authenticated after the second ACL correction; a restricted-admin behavior test was not run on Staging, whose recorded aggregate has one active owner and one inactive superadmin.
 
 ## Per-routine effective privileges
 
@@ -40,9 +40,9 @@ The last two routines had an **overbroad grant** before the fix. With the user's
 | `can_claim_platform_owner()` | public | f | boolean | yes | postgres | `search_path=pg_catalog, public, auth` | no / yes / yes | yes / yes / yes |
 | `claim_platform_owner()` | public | f | boolean | yes | postgres | `search_path=pg_catalog, public, auth` | no / yes / yes | yes / yes / yes |
 | `claim_telegram_notifications(integer,integer)` | public | f | TABLE(notification_id uuid, event_id uuid, event_type text, outcome text, occurred_at timestamp with time zone, attempt_count integer, lease_until timestamp with time zone) | no | postgres | `search_path=pg_catalog, public` | no / no / yes | no / no / yes |
-| `create_cash_box(character varying,character varying,character varying,numeric,text)` | public | f | uuid | yes | postgres | `search_path=pg_catalog, public` | no / no / yes | yes / yes / yes |
+| `create_cash_box(character varying,character varying,character varying,numeric,text)` | public | f | uuid | yes | postgres | `search_path=pg_catalog, public` | no / no / yes | no / no / yes |
 | `enqueue_admin_login_notification(uuid,text)` | public | f | uuid | no | postgres | `search_path=pg_catalog, public` | no / no / yes | no / no / yes |
-| `enroll_student(uuid,uuid,numeric,text)` | public | f | enrollments | yes | postgres | `search_path=pg_catalog, public` | no / no / yes | yes / yes / yes |
+| `enroll_student(uuid,uuid,numeric,text)` | public | f | enrollments | yes | postgres | `search_path=pg_catalog, public` | no / no / yes | no / no / yes |
 | `get_my_authorization()` | public | f | TABLE(role_key text, is_owner boolean, permissions text[]) | yes | postgres | `search_path=pg_catalog, public, auth` | no / yes / yes | yes / yes / yes |
 | `is_admin()` | public | f | boolean | yes | postgres | `search_path=pg_catalog, public` | no / yes / yes | no / yes / yes |
 | `prevent_cash_box_mutation()` | public | f | trigger | no | postgres | `search_path=pg_catalog, public` | yes / yes / yes | yes / yes / yes |
@@ -106,13 +106,13 @@ The last two routines had an **overbroad grant** before the fix. With the user's
 | `rbac_update_student_v2(uuid,text,text,text,text,text,text,text,text,text,text,text,text)` | public | f | boolean | yes | postgres | `search_path=pg_catalog, public, private, auth` | no / yes / yes | yes / yes / yes |
 | `rbac_void_expense(uuid,text)` | public | f | uuid | yes | postgres | `search_path=pg_catalog, public, private, auth` | no / yes / yes | yes / yes / yes |
 | `rbac_void_payment(uuid,text)` | public | f | uuid | yes | postgres | `search_path=pg_catalog, public, private, auth` | no / yes / yes | yes / yes / yes |
-| `record_expense(uuid,numeric,date,text,text,text,uuid)` | public | f | expenses | yes | postgres | `search_path=pg_catalog, public` | no / no / yes | yes / yes / yes |
-| `record_payment(uuid,uuid,numeric,date,text,text,text)` | public | f | payments | yes | postgres | `search_path=pg_catalog, public` | no / no / yes | yes / yes / yes |
-| `set_enrollment_status(uuid,text)` | public | f | enrollments | yes | postgres | `search_path=pg_catalog, public` | no / no / yes | yes / yes / yes |
+| `record_expense(uuid,numeric,date,text,text,text,uuid)` | public | f | expenses | yes | postgres | `search_path=pg_catalog, public` | no / no / yes | no / no / yes |
+| `record_payment(uuid,uuid,numeric,date,text,text,text)` | public | f | payments | yes | postgres | `search_path=pg_catalog, public` | no / no / yes | no / no / yes |
+| `set_enrollment_status(uuid,text)` | public | f | enrollments | yes | postgres | `search_path=pg_catalog, public` | no / no / yes | no / no / yes |
 | `set_updated_at()` | public | f | trigger | no | postgres | `search_path=pg_catalog, public` | yes / yes / yes | yes / yes / yes |
-| `transfer_between_boxes(uuid,uuid,numeric,date,text)` | public | f | cash_box_transfers | yes | postgres | `search_path=pg_catalog, public` | no / no / yes | yes / yes / yes |
-| `void_expense(uuid,text)` | public | f | expenses | yes | postgres | `search_path=pg_catalog, public` | no / no / yes | yes / yes / yes |
-| `void_payment(uuid,text)` | public | f | payments | yes | postgres | `search_path=pg_catalog, public` | no / no / yes | yes / yes / yes |
+| `transfer_between_boxes(uuid,uuid,numeric,date,text)` | public | f | cash_box_transfers | yes | postgres | `search_path=pg_catalog, public` | no / no / yes | no / no / yes |
+| `void_expense(uuid,text)` | public | f | expenses | yes | postgres | `search_path=pg_catalog, public` | no / no / yes | no / no / yes |
+| `void_payment(uuid,text)` | public | f | payments | yes | postgres | `search_path=pg_catalog, public` | no / no / yes | no / no / yes |
 
 ## Query used
 
@@ -121,3 +121,11 @@ SELECT jsonb_build_object('captured_at',now(),'routines',COALESCE(jsonb_agg(json
 ```
 
 The per-routine rows above are the retained query output for this capture. Re-run the SELECT for a new timestamp before making decisions.
+
+## Approved Staging legacy-write ACL correction (executed and verified)
+
+On 2026-11-14, Staging `kxdfconqflveqeozanaw` was independently verified as the active `trainerpro-phase0-staging` project (PostgreSQL 17.11) immediately before the approved ACL operation. The transaction revoked `PUBLIC`, `anon`, and `authenticated` EXECUTE on the eight legacy write signatures listed above and granted/retained EXECUTE for `service_role` only.
+
+The transaction asserted each legacy signature and the authenticated/service-role grants on all eight corresponding `rbac_*` wrappers before commit. Post-commit SELECT verification returned the ACL `{postgres=X/postgres,service_role=X/postgres}` and effective EXECUTE `anon=false`, `authenticated=false`, `service_role=true`, `PUBLIC=false` for each legacy function. Every RBAC wrapper remained executable by `authenticated` and `service_role`. The functions were not invoked; no application rows, outbox rows, or migration-ledger rows changed.
+
+Fresh catalog aggregation and Security Advisor at `2026-11-14T16:49:24.597Z` show 55 public SECURITY DEFINER RPC candidates callable by anon and 56 by authenticated. This is the post-correction state. The eight legacy routine rows in the table above now show Staging `no / no / yes`.

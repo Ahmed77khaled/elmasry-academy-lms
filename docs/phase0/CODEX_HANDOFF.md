@@ -78,9 +78,9 @@ For every migration statement, classify the expected live effect as equivalent, 
 
 ### P1 — RPC exposure/security inventory (body inventory complete; remediation unresolved)
 - The current per-signature inventory is `docs/phase0/evidence/CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md`; Staging body classes, exact routine group membership, findings and recommended caller boundaries are in `docs/phase0/evidence/STAGING_RPC_BODY_REVIEW.md`.
-- The 69/70 historical aggregate was Staging and included a broader routine count; current post-correction Staging has 63 anon / 64 authenticated SECURITY DEFINER endpoints confirmed by Security Advisor.
+- The 69/70 historical aggregate was Staging and included a broader routine count. After the worker and legacy-write ACL corrections, current Staging has 55 anon / 56 authenticated SECURITY DEFINER endpoints confirmed by Security Advisor.
 - An explicitly approved Staging-only ACL correction narrowed the two Telegram service-worker functions to service_role. No other grants were changed.
-- Eight legacy mutation RPCs remain anon/authenticated-callable on Staging and only check `public.is_admin()`, whereas the app uses granular `rbac_*` endpoints. Assignable `academy_manager` and `finance_manager` roles lack some operations these legacy functions permit. No restricted admin is currently active and no mutation was tested. A service_role-only ACL option with exact signatures, consumer checks, and verification gates is prepared in `docs/phase0/review/STAGING_LEGACY_RPC_ACL_REMEDIATION_PROPOSAL.md`; it is not approved or executed.
+- Eight legacy mutation RPCs had broad body checks but are now service_role-only on Staging; post-commit SELECT verified `anon=false`, `authenticated=false`, `service_role=true`, and no PUBLIC EXECUTE. All eight `rbac_*` wrappers retain authenticated execution. No RPC behavior test was run and no restricted admin is currently active. A 24-hour read-only REST-log scan found no direct calls to those legacy paths; dormant external consumers remain unverified. Details are in `docs/phase0/review/STAGING_LEGACY_RPC_ACL_REMEDIATION.md`.
 - Do not blanket-revoke the remaining routines; preserve intentional authenticated app paths and service-role operations. Production remains read-only.
 
 ### P2 — Application auth regression review
