@@ -2,17 +2,19 @@
 
 **Purpose.** Fresh read-only catalog captures of routines in `public` and `private`, including Staging before and after two approved, narrowly scoped ACL corrections, with effective schema USAGE and routine EXECUTE for `anon` and `authenticated`, plus effective routine EXECUTE for `service_role`. It includes functions and procedures. This records PostgreSQL routine privilege; Supabase Security Advisor separately confirms the remaining SECURITY DEFINER HTTP RPC endpoint counts. Public-schema functions returning `trigger`, procedures, and schema-exposure configuration require separate interpretation.
 
+This is the current all-routine inventory. The separate [Production SECURITY DEFINER 70-routine matrix](PRODUCTION_SECURITY_DEFINER_70_ROUTINE_MATRIX.md) is an archived subset and must not be read as the complete callable inventory or as the Staging 69/70 aggregate. Raw `has_function_privilege` results are interpreted together with schema USAGE; EXECUTE without schema USAGE does not make a routine callable by that role.
+
 | Environment | Project ref | Captured at (UTC) | Total routines | DB-callable anon | DB-callable authenticated | Public function RPC candidates (anon/authenticated) |
 |---|---|---:|---:|---:|---:|---:|
-| Production | `urmkcixqpoqkiosihhal` | 2026-11-14T13:45:32.391896+00:00 | 76 | 4 | 62 | 0 / 56 |
-| Staging, after worker and legacy RPC ACL corrections | `kxdfconqflveqeozanaw` | 2026-11-14T16:49:24Z | 76 | 59 | 66 | 55 / 56 |
+| Production | `urmkcixqpoqkiosihhal` | 2026-11-14T17:07:43.357Z | 76 | 4 | 62 | 0 / 56 |
+| Staging, after worker and legacy RPC ACL corrections | `kxdfconqflveqeozanaw` | 2026-11-14T17:09:24.610Z | 76 | 59 | 66 | 55 / 56 |
 
 ## Interpretation
 
 - The archived 69 anon / 70 authenticated Staging aggregate corresponds to the public-schema database EXECUTE count before the ACL corrections. The fresh capture finds six additional private-schema routines callable by authenticated (60 public + 6 private = 66 total).
 - Each project capture contains eight trigger-returning functions. Their EXECUTE grants do not make them direct PostgREST RPC endpoints. Procedures are also excluded from the public function RPC candidate count.
 - Production currently has four anon EXECUTE routines in `public`, all trigger helpers or `set_updated_at()`, so none qualify as direct function RPC candidates. Effective authenticated EXECUTE applies to 56 public, non-trigger functions.
-- Before the worker ACL correction, Staging had 65 anon / 66 authenticated public function RPC candidates. The worker correction reduced this to 63 / 64; the approved legacy-write ACL correction then reduced this to 55 / 56. Security Advisor, observed at `2026-11-14T16:49:24.597Z`, independently confirms 55 anon-callable and 56 authenticated-callable SECURITY DEFINER endpoints via `/rest/v1/rpc/`. Body authorization still requires routine-by-routine review; EXECUTE alone does not prove an exploitable path.
+- Before the worker ACL correction, Staging had 65 anon / 66 authenticated public function RPC candidates. The worker correction reduced this to 63 / 64; the approved legacy-write ACL correction then reduced this to 55 / 56. Security Advisor, observed at `2026-11-14T17:12:39.577Z`, independently confirms 55 anon-callable and 56 authenticated-callable SECURITY DEFINER endpoints via `/rest/v1/rpc/`. Body authorization still requires routine-by-routine review; EXECUTE alone does not prove an exploitable path.
 - The current Staging catalog count is 55 PUBLIC / 55 anon / 56 authenticated on public non-trigger functions. The eight legacy write routines no longer grant EXECUTE to PUBLIC, anon, or authenticated; each retains service_role. The other 55 anon-callable functions still have PUBLIC and explicit anon EXECUTE, and all 56 authenticated-callable functions retain explicit authenticated EXECUTE. `is_admin()` is the one authenticated-only function among the remaining endpoints. Removing PUBLIC alone would not block anon on the remaining 55. Production remains 0 PUBLIC / 0 anon / 56 authenticated.
 - Supabase exposes configurable schemas. Therefore “RPC candidate” is conditional on `public` being in the project's exposed Data API schema list; this SQL capture does not read that external API configuration.
 - Captures are separate and sequential, not a transactionally synchronized cross-project snapshot. The two approved Staging ACL corrections changed grants on two worker routines and eight legacy write routines; no table data or Production permissions were changed.

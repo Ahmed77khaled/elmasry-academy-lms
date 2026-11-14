@@ -22,11 +22,12 @@
 12. `APPLICATION_RPC_USAGE.md` — Code search across `src/` mapping all RPC and view references with line numbers and snippets.
 13. `CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md` — Fresh read-only per-signature routine EXECUTE/schema-usage capture for Production and Staging; explicitly separates database privileges from conditional Data API RPC exposure.
 14. `STAGING_RPC_BODY_REVIEW.md` — Post-correction review of the current 55 anon / 56 authenticated SECURITY DEFINER endpoints in Staging, with evidence for the eight legacy-write ACL correction.
+15. `PHASE0_READONLY_CATALOG_CAPTURE_20261114.md` — Fresh 2026-11-14 SELECT-only cross-project evidence for routines, schema USAGE, relation/column ACLs, views, Cash Box FK/comments, default ACLs, and migration-ledger state.
 
 ## Key Engineering Takeaways for Reviewer
-1. **Zero Direct Table Access:** The frontend never queries tables directly via PostgREST; all operations go through `v2` RPCs.
-2. **Default ACLs:** `postgres` default privileges in `public` still grant `ALL` on future tables and `EXECUTE` on future functions to `anon`/`authenticated`. Remediation migration 1 is validated and required.
-3. **Multi-Currency Commingling:** Legacy financial views sum USD and EGP indiscriminately. Modifying views to filter EGP-only is safe because 0 v2 RPCs depend on them.
-4. **Cash Box USD Opening Balance Loophole:** `prevent_cash_box_mutation()` lacks protection for `opening_balance_usd`, permitting mutation. Remediation migration 3 is validated.
-5. **Migration Drift:** 20 local files vs 4 remote ledger entries. 15 applied-unregistered, 1 unapplied draft, 4 registered. Running `supabase db push` will crash.
-6. **Staging Availability:** There is NO staging environment. Production is the single source of truth; all remediations must be atomic and reversible.
+1. **Direct relation privileges:** Fresh Production and Staging captures show no direct `anon`/`authenticated` SELECT/INSERT/UPDATE/DELETE on the 16 public tables or four views. The app's data access is RPC-mediated.
+2. **Default ACLs:** Fresh Production `postgres` defaults in `public` still include `anon`/`authenticated` for tables, sequences, and functions. Staging `postgres` defaults are hardened to owner and `service_role`. Both projects separately retain broad `storage` defaults; no change is authorized or evidenced here.
+3. **RPC exposure:** The complete fresh inventory covers all 76 public/private routines per project and accounts for schema USAGE. Staging has 55 anon / 56 authenticated public non-trigger RPC candidates; the separate archived Production 70-row matrix is a SECURITY DEFINER subset, not the complete callable inventory.
+4. **Cash Box creator FK:** Production `cash_boxes.added_by` is `ON DELETE NO ACTION`, while Staging is `ON DELETE SET NULL`; Migration 008 requests `SET NULL`. Candidate 4 remains HOLD pending approved remediation and verification.
+5. **Migration ledger:** Production contains four recorded versions. Staging has no `supabase_migrations` schema or ledger relation. Current catalog evidence does not prove historical file execution; no ledger repair or `db push` is authorized.
+6. **Staging availability:** A Staging project exists (`kxdfconqflveqeozanaw`). The catalog capture is read-only; synthetic behavior tests and the rollback-only default-ACL probe remain unrun.

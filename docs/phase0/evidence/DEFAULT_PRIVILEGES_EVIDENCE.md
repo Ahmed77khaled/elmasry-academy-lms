@@ -78,6 +78,8 @@
 
 Target `kxdfconqflveqeozanaw`. This query read and expanded `pg_default_acl`; it created no objects and changed no privileges. The result matches a hardened `postgres` default for application objects:
 
+The latest cross-project capture at `2026-11-14T17:15:31.472Z` confirmed the comparison in [the full read-only catalog capture](PHASE0_READONLY_CATALOG_CAPTURE_20261114.md): Production `postgres` defaults in `public` still include `anon` and `authenticated` for tables, sequences, and functions; Staging `postgres` defaults include only owner and `service_role`. Both projects separately retain broad `storage` defaults. No defaults were changed, and the rollback-only object-creation probe remains unrun.
+
 | Schema | Object type | `postgres` default | `service_role` default | `anon` / `authenticated` / PUBLIC |
 |---|---|---|---|---|
 | global (`-`) | FUNCTION | EXECUTE for owner | None | No entries in captured global function ACL |
