@@ -23,7 +23,7 @@
 
 | Trigger Name | Status | Timing | Level | Trigger Definition |
 | --- | --- | --- | --- | --- |
-| trg_cash_boxes_archive_telegram_notification | ENABLED (origin/local) | AFTER | STATEMENT | CREATE TRIGGER trg_cash_boxes_archive_telegram_notification AFTER UPDATE OF is_active ON public.cash_boxes FOR EACH ROW WHEN (((old.is_active IS TRUE) AND (new.is_active IS FALSE))) EXECUTE FUNCTION private.route_financial_telegram_notification() |
+| trg_cash_boxes_archive_telegram_notification | ENABLED (origin/local) | AFTER | ROW | CREATE TRIGGER trg_cash_boxes_archive_telegram_notification AFTER UPDATE OF is_active ON public.cash_boxes FOR EACH ROW WHEN (((old.is_active IS TRUE) AND (new.is_active IS FALSE))) EXECUTE FUNCTION private.route_financial_telegram_notification() |
 | trg_cash_boxes_immutability | ENABLED (origin/local) | BEFORE | ROW | CREATE TRIGGER trg_cash_boxes_immutability BEFORE INSERT OR DELETE OR UPDATE ON public.cash_boxes FOR EACH ROW EXECUTE FUNCTION prevent_cash_box_mutation() |
 
 ## 4. Foreign Key & Constraint Behavior
@@ -132,3 +132,7 @@ END;
 
 $function$
 ```
+
+## 6. Current trigger-level cross-check (read-only, 2026-11-14)
+
+Fresh `pg_trigger` queries decoded `tgtype` and compared it with `pg_get_triggerdef()` on both Production (`urmkcixqpoqkiosihhal`) and Staging (`kxdfconqflveqeozanaw`). In both projects, `trg_cash_boxes_archive_telegram_notification` is enabled (`tgenabled='O'`), AFTER UPDATE OF `is_active`, **FOR EACH ROW** (`tgtype=17`, row bit set), with the expected active→inactive WHEN condition. Production also reports the cash-box immutability trigger enabled BEFORE ROW (`tgtype=31`). The archived `STATEMENT` label in section 3 was incorrect; the raw definition and trigger bits agree on ROW. These were SELECT-only catalog checks; no trigger or data was changed.

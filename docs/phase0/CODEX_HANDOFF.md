@@ -76,12 +76,12 @@ For every migration statement, classify the expected live effect as equivalent, 
 - Inspect existing CI workflows and run the local checks below.
 - Do not change the migration ledger or any Supabase environment.
 
-### P1 — Complete the existing RPC exposure/security inventory
-- Use `docs/phase0/validation/PHASE0_REMAINING_SECURITY_GAPS_READONLY.sql` and the existing evidence to build a routine-by-routine matrix.
-- For each public/private routine capture: signature, owner, SECURITY DEFINER/INVOKER, fixed search_path, effective EXECUTE for PUBLIC/anon/authenticated/service_role, implementation authorization boundary, table/data scope, application call site, and recommended minimum grant.
-- Reconcile the reported 69 anon-callable / 70 authenticated-callable public routines. Callable does not automatically mean vulnerable; analyze routine behavior and intended public access.
-- Separate trigger-only routines, safe self-scoped readers, permission-checked RBAC RPCs, legacy routes, and routines that should be unreachable.
-- Produce findings with evidence and confidence, not blanket revokes.
+### P1 — RPC exposure/security inventory (body inventory complete; remediation unresolved)
+- The current per-signature inventory is `docs/phase0/evidence/CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md`; Staging body classes, exact routine group membership, findings and recommended caller boundaries are in `docs/phase0/evidence/STAGING_RPC_BODY_REVIEW.md`.
+- The 69/70 historical aggregate was Staging and included a broader routine count; current post-correction Staging has 63 anon / 64 authenticated SECURITY DEFINER endpoints confirmed by Security Advisor.
+- An explicitly approved Staging-only ACL correction narrowed the two Telegram service-worker functions to service_role. No other grants were changed.
+- Eight legacy mutation RPCs remain authenticated-callable on Staging and only check `public.is_admin()`, whereas the app uses granular `rbac_*` endpoints. Assignable `academy_manager` and `finance_manager` roles lack some operations these legacy functions permit. No restricted admin is currently active and no mutation was tested. Review and agree on exact ACL/body remediation before any Staging mutation.
+- Do not blanket-revoke the remaining routines; preserve intentional authenticated app paths and service-role operations. Production remains read-only.
 
 ### P2 — Application auth regression review
 - Inspect `src/context/AuthContext.tsx`, `src/App.tsx`, all Supabase RPC call sites, and current role/permission UI gating.

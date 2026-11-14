@@ -2,6 +2,8 @@
 
 > **Target Supabase Project:** `urmkcixqpoqkiosihhal` (TrainerPro)  
 
+> **Evidence scope:** The tables below are the archived Production-era capture and must not be read as current Staging state. A separate read-only Staging `pg_default_acl` capture was obtained on 2026-11-14 after the previously approved Candidate 1 Staging change; the rollback-only strengthened object probe has not yet been run.
+
 ## 1. Executive Summary
 - In schema `public`, objects created by `postgres` or `supabase_admin` currently grant:
   * **TABLES (`r`):** `ALL` (`arwdDxtm`) to `anon`, `authenticated`, `postgres`, `service_role`.
@@ -71,3 +73,17 @@
 | 18243 | supabase_admin | cron | S | {postgres=r*w*U*/supabase_admin} |
 | 18241 | supabase_admin | cron | r | {postgres=a*r*w*d*D*x*t*m*/supabase_admin} |
 | 18242 | supabase_admin | cron | f | {postgres=X*/supabase_admin} |
+
+## 4. Current Staging `postgres` defaults — read-only catalog capture
+
+Target `kxdfconqflveqeozanaw`. This query read and expanded `pg_default_acl`; it created no objects and changed no privileges. The result matches a hardened `postgres` default for application objects:
+
+| Schema | Object type | `postgres` default | `service_role` default | `anon` / `authenticated` / PUBLIC |
+|---|---|---|---|---|
+| global (`-`) | FUNCTION | EXECUTE for owner | None | No entries in captured global function ACL |
+| `public` | TABLE | Owner privileges | All 8 captured table privileges | No entries |
+| `public` | SEQUENCE | SELECT, UPDATE, USAGE | SELECT, UPDATE, USAGE | No entries |
+| `public` | FUNCTION | EXECUTE for owner | EXECUTE | No entries |
+| `private` | all types | No schema-specific defaults | No schema-specific defaults | No entries; global function PUBLIC default is separately overridden as above |
+
+The capture also shows separate existing `postgres` schema defaults for `storage` that include `anon`, `authenticated`, and `service_role`; these platform/storage defaults are outside the application `public` remediation and were not changed. `supabase_admin` defaults remain outside the `postgres` candidate's authority. This catalog result is not a replacement for creating a new table/sequence/function under `postgres` and verifying effective ACLs. That cross-schema probe is prepared in `validation/PHASE0_STAGING_DEFAULT_ACL_PROBE.sql` and remains unexecuted pending operation-specific approval.

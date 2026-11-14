@@ -13,6 +13,7 @@
 - Each project capture contains eight trigger-returning functions. Their EXECUTE grants do not make them direct PostgREST RPC endpoints. Procedures are also excluded from the public function RPC candidate count.
 - Production currently has four anon EXECUTE routines in `public`, all trigger helpers or `set_updated_at()`, so none qualify as direct function RPC candidates. Effective authenticated EXECUTE applies to 56 public, non-trigger functions.
 - Before the approved ACL correction, Staging had 65 anon / 66 authenticated public function RPC candidates. After the correction, 63 / 64 remain. Supabase Security Advisor independently confirms 63 anon-callable and 64 authenticated-callable SECURITY DEFINER endpoints via `/rest/v1/rpc/`. EXECUTE is confirmed, but body authorization must still be reviewed before classifying a data-access vulnerability.
+- A fresh ACL expansion distinguishes PUBLIC from direct role grants for public non-trigger functions: Production has 0 PUBLIC / 0 anon / 56 authenticated; Staging has 63 PUBLIC / 63 anon / 64 authenticated. In Staging, all 63 anon-callable functions have both PUBLIC EXECUTE and an explicit `anon` EXECUTE ACL; all 64 authenticated-callable functions have an explicit `authenticated` EXECUTE ACL. `is_admin()` is the one authenticated-only function. Removing PUBLIC alone would not block anon; a least-privilege change must revoke both PUBLIC and anon on the 63 endpoints while preserving authenticated ACLs where intended. No such bulk ACL change has been approved or made.
 - Supabase exposes configurable schemas. Therefore “RPC candidate” is conditional on `public` being in the project's exposed Data API schema list; this SQL capture does not read that external API configuration.
 - Captures are separate and sequential, not a transactionally synchronized cross-project snapshot. The approved ACL correction changed only two Staging function grants; no table data or Production permissions were changed.
 
@@ -22,13 +23,15 @@
 
 | Group among 65 public non-trigger anon EXECUTE candidates before the fix | Count | Assessment |
 |---|---:|---|
-| Bodies contain recognizable `auth.uid()`, admin, or permission checks | 60 | Guard indicators found by source review; not a proof that every branch is safe. |
+| Bodies contain recognizable `auth.uid()`, admin, or permission checks | 60 | Guard indicators found by source review; 8 legacy write routines use only broad active-admin checks, not operation-specific RBAC. This is not proof every branch is safe. |
 | Compatibility wrappers delegate to v2 implementation | 3 | `rbac_course_financial_summary(uuid)`, `rbac_enroll_student(uuid,uuid,numeric,text)`, and `rbac_record_payment(uuid,uuid,numeric,date,text,text,text)`. Their callees enforce authorization; no separate unauthenticated invocation test was run. |
 | Service-worker routines have no caller identity check | 2 | `claim_telegram_notifications(integer,integer)` and `enqueue_admin_login_notification(uuid,text)` are SECURITY INVOKER but have effective anon EXECUTE in Staging. Both perform outbox/audit writes. |
 
 The last two routines had an **overbroad grant** before the fix. With the user's explicit approval, on Staging only we revoked EXECUTE from PUBLIC, anon, and authenticated and retained service_role. Independent post-commit SELECT verification now shows both ACL arrays as `{postgres=X/postgres,service_role=X/postgres}`, anon/authenticated/PUBLIC EXECUTE false, and service_role EXECUTE true. Neither function was invoked; no data rows changed. The Supabase Security Advisor confirms 63 remaining anon and 64 authenticated SECURITY DEFINER routines are reachable through `/rest/v1/rpc/`; this is a separate, unresolved body-by-body authorization review, not a blanket-revoke instruction.
 
 **Behavior test status:** grant assertions were executed without invoking either worker function. A service-role function behavior test remains unrun to avoid dequeuing or enqueuing notification work.
+
+**Follow-up classification:** the 63 remaining anon-callable and 64 authenticated-callable SECURITY DEFINER endpoints have now been classified by exact body guard and intended caller in [STAGING_RPC_BODY_REVIEW.md](STAGING_RPC_BODY_REVIEW.md). The eight broad active-admin legacy writes are an authorization-boundary concern; a restricted-admin exploit was not demonstrated on Staging, whose current aggregate has one active owner and one inactive superadmin.
 
 ## Per-routine effective privileges
 

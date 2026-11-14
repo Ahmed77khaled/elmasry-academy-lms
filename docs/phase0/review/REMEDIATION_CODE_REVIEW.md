@@ -129,7 +129,7 @@ No direct data rewrite is included.
 7. Verify arbitrary creator reassignment and hard deletion remain rejected.
 8. Confirm all existing cash-box triggers remain enabled and the archive Telegram notification still fires once per qualifying row.
 
-The trigger-level audit report has a metadata inconsistency: the archive trigger summary calls it AFTER STATEMENT, while its own `pg_get_triggerdef` text says `FOR EACH ROW`. The raw trigger catalog query must settle this before staging sign-off. The proposed migration does not alter that archive trigger.
+The trigger-level audit report had a metadata inconsistency: the archive trigger summary called it AFTER STATEMENT, while its own `pg_get_triggerdef` text said `FOR EACH ROW`. **Resolved 2026-11-14:** fresh Production and Staging `tgtype=17` and trigger definitions confirm AFTER UPDATE OF `is_active` FOR EACH ROW; the summary's STATEMENT label was wrong. The proposed migration does not alter that archive trigger.
 
 ## 4. Legacy financial views — `20261113190300`
 

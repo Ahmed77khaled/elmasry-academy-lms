@@ -55,7 +55,7 @@
 
 - لم تتم تسوية Migration Ledger؛ تصنيف بعض الملفات متناقض، ووجود Function أو Table لا يثبت أن كامل Migration طُبق.
 - لم يكتمل تدقيق كل دوال `SECURITY INVOKER` وACLs وRLS وسياسات الـSchemas. يوجد استعلام لجمع الدليل في مجلد `validation`.
-- تعارض وصف Trigger الإشعارات بين `STATEMENT` و`FOR EACH ROW` يحتاج قراءة `tgtype` الخام؛ الحزمة لا تغيّر هذا التريجر.
+- تعارض وصف Trigger الإشعارات بين `STATEMENT` و`FOR EACH ROW` **حُسم في 14 نوفمبر 2026**: قراءة `tgtype=17` وتعريف التريجر في Production وStaging يؤكدان `AFTER UPDATE ... FOR EACH ROW`. وصف `STATEMENT` القديم كان خطأ، ولم يتغير التريجر.
 - لا يوجد Staging حسب التقرير، ولذلك لا توجد نتائج اختبار تنفيذ فعلية.
 - لم أعدّل `AuthContext.tsx` أو بقية التطبيق؛ ملفات المصدر الفعلية غير موجودة في حزمة الأدلة. إصلاح `is_admin()` في قاعدة البيانات يعالج مصدر حالة Admin الذي يستدعيه التطبيق، لكنه لا يغني عن اختبار تدفق AuthContext.
 

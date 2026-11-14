@@ -21,6 +21,7 @@
 11. `MIGRATION_RECONCILIATION.md` — Complete file-by-file database evidence classification (Fully Applied, Draft, etc.) for all 20 local migrations.
 12. `APPLICATION_RPC_USAGE.md` — Code search across `src/` mapping all RPC and view references with line numbers and snippets.
 13. `CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md` — Fresh read-only per-signature routine EXECUTE/schema-usage capture for Production and Staging; explicitly separates database privileges from conditional Data API RPC exposure.
+14. `STAGING_RPC_BODY_REVIEW.md` — Post-correction review of all 63 anon / 64 authenticated SECURITY DEFINER endpoints in Staging, including the eight broad active-admin legacy mutation RPCs.
 
 ## Key Engineering Takeaways for Reviewer
 1. **Zero Direct Table Access:** The frontend never queries tables directly via PostgREST; all operations go through `v2` RPCs.

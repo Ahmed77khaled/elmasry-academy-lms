@@ -61,7 +61,7 @@ Run `validation/PHASE0_STAGING_DEFAULT_ACL_PROBE.sql` on Staging only. It create
 
 ### D1. Strengthened cross-schema coverage (prepared, not executed)
 
-Use the current strengthened probe, not the reduced historical probe. In the same rollback-only session, create a uniquely named function in each relevant schema (at minimum `public` and `private`; include other application schemas exposed to PostgREST if any) as `postgres`. Before rollback capture effective EXECUTE for `PUBLIC`, `anon`, `authenticated`, and `service_role`, the function owner, `proconfig` search path and exploded `pg_default_acl` entries. Confirm all expected denials and documented service-role privileges, then verify all probe objects are absent after rollback. This validates schema-wide defaults independently of table/sequence checks.
+The current `validation/PHASE0_STAGING_DEFAULT_ACL_PROBE.sql` retains the public table/sequence/function checks and adds a `private`-schema function to test the global PUBLIC EXECUTE default outside `public`. It checks effective EXECUTE for `anon`/`authenticated`/`service_role`, explodes both function ACLs (including PUBLIC), asserts no anon/authenticated/PUBLIC EXECUTE on either, and ends with a SELECT-only cleanup check after ROLLBACK. A read-only Staging catalog capture now shows no `private` schema-specific defaults and no global PUBLIC function entry; the probe has not run, so effective ACL on a newly created private function remains unverified. `storage` has separate platform defaults including API roles and is intentionally excluded from this application probe; do not change those defaults based on this evidence alone.
 
 Do not run this probe in Production.
 
@@ -118,6 +118,12 @@ GRANT EXECUTE ON FUNCTION public.enqueue_admin_login_notification(uuid, text)
 ```
 
 Keep service_role grants. Production had no anon-executable public non-trigger function candidate in the fresh capture; no Production change was made.
+
+### E2. Legacy admin RPC vs RBAC boundary (prepared, not executed)
+
+Staging body review found eight authenticated-callable legacy write RPCs guarded only by `public.is_admin()`. The assignable `academy_manager` and `finance_manager` roles lack permissions that those legacy routines would permit. Staging currently has one active owner and one inactive superadmin, so there is no active restricted account to use as a negative-test identity. **Do not call these legacy mutation RPCs before their ACL/body boundary is corrected**: current bodies may commit the unauthorized write.
+
+After a separately approved Staging-only remediation, use a synthetic active test admin with `academy_manager` and confirm finance write operations are denied; use a synthetic active `finance_manager` and confirm student/course creation operations are denied. Test the affected RBAC RPC as a control. Run only with disposable course/enrollment/cash-box fixtures in a rollback transaction, inspect all audit/outbox effects before rollback, and never invoke notification dispatchers. Capture the role permission set, exact RPC signature and response/SQLSTATE, before/after fixture snapshots, and evidence that rollback removed test rows. Do not use real administrator identities or the historically exposed disposable-account passwords.
 
 ## Approval rule
 
