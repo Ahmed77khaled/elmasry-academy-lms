@@ -55,33 +55,33 @@ The inventory and live audit must be treated as separate sources. In particular,
 
 ### Remaining `UNVERIFIABLE` statement load by snapshot
 
-The current 641-row statement matrix contains 230 `UNVERIFIABLE` rows after matching current Production routine ACLs/comments, the retained full current policy result, and exact routine comments against the statements they can inform. These are current-state comparisons, not proof of migration execution. This breakdown is a prioritization aid only:
+The current 641-row statement matrix contains 218 `UNVERIFIABLE` rows after matching current Production routine ACLs/comments, current policies, routine comments/search paths, index catalog results, and exact routine-signature inventory against the statements they can inform. These are current-state comparisons, not proof of migration execution. This breakdown is a prioritization aid only:
 
 | Snapshot | Statements | `UNVERIFIABLE` |
 |---|---:|---:|
-| `20261015024100_001_create_core_tables.sql` | 79 | 16 |
+| `20261015024100_001_create_core_tables.sql` | 79 | 14 |
 | `20261015024134_002_create_database_views.sql` | 4 | 4 |
-| `20261015024155_003_create_rpc_functions.sql` | 10 | 5 |
+| `20261015024155_003_create_rpc_functions.sql` | 10 | 4 |
 | `20261015024209_004_fix_constraint_and_seed.sql` | 3 | 3 |
-| `202610210005_production_hardening.sql` | 68 | 38 |
+| `202610210005_production_hardening.sql` | 68 | 33 |
 | `202610210006_security_and_authorization_hardening.sql` | 56 | 36 |
 | `202610210007_purge_legacy_rls_and_revoke_public.sql` | 35 | 20 |
 | `202610210008_protect_cash_boxes_opening_balance.sql` | 17 | 2 |
 | `20261021171218_allow_cash_box_creator_nullification_on_auth_delete.sql` | 5 | 0 |
 | `20261021214608_add_login_alert_dedupe.sql` | 8 | 5 |
-| `20261021223822_rbac_catalog_and_authorization_primitives.sql` | 46 | 25 |
+| `20261021223822_rbac_catalog_and_authorization_primitives.sql` | 46 | 24 |
 | `20261021224440_rbac_role_aware_data_endpoints.sql` | 44 | 2 |
 | `20261021224905_rbac_permission_checked_write_endpoints.sql` | 73 | 3 |
 | `20261022225500_rbac_multiple_platform_owners.sql` | 14 | 2 |
 | `20261022230000_rbac_authorization_cutover.sql` | 13 | 5 |
-| `20261023090000_branding_and_admin_avatars.sql` | 36 | 23 |
+| `20261023090000_branding_and_admin_avatars.sql` | 36 | 20 |
 | `20261023100000_platform_audit_and_telegram_outbox.sql` | 48 | 24 |
 | `20261023110000_telegram_notification_language.sql` | 17 | 9 |
 | `20261030120000_student_profile_directory_v2.sql` | 13 | 2 |
 | `20261030130000_course_enrollment_currency_v2.sql` | 52 | 6 |
-| **Total** | **641** | **230** |
+| **Total** | **641** | **218** |
 
-The largest remaining batches are Production hardening (38), authorization hardening (36), platform audit/outbox (24), RBAC catalog/authorization primitives (25), legacy branding (23), RLS purge/revokes (20), and the core-table snapshot (16). Keep statement-level classifications tied to exact retained evidence; use these counts only to sequence review.
+The largest remaining batches are 202610210006_security_and_authorization_hardening.sql (36), 202610210005_production_hardening.sql (33), 20261021223822_rbac_catalog_and_authorization_primitives.sql (24), 20261023100000_platform_audit_and_telegram_outbox.sql (24), 202610210007_purge_legacy_rls_and_revoke_public.sql (20), 20261023090000_branding_and_admin_avatars.sql (20), 20261015024100_001_create_core_tables.sql (14). Keep statement-level classifications tied to exact retained evidence; use these counts only to sequence review.
 
 ## 3. Why blanket migration repair is unsafe
 
