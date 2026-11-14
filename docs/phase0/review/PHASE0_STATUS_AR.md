@@ -17,11 +17,11 @@
 
 **تحديث محلي إضافي:** أُصلح مسار رفض/فشل طلب تسجيل الدخول كي يعود النموذج لحالة قابلة لإعادة المحاولة برسالة عامة، وأُضيفت إعادة محاولة عند تعذر تحميل الصلاحيات مع استمرار حجب المحتوى المحمي. اختبارات `typecheck` و`lint` و`build` و`test` و`test:telegram` نجحت. كما فُصل توثيق `cash_boxes.added_by` حسب البيئة: Production = `NO ACTION`، ونتيجة Staging المحفوظة في العملية 91 = `SET NULL`. لم تُنفذ أي عملية جديدة على Supabase.
 
-**تحديث أدلة القراءة فقط (14 نوفمبر):** جردت القراءة الحديثة 76 routine بكل مشروع مع احتساب `USAGE` للـschema، وأكدت عدم وجود صلاحيات مباشرة لـ`anon`/`authenticated` على 16 جدولًا و4 views. Production لديه 4 إصدارات في سجل migrations؛ Staging لا يحتوي schema أو جدول السجل. مصفوفة الـ641 statement أصبحت: 136 `UNVERIFIABLE`، و33 `NOT APPLICABLE`، و48 `ABSENT`، و382 `EQUIVALENT` للحالة الحالية، و42 `DIFFERENT`. وفي Candidate 4، ثبت من تعريفات الدوال في المشروعين أن wrapper الملخص يستدعي v2، وأن v2 لا يقرأ الـviews القديمة؛ يظل تأكيد معنى العملة والمستهلكين الخارجيين مطلوبًا. التفاصيل في [التقاط الكتالوج](../evidence/PHASE0_READONLY_CATALOG_CAPTURE_20261114.md).
+**تحديث أدلة القراءة فقط (14 نوفمبر):** جردت القراءة الحديثة 76 routine بكل مشروع مع احتساب `USAGE` للـschema، وأكدت عدم وجود صلاحيات مباشرة لـ`anon`/`authenticated` على 16 جدولًا و4 views. Production لديه 4 إصدارات في سجل migrations؛ Staging لا يحتوي schema أو جدول السجل. بعد مقارنة تعريفات الدوال والكتالوجات الإضافية، مصفوفة الـ641 statement هي: 31 `UNVERIFIABLE`، و34 `NOT APPLICABLE`، و61 `ABSENT`، و455 `EQUIVALENT` للحالة الحالية، و60 `DIFFERENT`. وتتضمن الفروق صراحةً `cash_boxes.added_by`: Production لديه `ON DELETE NO ACTION` مقابل `SET NULL` في Migration 008. وفي Candidate 4، ثبت من تعريفات الدوال في المشروعين أن wrapper الملخص يستدعي v2، وأن v2 لا يقرأ الـviews القديمة؛ يظل تأكيد معنى العملة والمستهلكين الخارجيين مطلوبًا. التفاصيل في [التقاط الكتالوج](../evidence/PHASE0_READONLY_CATALOG_CAPTURE_20261114.md) و[تقرير المصالحة](../evidence/MIGRATION_RECONCILIATION.md).
 
 **تحديث اختبارات Staging بعد موافقة محددة (14 نوفمبر):** على Staging فقط (`kxdfconqflveqeozanaw`)، نجحت 26 حالة Cash Box وRBAC و`is_admin` داخل fixtures متراجعة، مع تأكيد عدم إرسال إشعار وبقاء outbox غير مرسل. نجح أيضًا probe الامتيازات المقوّى عبر assertions ثم أظهر فحص التنظيف إزالة الجدول والتسلسل والدالتين. فحص SELECT مستقل أكد بقاء حسابات الاختبار الأربعة وعدم بقاء fixture rows أو أحداث/outbox مرتبطة بها. لا تغييرات دائمة على schema أو ACL، ولا أي عملية Production. النتائج التفصيلية في [خطة اختبارات Staging](STAGING_TEST_PLAN.md) و[تقرير النتائج](../evidence/STAGING_APPROVED_TEST_RESULTS_20261114.md).
 
-**حالة المرحلة:** اختبارات السلوك وprobe الامتيازات المصرّح بهما نجحا، لكن Phase 0 لم تُغلق بعد: 136 من 641 statement ما زالت `UNVERIFIABLE`، وCandidate 4 على HOLD بانتظار اعتماد معنى العملة ومراجعة المستهلكين الخارجيين، واختبارات React/Supabase الحية لتدفق AuthContext غير منفذة. لا يوجد تصريح بتغييرات Production أو إصلاح migration ledger.
+**حالة المرحلة:** اختبارات السلوك وprobe الامتيازات المصرّح بهما نجحا، لكن Phase 0 لم تُغلق بعد: 31 من 641 statement ما زالت `UNVERIFIABLE` لأسباب أدلة موضحة (ستة آثار بيانات تاريخية، 24 خطوة DDL وسيطة، وإشعار واحد)، وCandidate 4 على HOLD بانتظار اعتماد معنى العملة ومراجعة المستهلكين الخارجيين، واختبارات React/Supabase الحية لتدفق AuthContext غير منفذة. لا يوجد تصريح بتغييرات Production أو إصلاح migration ledger.
 
 ## قرارات Supabase
 
@@ -49,7 +49,7 @@
 2. اكتملت مراجعة تدفق `AuthContext` وإصلاحات التعافي المحلية؛ اختبارات React/Supabase المتكاملة وتسجيل الدخول الحي ما زالت غير منفذة.
 3. نجحت حالات Cash Box والـoutbox المعتمدة، وتأكد rollback وعدم إرسال dispatcher. تحقق تفاصيلها في `STAGING_TEST_PLAN.md`.
 4. نجح ACL probe المقوّى على Staging وتأكدت إزالة عناصر الاختبار الأربعة.
-5. مصفوفة statement-level جاهزة لـ641 سطرًا؛ 136 ما زالت `UNVERIFIABLE`. Production لديه 4 ledger rows وStaging ليس لديه schema/جدول ledger؛ لا يوجد أي إذن لإصلاح السجل.
+5. مصفوفة statement-level جاهزة لـ641 سطرًا؛ 31 ما زالت `UNVERIFIABLE` ومفصلة في تقرير المصالحة. Production لديه 4 ledger rows وStaging ليس لديه schema/جدول ledger؛ لا يوجد أي إذن لإصلاح السجل.
 6. Candidate 4: تعارض اعتماد الـRPC حُسم بالقراءة الحديثة، لكن تأكيد معنى EGP/USD للمصروفات والتحويلات ومراجعة المستهلكين الخارجيين ما زالا مطلوبين؛ يظل HOLD.
 
 ## ممنوع

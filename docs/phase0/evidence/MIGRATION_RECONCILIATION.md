@@ -55,33 +55,46 @@ The inventory and live audit must be treated as separate sources. In particular,
 
 ### Remaining `UNVERIFIABLE` statement load by snapshot
 
-The current 641-row statement matrix contains 136 `UNVERIFIABLE` rows after exact current-state comparisons for routine ACLs/comments, policies, search paths, indexes, routine signatures, core table/view definitions, RLS flags, and captured column/comment/constraint properties. These are current-state comparisons, not proof of migration execution. This breakdown is a prioritization aid only:
+The current 641-row statement matrix contains 31 `UNVERIFIABLE` rows after exact current-state comparisons for routine ACLs/bodies/comments, policies, search paths, indexes, routine signatures, views, core table definitions, RLS flags, and captured column/comment/constraint/sequence/Storage metadata. These are current-state comparisons, not proof of migration execution. This breakdown is a prioritization aid only:
 
 | Snapshot | Statements | `UNVERIFIABLE` |
 |---|---:|---:|
-| `20261015024100_001_create_core_tables.sql` | 79 | 1 |
+| `20261015024100_001_create_core_tables.sql` | 79 | 0 |
 | `20261015024134_002_create_database_views.sql` | 4 | 0 |
-| `20261015024155_003_create_rpc_functions.sql` | 10 | 4 |
-| `20261015024209_004_fix_constraint_and_seed.sql` | 3 | 3 |
-| `202610210005_production_hardening.sql` | 68 | 29 |
-| `202610210006_security_and_authorization_hardening.sql` | 56 | 20 |
-| `202610210007_purge_legacy_rls_and_revoke_public.sql` | 35 | 4 |
-| `202610210008_protect_cash_boxes_opening_balance.sql` | 17 | 2 |
+| `20261015024155_003_create_rpc_functions.sql` | 10 | 0 |
+| `20261015024209_004_fix_constraint_and_seed.sql` | 3 | 1 |
+| `202610210005_production_hardening.sql` | 68 | 11 |
+| `202610210006_security_and_authorization_hardening.sql` | 56 | 4 |
+| `202610210007_purge_legacy_rls_and_revoke_public.sql` | 35 | 2 |
+| `202610210008_protect_cash_boxes_opening_balance.sql` | 17 | 1 |
 | `20261021171218_allow_cash_box_creator_nullification_on_auth_delete.sql` | 5 | 0 |
-| `20261021214608_add_login_alert_dedupe.sql` | 8 | 3 |
-| `20261021223822_rbac_catalog_and_authorization_primitives.sql` | 46 | 13 |
-| `20261021224440_rbac_role_aware_data_endpoints.sql` | 44 | 2 |
-| `20261021224905_rbac_permission_checked_write_endpoints.sql` | 73 | 3 |
-| `20261022225500_rbac_multiple_platform_owners.sql` | 14 | 2 |
-| `20261022230000_rbac_authorization_cutover.sql` | 13 | 5 |
-| `20261023090000_branding_and_admin_avatars.sql` | 36 | 20 |
-| `20261023100000_platform_audit_and_telegram_outbox.sql` | 48 | 18 |
-| `20261023110000_telegram_notification_language.sql` | 17 | 6 |
+| `20261021214608_add_login_alert_dedupe.sql` | 8 | 0 |
+| `20261021223822_rbac_catalog_and_authorization_primitives.sql` | 46 | 0 |
+| `20261021224440_rbac_role_aware_data_endpoints.sql` | 44 | 0 |
+| `20261021224905_rbac_permission_checked_write_endpoints.sql` | 73 | 0 |
+| `20261022225500_rbac_multiple_platform_owners.sql` | 14 | 1 |
+| `20261022230000_rbac_authorization_cutover.sql` | 13 | 0 |
+| `20261023090000_branding_and_admin_avatars.sql` | 36 | 1 |
+| `20261023100000_platform_audit_and_telegram_outbox.sql` | 48 | 8 |
+| `20261023110000_telegram_notification_language.sql` | 17 | 2 |
 | `20261030120000_student_profile_directory_v2.sql` | 13 | 1 |
 | `20261030130000_course_enrollment_currency_v2.sql` | 52 | 0 |
-| **Total** | **641** | **136** |
+| **Total** | **641** | **31** |
 
-The largest remaining batches are 202610210005_production_hardening.sql (29), 202610210006_security_and_authorization_hardening.sql (20), 20261023090000_branding_and_admin_avatars.sql (20), 20261023100000_platform_audit_and_telegram_outbox.sql (18), and 20261021223822_rbac_catalog_and_authorization_primitives.sql (13). Keep statement-level classifications tied to exact retained evidence; use these counts only to sequence review.
+The largest remaining batch is 202610210005_production_hardening.sql (11); the next are 20261023100000_platform_audit_and_telegram_outbox.sql (7) and 202610210006_security_and_authorization_hardening.sql (4). Three snapshots have two each: 202610210007_purge_legacy_rls_and_revoke_public.sql, 20261023110000_telegram_notification_language.sql, and 20261030120000_student_profile_directory_v2.sql. Keep statement-level classifications tied to exact retained evidence; use these counts only to sequence review.
+
+### Why the final 31 statements remain unverifiable
+
+The remaining statements fall into three evidence-limited groups:
+
+| Group | Count | Why current catalog evidence cannot settle it |
+|---|---:|---|
+| Data-bearing statements | 6 | They seed Cash Box/settings rows, backfill payment receipt numbers and void reasons, or initialize the receipt sequence from application data. The approved capture scope did not include application-row reads or sequence state, and historical values cannot be reconstructed from object definitions alone. |
+| Transient/intermediate statements | 24 | These drop triggers, functions, a view, or a constraint, or run a dynamic policy purge. Later statements recreate or replace objects, so the current final catalog cannot prove whether the intermediate DROP ran or what it affected at that time. |
+| Operational notification | 1 | `NOTIFY pgrst, 'reload schema'` leaves no durable catalog record proving that the event was delivered historically. |
+| **Total** | **31** | **No safe inference from current-state metadata alone.** |
+
+Do not read Production application rows, replay migrations, or update the ledger to reduce this count. Reassessment requires an explicitly approved, privacy-bounded data-evidence plan for the six data statements and trustworthy historical migration/query logs for transient and notification statements. Even then, a current-state match is not proof of the exact historical file content that ran.
 
 ## 3. Why blanket migration repair is unsafe
 
