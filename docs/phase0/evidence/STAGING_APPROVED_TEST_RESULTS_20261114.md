@@ -47,4 +47,4 @@ The SQL tool returned only the final SELECT result set, not the intermediate ACL
 - These tests validate current Staging behavior, not Production behavior or migration execution history.
 - `AuthContext` mounted React/Supabase behavior, live sign-in, and refresh semantics were not tested.
 - Legacy `service_role`-only RPCs were not invoked; external consumers beyond the read-only REST log window remain unverified.
-- The test suite does not resolve the 204 `UNVERIFIABLE` migration statements or Candidate 4's business currency contract. Candidate 4 remains HOLD.
+- The test suite does not resolve the 136 `UNVERIFIABLE` migration statements or Candidate 4's business currency contract. Candidate 4 remains HOLD.
