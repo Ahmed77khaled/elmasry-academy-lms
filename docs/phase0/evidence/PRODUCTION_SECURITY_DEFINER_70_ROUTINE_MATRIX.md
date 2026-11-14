@@ -1,6 +1,6 @@
-# Production SECURITY DEFINER Routine Matrix — Archived Evidence
+# Production SECURITY DEFINER 70-Routine Matrix — Archived Evidence
 
-**Scope:** 70 routines listed in archived Production SECURITY DEFINER inventory; not the Staging 69/70 aggregate. Values below are historical evidence, not a fresh live query. Function body/source details are in `ALL_70_SECURITY_DEFINER_FUNCTIONS.md`. This file is only the archived Production SECURITY DEFINER routine matrix. It is not a complete callable-routine inventory: it does not enumerate non-SECURITY DEFINER routines or represent Staging.
+**Scope & Boundary:** Strictly the 70 routines listed in the archived Production SECURITY DEFINER inventory (`ALL_70_SECURITY_DEFINER_FUNCTIONS.md` and table 1 of `PHASE0_RPC_SECURITY_DEFINER_SOURCE_EVIDENCE.md`). Values below are historical evidence from Production, not a fresh live query. Function body/source details are in `ALL_70_SECURITY_DEFINER_FUNCTIONS.md`. This file is only the archived Production SECURITY DEFINER 70-routine matrix. It is not an exhaustive callable-routine inventory: it does not enumerate non-SECURITY DEFINER routines or represent Staging's 69/70 aggregate. Do not infer anon exposure from the Staging aggregate.
 
 | Schema | Signature | Definer | Owner | Fixed search_path | anon EXECUTE | authenticated EXECUTE | service_role EXECUTE | PUBLIC EXECUTE | Class / intended access |
 |---|---|---:|---|---|---:|---:|---:|---:|---|

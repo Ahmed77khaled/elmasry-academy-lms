@@ -6,7 +6,7 @@
 
 | Evidence set | Environment / scope | Rows or names | What it establishes | What it does not establish |
 |---|---|---:|---|---|
-| `PRODUCTION_SECURITY_DEFINER_ROUTINE_MATRIX.md` and `ALL_70_SECURITY_DEFINER_FUNCTIONS.md` | Archived Production SECURITY DEFINER extraction | 70 exact signatures | Archived owner, fixed search path, definer mode, and effective EXECUTE for anon/authenticated/service_role/PUBLIC; function bodies are in the source evidence | Non-SECURITY DEFINER routines or a complete set of everything currently callable |
+| [`PRODUCTION_SECURITY_DEFINER_70_ROUTINE_MATRIX.md`](PRODUCTION_SECURITY_DEFINER_70_ROUTINE_MATRIX.md) and `ALL_70_SECURITY_DEFINER_FUNCTIONS.md` | Archived Production SECURITY DEFINER extraction | 70 exact signatures | Archived owner, fixed search path, definer mode, and effective EXECUTE for anon/authenticated/service_role/PUBLIC; function bodies are in the source evidence | Non-SECURITY DEFINER routines or a complete set of everything currently callable |
 | Raw log operations 101–102 | Staging, `public` schema | Aggregate 69 anon / 70 authenticated | The captured aggregate from the historical Staging query | The row output from operation 101 is missing; operation 102 has no `prokind` filter; cannot identify the 69/70 routines or infer Production privileges |
 | Repository migrations | Historical active snapshots and drafts | 78 distinct CREATE FUNCTION names found by source scan | Additional known local routine definitions and intended ACL statements | Proof a migration ran or current live existence/grants |
 | `src/` `.rpc(...)` call sites | Current application source | 43 distinct RPC names | Client call intent and locations | Live routine existence/ACL or server authorization correctness |
