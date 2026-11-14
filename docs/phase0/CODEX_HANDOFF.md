@@ -84,19 +84,21 @@ For every migration statement, classify the expected live effect as equivalent, 
 - Do not blanket-revoke the remaining routines; preserve intentional authenticated app paths and service-role operations. Production remains read-only.
 
 ### P2 — Application auth regression review
-- Inspect `src/context/AuthContext.tsx`, `src/App.tsx`, all Supabase RPC call sites, and current role/permission UI gating.
-- Propose and add focused tests for sign-in, auth-state refresh, logout, inactive admin, non-admin, and expired-session behavior where feasible.
+- Source review is recorded in `docs/phase0/evidence/APPLICATION_AUTHORIZATION_FLOW_REVIEW.md`.
+- The request-epoch guard and four unit tests cover stale async auth results. Sign-in request rejection now clears loading and shows a generic retryable message; failed authorization loading remains blocked and offers retry/sign-out.
+- No mounted React/Supabase integration tests or live sign-in were run. Add those only with an approved test harness and fresh disposable Staging identities.
 - Do not change role semantics without documenting affected routes and RPCs.
 
 ### P3 — Cash-box and notification test completeness
-- Prepare reproducible Staging-only test scripts for the gaps in `STAGING_TEST_PLAN.md`: approved archive RPC, negative/over-limit insert validation, direct hard-delete rejection, creator reassignment rejection, Auth user deletion behavior, and Telegram outbox side effects.
+- The missing Cash Box cases are prepared in `docs/phase0/review/STAGING_TEST_PLAN.md` §B1; legacy-admin/RBAC negative cases are prepared in §E2. Neither section has been executed.
+- Execution requires separate operation-specific Staging approval and immediate project-ref verification. Use outbox-only checks; never dispatch live Telegram/email/webhook notifications.
 - Use synthetic identities only. Four disposable Staging Auth accounts (`a0000000-0000-0000-0000-000000000001` through `...0004`, `example.invalid`) were created during the previous tests. Their fixed passwords were redacted from the current raw log, but older Git commits contained those values. Treat their credentials as exposed. Before further interactive Staging login tests, reset or delete/recreate those synthetic accounts on Staging only, after explicit user authorization and fresh target-ref verification. Never touch Production identities.
 - Do not run any test that sends live Telegram/email/webhook notifications. Use outbox-only or mocked dispatch paths.
 
 ### P4 — Migration and currency reconciliation
-- Build the migration statement matrix from the 20 archived source snapshots and the 4 ledger rows.
+- The 641-statement matrix is built from the 20 archived snapshots; 452 rows remain `UNVERIFIABLE`. Migration 008's Production `NO ACTION` versus declared `SET NULL` is explicitly classified as `DIFFERENT`. Do not repair the migration ledger.
 - Investigate the `rbac_course_financial_summary` dependency discrepancy with exact function definitions/catalog dependency data.
-- Inspect UI and external consumers of legacy financial views. Candidate 4 remains HOLD until EGP/USD semantics and the expense/transfer convention are confirmed.
+- UI consumers have been reviewed; Candidate 4 remains HOLD until live dependency evidence and business confirmation of EGP/USD and expense/transfer conventions are available.
 
 ## 7. Local code checks
 
