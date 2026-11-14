@@ -45,9 +45,9 @@ Use these conservative classifications instead:
 | 20261022230000 | Yes | Ledger row present; local inventory flags file as Draft Only | LEDGER-RECORDED — VERIFY HISTORICAL CONTENT AND DRAFT MARKER |
 | 20261023090000 | No | File explicitly says Draft Only; `public.academy_branding` is reported absent. The statement matrix marks the five table-specific create/seed/RLS/ACL effects absent; other bucket, policy, and function statements remain individually unverified. | DRAFT; TABLE EFFECTS ABSENT, FULL FILE NOT PROVEN APPLIED |
 | 20261023100000 | No | Audit reports audit/outbox tables and rows exist; local inventory flags file as Draft Only | UNKNOWN — DRAFT MARKER CONFLICTS WITH LIVE OBJECT |
-| 20261023110000 | Yes | Ledger row and language RPC reported present | LEDGER-RECORDED; verify function body/grants |
-| 20261030120000 | Yes | Ledger row and student profile columns reported present | LEDGER-RECORDED; verify function bodies/grants and exact snapshot |
-| 20261030130000 | No | Currency columns, v2 functions, and constraints reported present | OBJECTS REPORTED PRESENT; FULL FILE APPLICATION AND LEDGER RECORD NOT PROVEN |
+| 20261023110000 | Yes | Ledger row present; both Telegram language RPC definitions and their effective anon/authenticated execution outcomes match the archived statements; table/data/RLS/grants, audit constraint, and comment are not fully evidenced | PARTIAL EFFECT EQUIVALENCE; LEDGER PRESENT; FULL FILE PROOF INCOMPLETE |
+| 20261030120000 | Yes | Ledger row present; all three student v2 function definitions and six effective grant/revoke outcomes match the archived statements; profile column properties and schema notification are not fully evidenced | PARTIAL EFFECT EQUIVALENCE; LEDGER PRESENT; FULL FILE PROOF INCOMPLETE |
+| 20261030130000 | No | Captured Production schema matches the two text currency-column effects and four named currency CHECK definitions; numeric typmods, constraint validation state, RPC bodies/grants, and remaining statements are not fully reconciled | PARTIAL EFFECT EQUIVALENCE; LEDGER ABSENT; FULL FILE APPLICATION NOT PROVEN |
 
 The inventory and live audit must be treated as separate sources. In particular, “Draft Only” comments in local files that also have ledger rows or related live objects need provenance investigation; do not silently resolve the conflict.
 
