@@ -73,6 +73,52 @@ Do not run this probe in Production.
 4. Confirm every exposed SECURITY DEFINER endpoint enforces the correct permission or ownership boundary.
 5. Run the complete app test suite, then `npm run typecheck`, `npm run lint`, and `npm run build` against the same source branch that will be released.
 
+### E1. Staging service-worker RPC grants (prepared, not executed)
+
+Fresh read-only evidence found PUBLIC/anon/authenticated EXECUTE on two SECURITY INVOKER service-worker routines in Staging: `public.claim_telegram_notifications(integer,integer)` and `public.enqueue_admin_login_notification(uuid,text)`. Their intended caller is `service_role`. Anon has no table privileges on the routines' outbox/audit targets, so an unauthorized write was not demonstrated. Do not invoke either function during the grant test because they mutate notification state.
+
+Target: `kxdfconqflveqeozanaw` (`trainerpro-phase0-staging`). Verify this exact ref immediately before any execution. The proposed narrow transaction is:
+
+```sql
+BEGIN;
+REVOKE EXECUTE ON FUNCTION public.claim_telegram_notifications(integer, integer)
+  FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.enqueue_admin_login_notification(uuid, text)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_telegram_notifications(integer, integer)
+  TO service_role;
+GRANT EXECUTE ON FUNCTION public.enqueue_admin_login_notification(uuid, text)
+  TO service_role;
+SELECT
+  has_function_privilege('anon', 'public.claim_telegram_notifications(integer,integer)', 'EXECUTE') AS anon_claim,
+  has_function_privilege('authenticated', 'public.claim_telegram_notifications(integer,integer)', 'EXECUTE') AS auth_claim,
+  has_function_privilege('service_role', 'public.claim_telegram_notifications(integer,integer)', 'EXECUTE') AS service_claim,
+  has_function_privilege('anon', 'public.enqueue_admin_login_notification(uuid,text)', 'EXECUTE') AS anon_enqueue,
+  has_function_privilege('authenticated', 'public.enqueue_admin_login_notification(uuid,text)', 'EXECUTE') AS auth_enqueue,
+  has_function_privilege('service_role', 'public.enqueue_admin_login_notification(uuid,text)', 'EXECUTE') AS service_enqueue;
+SELECT p.oid::regprocedure AS signature,
+       COALESCE(bool_or(a.grantee = 0 AND a.privilege_type = 'EXECUTE'), false) AS public_execute
+FROM pg_proc p
+CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
+WHERE p.oid IN (
+  'public.claim_telegram_notifications(integer,integer)'::regprocedure,
+  'public.enqueue_admin_login_notification(uuid,text)'::regprocedure
+)
+GROUP BY p.oid;
+-- Commit only after the exact expected result is reviewed; otherwise ROLLBACK.
+```
+
+Expected results: anon/authenticated are false for both; service_role is true for both; `public_execute` is false for both. Roll back with:
+
+```sql
+GRANT EXECUTE ON FUNCTION public.claim_telegram_notifications(integer, integer)
+  TO PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.enqueue_admin_login_notification(uuid, text)
+  TO PUBLIC, anon, authenticated;
+```
+
+Keep service_role grants. This is a proposed Staging-only ACL correction, not authorization to run it. Production had no anon-executable public non-trigger function candidate in the fresh capture, so do not apply this change there.
+
 ## Approval rule
 
 Any unexpected result is NO-GO. Do not use Production to experiment or to compensate for missing Staging.

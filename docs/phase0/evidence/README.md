@@ -2,8 +2,10 @@
 
 **Target Supabase Project:** `urmkcixqpoqkiosihhal` (TrainerPro — eu-central-1)  
 **Repository:** `D:\Fel7o Gamal Project\LMS_platform-main\LMS_platform-main` (Branch: `feat/lms-v2-phases`)  
-**Inspection Mode:** STRICTLY READ-ONLY (0 DDL, 0 DML, 0 Mutations, 0 Git commits)  
-**Date:** 13 November 2026  
+**Inspection Mode:** Archived source package plus fresh read-only Production/Staging catalog captures (14 November 2026); no database writes were performed in this follow-up.
+**Date:** 14 November 2026
+
+> **Status note:** This README preserves an earlier evidence package. Its historic takeaways below include stale claims (for example, no Staging environment and no live current routine inventory). For current execution state, candidate status, and authorization boundaries, use `../README.md`, `../CODEX_HANDOFF.md`, `../review/PHASE0_STATUS_AR.md`, and the fresh [callable routine privilege matrix](CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md). The 70-row Production SECURITY DEFINER source remains an archived subset, not the full current callable inventory.
 
 ## Package Contents Directory
 1. `README.md` — This master index and handoff guide.
@@ -18,6 +20,7 @@
 10. `DEFAULT_PRIVILEGES_EVIDENCE.md` — Audit of `pg_default_acl` and proof of future object inheritance risks in `public`.
 11. `MIGRATION_RECONCILIATION.md` — Complete file-by-file database evidence classification (Fully Applied, Draft, etc.) for all 20 local migrations.
 12. `APPLICATION_RPC_USAGE.md` — Code search across `src/` mapping all RPC and view references with line numbers and snippets.
+13. `CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md` — Fresh read-only per-signature routine EXECUTE/schema-usage capture for Production and Staging; explicitly separates database privileges from conditional Data API RPC exposure.
 
 ## Key Engineering Takeaways for Reviewer
 1. **Zero Direct Table Access:** The frontend never queries tables directly via PostgREST; all operations go through `v2` RPCs.

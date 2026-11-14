@@ -20,6 +20,8 @@ A ledger row proves only that the version is recorded in the captured ledger. It
 
 The audit reports 20 local files and only these 4 registered versions. The other 16 files do not have a corresponding captured ledger row.
 
+Fresh Supabase `list_migrations` read-only results reconfirmed this state on 2026-11-14: Production still reports exactly the four versions above; Staging reports **zero registered migrations**. The Staging result says nothing by itself about whether direct SQL changes exist there; the historical raw log separately records direct Staging SQL. No ledger write or migration operation was performed.
+
 ## 2. Reassessment of the former classifications
 
 The original reconciliation table labelled 15 unregistered files as FULLY APPLIED largely from object-existence checks. Those checks are insufficient to prove that all statements and side effects in each file were applied correctly.

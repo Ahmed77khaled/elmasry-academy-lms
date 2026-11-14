@@ -1,8 +1,8 @@
 # Phase 0 Codex Takeover Findings
 
 **Branch:** `codex/phase0-next`
-**Review date:** 2026-11-13
-**Database access this task:** None. No Supabase SQL or project lifecycle operations were run.
+**Review date:** 2026-11-14
+**Database access this task:** Read-only SELECT catalog captures on Production (`urmkcixqpoqkiosihhal`) and Staging (`kxdfconqflveqeozanaw`) only. No database writes, DDL, DML, grants, project lifecycle actions, or migrations were run.
 
 ## Repository baseline
 
@@ -24,11 +24,11 @@ Dependencies were installed from the existing lockfile with `npm ci`; it reporte
 
 ### Evidence reconciliation
 
-The headline count of **69 anon / 70 authenticated** is from Staging, not Production. Raw execution log operations 101–102 target ref `kxdfconqflveqeozanaw`; operation 102 runs `COUNT(*)` across every `pg_proc` object in `public` without restricting `prokind`, function category, or SECURITY DEFINER. The row-level output for operation 101 was not retained in the log (it points to an inaccessible external output file). Therefore this is not a routine-by-routine Production inventory, and it cannot support blanket revokes.
+The headline count of **69 anon / 70 authenticated** is from Staging, not Production. Raw operations 101–102 target ref `kxdfconqflveqeozanaw`; operation 102 counts every `pg_proc` object in `public` without restricting `prokind` or routine category. The row-level output for operation 101 was not retained. A fresh read-only capture now lists all current routines in `public` and `private` on both projects in [CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md](../evidence/CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md).
 
-The 70-entry SECURITY DEFINER source inventory describes Production and reports `anon=false` for every listed routine, including six private helpers/triggers, authenticated access for most RBAC and self-scoped endpoints, and no caller access for legacy write endpoints. These results conflict with the Staging aggregate because they are different environments and scopes. The safe interpretation is **Production anon exposure remains unverified by retained exhaustive per-routine output**. Re-run only the documented SELECT-only audit against each environment when separately approved; do not execute any grant change.
+The archived 70-entry SECURITY DEFINER source inventory describes Production but is not the full callable-routine inventory. Fresh Production data shows 76 routines total across `public` and `private`, 4 database-callable anon routines (all trigger helpers), 62 database-callable authenticated routines, and no anon-executable public non-trigger function candidate. In Staging, the fresh capture shows 76 total, 69 database-callable anon, 76 authenticated, and 65 anon/66 authenticated public non-trigger function candidates (conditional on `public` being exposed in the Data API). These counts include grants, not proof that function bodies allow unauthorized operations.
 
-The read-only audit SQL (`validation/PHASE0_REMAINING_SECURITY_GAPS_READONLY.sql`, query 1) is the appropriate source for per-routine signature, owner, definer bit, search path, effective `anon` / `authenticated` / `service_role` EXECUTE, ACL and function body. The archived per-routine rows retained for Production enumerate 70 SECURITY DEFINER functions and have been transcribed into [PRODUCTION_SECURITY_DEFINER_70_ROUTINE_MATRIX.md](../evidence/PRODUCTION_SECURITY_DEFINER_70_ROUTINE_MATRIX.md). The supplemental [RPC routine crosswalk](../evidence/RPC_ROUTINE_EVIDENCE_CROSSWALK.md) reconciles that set to application RPC call sites and additional locally defined trigger/service/branding routines, while keeping unverified live existence/grants explicit. Neither document proves the Staging aggregate or constitutes a complete current database catalog. The archived output remains incomplete for a reconciled 69/70 matrix. The 70-function source file (`evidence/PHASE0_RPC_SECURITY_DEFINER_SOURCE_EVIDENCE.md`, table 1) must not be presented as proof of that aggregate count.
+The read-only audit SQL (`validation/PHASE0_REMAINING_SECURITY_GAPS_READONLY.sql`, query 1) captures per-routine identity, owner, security mode, settings, effective role privileges, ACLs, and definitions. The archived 70 Production SECURITY DEFINER rows remain explicitly scoped in [PRODUCTION_SECURITY_DEFINER_70_ROUTINE_MATRIX.md](../evidence/PRODUCTION_SECURITY_DEFINER_70_ROUTINE_MATRIX.md). Current privileges for all `public`/`private` functions and procedures in both environments are in [CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md](../evidence/CURRENT_CALLABLE_ROUTINE_PRIVILEGE_MATRIX.md), while [RPC_ROUTINE_EVIDENCE_CROSSWALK.md](../evidence/RPC_ROUTINE_EVIDENCE_CROSSWALK.md) connects that evidence to app calls and intended boundaries. The Data API exposed-schema setting was not available in the capture, so HTTP reachability remains conditional.
 
 ### Routine classes and disposition
 
@@ -39,9 +39,9 @@ The read-only audit SQL (`validation/PHASE0_REMAINING_SECURITY_GAPS_READONLY.sql
 | `public.is_admin()`, `get_my_authorization()`, `can_claim_platform_owner()`, `claim_platform_owner()` | Self identity through `auth.uid()`; active-admin/claim predicates | `authenticated` (service role only where operationally needed) | Client calls `is_admin` and `get_my_authorization`; `claim_platform_owner` is used in setup UI. Validate function body and owner-claim single-use invariant. |
 | `public.rbac_*` readers and writers | `private.has_permission(...)` and, for owner-management, `private.is_platform_owner()`; row/field projection by permissions | `authenticated` | Application uses these RPCs for operational and financial views and mutations. Retain authenticated access only after body-by-body authorization checks; no anon call site. |
 | Unprefixed legacy writes (`create_cash_box`, `enroll_student`, `record_*`, `void_*`, `transfer_between_boxes`, `set_enrollment_status`) | `is_admin()` body checks, but legacy broad admin semantics | `service_role` only according to recorded Production ACL; authenticated/anon denied | Not called by app as mutations (RPC usage map); no evidence warrants restoring client grants. |
-| Non-SECURITY DEFINER public routines | Not enumerated individually in the retained complete output | Unresolved | The 69/70 count may include routines outside the 70 SECURITY DEFINER set. Exact signatures, ACL and body review remains outstanding. |
+| Non-SECURITY DEFINER public routines | Enumerated in the fresh current matrix | Mixed: trigger helpers and two service-worker routines have anon EXECUTE in Staging; trigger helpers are not direct RPC candidates | Review exact body and grants; invoker routines also require table privileges/RLS. No routine was invoked. |
 
-**Confirmed critical exposure from this evidence set:** none conclusively established for Production. **Confirmed audit defect:** an environment/scope mismatch was used to state an RPC exposure count; current evidence does not substantiate a complete Production anon/authenticated matrix. **Potential exposure:** broad default ACLs for postgres-created public objects are reported by historical Production precheck (`evidence/PHASE0_PRECHECK_AND_RECONCILIATION_RESULTS.md`, section 2); Candidate 1 was only applied on Staging and the current complete probe was not run. Existing objects need individual ACL inspection.
+**Production finding:** no anon-executable public function RPC candidate in the fresh capture; no grants were changed. **Staging least-privilege finding:** `claim_telegram_notifications(integer,integer)` and `enqueue_admin_login_notification(uuid,text)` have anon EXECUTE but are SECURITY INVOKER; anon lacks privileges on their target tables, so unauthorized writes were not demonstrated. The Staging Data API schema exposure was not verified. A narrowly scoped grant-remediation plan is recommended; do not apply it without a separate operation-specific approval and test plan.
 
 ### Application authorization review
 
@@ -119,4 +119,4 @@ Source set: 20 files under `migrations-snapshot/`; captured ledger: four version
 
 ## Safety disposition
 
-Production was not accessed in this takeover. No Staging SQL was run. No Supabase project lifecycle action, migration command, push, deployment, ledger repair, or Candidate 4 application occurred.
+Fresh read-only SELECT catalog queries were run against Production and Staging; read-only project and migration-list metadata was also retrieved. No DDL/DML, grants/revokes, migration application/repair, project lifecycle action, push, deployment, ledger edit, or Candidate 4 application occurred.
