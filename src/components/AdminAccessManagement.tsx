@@ -2,7 +2,7 @@ import { translate } from '@/lib/translations';
 import { translateTemplate } from '@/lib/translations';
 import { useLocale } from '@/context/useLocale';
 import { useEffect, useState } from 'react';
-import { RefreshCw, ShieldCheck, UserCog, Pencil, Trash2 } from 'lucide-react';
+import { RefreshCw, ShieldCheck, UserCog, Pencil, Trash2, History, ChevronDown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Alert } from '@/components/ui/Alert';
 import { PageLoader } from '@/components/ui/Feedback';
@@ -39,6 +39,80 @@ interface AuditRow {
   before_state: Record<string, unknown> | null;
   after_state: Record<string, unknown> | null;
   created_at: string;
+}
+
+function getAuditBadgeStyle(action: string): string {
+  switch (action) {
+    case 'admin_invited':
+    case 'admin_enabled':
+      return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+    case 'admin_deleted':
+    case 'admin_disabled':
+      return 'bg-rose-500/15 text-rose-300 border-rose-500/30';
+    case 'owner_added':
+    case 'owner_claimed':
+      return 'bg-amber-500/15 text-amber-300 border-amber-500/30';
+    case 'owner_removed':
+      return 'bg-orange-500/15 text-orange-300 border-orange-500/30';
+    case 'admin_role_changed':
+    case 'role_created':
+    case 'role_updated':
+    case 'role_deleted':
+    case 'role_permissions_changed':
+      return 'bg-sky-500/15 text-sky-300 border-sky-500/30';
+    default:
+      return 'bg-obsidian-600/30 text-obsidian-300 border-obsidian-500/30';
+  }
+}
+
+function formatAuditSummary(event: AuditRow): string {
+  const afterRole = typeof event.after_state?.role === 'string'
+    ? getRoleDisplayName(event.after_state.role)
+    : null;
+  const beforeRole = typeof event.before_state?.role === 'string'
+    ? getRoleDisplayName(event.before_state.role)
+    : null;
+
+  switch (event.action) {
+    case 'admin_invited':
+      return afterRole
+        ? translateTemplate('تمت دعوة مدير جديد بنجاح بدور «{role}»', { role: afterRole })
+        : translate('تمت دعوة مدير جديد بنجاح');
+    case 'admin_deleted':
+      return beforeRole
+        ? translateTemplate('تم حذف حساب المدير نهائياً (كان يحمل دور: {role})', { role: beforeRole })
+        : translate('تم حذف حساب المدير وإلغاء صلاحياته نهائياً');
+    case 'admin_disabled':
+      return translate('تم إيقاف حساب المدير مؤقتاً وتعطيل دخوله');
+    case 'admin_enabled':
+      return translate('تمت إعادة تفعيل حساب المدير واستعادة دخوله');
+    case 'owner_added':
+      return translate('تمت ترقية الحساب إلى صفة مالك المنصة الكاملة');
+    case 'owner_removed':
+      return translate('تم إلغاء صفة مالك المنصة عن الحساب');
+    case 'owner_claimed':
+      return translate('تم تثبيت مالك المنصة الأول وتأكيد هويته');
+    case 'owner_transferred':
+      return translate('تم نقل ملكية المنصة');
+    case 'admin_role_changed':
+      return afterRole
+        ? translateTemplate('تم تغيير دور المدير إلى «{role}»', { role: afterRole })
+        : translate('تم تغيير دور وصلاحيات المدير');
+    case 'role_created':
+      return translate('تم إنشاء دور وظيفي مخصص جديد في النظام');
+    case 'role_updated':
+      return translate('تم تعديل بيانات الدور الوظيفي');
+    case 'role_deleted':
+      return translate('تم حذف الدور الوظيفي المخصص');
+    case 'role_permissions_changed':
+      return translate('تم تحديث قائمة الصلاحيات الممنوحة للدور');
+    case 'branding_logo_changed':
+      return translate('تم تحديث الشعار الرسمي للأكاديمية');
+    case 'telegram_notification_language_changed':
+      return translate('تم تحديث لغة إشعارات جروب الإدارة');
+    default:
+      return getAuditActionName(event.action);
+  }
 }
 
 export function AdminAccessManagement() {
@@ -432,17 +506,70 @@ export function AdminAccessManagement() {
       </div>
 
       <div className="border-t border-obsidian-500/30 pt-5 space-y-3">
-        <h4 className="text-white font-semibold">{translate("سجل تغييرات الصلاحيات")}</h4>
-        {auditEvents.length === 0 ? <p className="text-obsidian-300 text-sm">{translate("لا توجد أحداث مسجلة حتى الآن.")}</p> : auditEvents.map((event) => (
-          <article key={event.audit_id} className="rounded-lg bg-obsidian-700/40 p-3 text-sm">
-            <div className="flex flex-wrap justify-between gap-2">
-              <strong className="text-white">{getAuditActionName(event.action)}</strong>
-              <time className="text-obsidian-300" dir="ltr">{new Date(event.created_at).toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-GB', { timeZone: 'Africa/Cairo' })}</time>
-            </div>
-            <p className="text-obsidian-300 text-xs mt-1 break-all" dir="ltr">{translate("معرّف الحساب الذي أجرى التغيير:")}{' '}{event.actor_auth_user_id}{event.target_auth_user_id ? translateTemplate(' — معرّف الحساب المعني: {id}', { id: event.target_auth_user_id }) : ''}</p>
-            {(event.before_state || event.after_state) && <pre className="mt-2 text-xs text-obsidian-200 whitespace-pre-wrap break-words" dir="ltr">{JSON.stringify({ before: event.before_state, after: event.after_state }, null, 2)}</pre>}
-          </article>
-        ))}
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="text-white font-semibold flex items-center gap-2">
+            <History size={16} className="text-emerald-light" />
+            {translate("سجل تغييرات الصلاحيات")}
+          </h4>
+          <span className="text-xs text-obsidian-400">
+            {auditEvents.length} {translate("حدث موثّق")}
+          </span>
+        </div>
+        <p className="text-xs text-obsidian-300">
+          {translate("سجل أمني رسمي يوثّق كافة العمليات الإدارية على الحسابات والأدوار.")}
+        </p>
+
+        {auditEvents.length === 0 ? (
+          <p className="text-obsidian-300 text-sm py-4 text-center">{translate("لا توجد أحداث مسجلة حتى الآن.")}</p>
+        ) : (
+          <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+            {auditEvents.map((event) => (
+              <article key={event.audit_id} className="rounded-xl bg-obsidian-700/30 border border-obsidian-600/30 p-3.5 text-sm transition-colors hover:bg-obsidian-700/50">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${getAuditBadgeStyle(event.action)}`}>
+                      {getAuditActionName(event.action)}
+                    </span>
+                    <span className="text-white font-medium text-xs sm:text-sm">
+                      {formatAuditSummary(event)}
+                    </span>
+                  </div>
+                  <time className="text-obsidian-300 text-xs font-mono" dir="ltr">
+                    {new Date(event.created_at).toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-GB', {
+                      timeZone: 'Africa/Cairo',
+                      dateStyle: 'short',
+                      timeStyle: 'short',
+                    })}
+                  </time>
+                </div>
+
+                {(event.before_state || event.after_state || event.actor_auth_user_id) && (
+                  <details className="mt-2.5 pt-2 border-t border-obsidian-600/20 group">
+                    <summary className="text-[11px] text-obsidian-400 hover:text-obsidian-200 cursor-pointer select-none inline-flex items-center gap-1 transition-colors">
+                      <ChevronDown size={12} className="transition-transform group-open:rotate-180" />
+                      <span>{translate("عرض التفاصيل الفنية")}</span>
+                    </summary>
+                    <div className="mt-2 p-2.5 rounded-lg bg-obsidian-800/80 border border-obsidian-600/30 text-xs space-y-1.5">
+                      <p className="text-obsidian-300 font-mono text-[11px] break-all" dir="ltr">
+                        <span className="text-obsidian-400">Actor:</span> {event.actor_auth_user_id}
+                        {event.target_auth_user_id && (
+                          <>
+                            <span className="mx-1 text-obsidian-400">➔ Target:</span> {event.target_auth_user_id}
+                          </>
+                        )}
+                      </p>
+                      {(event.before_state || event.after_state) && (
+                        <pre className="font-mono text-[11px] text-obsidian-300 bg-obsidian-900/60 p-2 rounded overflow-x-auto whitespace-pre-wrap break-words" dir="ltr">
+                          {JSON.stringify({ before: event.before_state, after: event.after_state }, null, 2)}
+                        </pre>
+                      )}
+                    </div>
+                  </details>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
