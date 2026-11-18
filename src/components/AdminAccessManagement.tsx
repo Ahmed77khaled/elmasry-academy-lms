@@ -170,6 +170,48 @@ export function AdminAccessManagement() {
     setBusyKey(null);
   };
 
+  const deleteAdmin = async (admin: AdminRow) => {
+    if (!isOwner) {
+      setError(translate("يجب أن تكون مالكاً للمنصة لحذف حساب مدير."));
+      return;
+    }
+    if (isCurrentAdmin(admin)) {
+      setError(translate("لا يمكنك حذف حسابك الشخصي"));
+      return;
+    }
+    if (admin.is_owner) {
+      const activeOwners = admins.filter((a) => a.is_owner && a.is_active);
+      if (activeOwners.length <= 1) {
+        setError(translate("يجب أن يتبقى مالك نشط واحد على الأقل للمنصة."));
+        return;
+      }
+    }
+    if (
+      !window.confirm(
+        translateTemplate(
+          'هل أنت متأكد من حذف حساب المدير {email} نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.',
+          { email: admin.email ?? translate('هذا المدير') }
+        )
+      )
+    ) {
+      return;
+    }
+
+    setBusyKey(`delete:${admin.admin_id}`);
+    setError(null);
+    setNotice(null);
+    const { error: mutationError } = await supabase.rpc('rbac_delete_admin', {
+      p_admin_id: admin.admin_id,
+    });
+    if (mutationError) {
+      setError(mutationError.message);
+    } else {
+      setNotice(translate("تم حذف حساب المدير بنجاح."));
+      await load();
+    }
+    setBusyKey(null);
+  };
+
   const saveRole = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
@@ -321,6 +363,18 @@ export function AdminAccessManagement() {
                     disabled={busyKey === `active:${admin.admin_id}` || isCurrentAdmin(admin)}
                     onClick={() => void setAdminActive(admin, !admin.is_active)}
                   >{admin.is_active ? translate("تعطيل") : translate("تفعيل")}</button>
+                  {isOwner && (
+                    <button
+                      type="button"
+                      className="btn-danger px-2.5 py-1.5 text-xs flex items-center gap-1 bg-rose-600/20 text-rose-300 hover:bg-rose-600 hover:text-white border border-rose-500/30 transition-colors"
+                      disabled={busyKey === `delete:${admin.admin_id}` || isCurrentAdmin(admin) || (admin.is_owner && admins.filter((a) => a.is_owner && a.is_active).length <= 1)}
+                      onClick={() => void deleteAdmin(admin)}
+                      title={isCurrentAdmin(admin) ? translate("لا يمكنك حذف حسابك الشخصي") : translate("حذف")}
+                    >
+                      <Trash2 size={13} />
+                      {translate("حذف")}
+                    </button>
+                  )}
                 </div>
               </td>
             </tr>

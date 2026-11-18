@@ -64,6 +64,7 @@ const auditActionNames: Record<string, string> = {
   admin_role_changed: 'تغيير دور مدير',
   admin_disabled: 'إيقاف حساب مدير',
   admin_enabled: 'إعادة تفعيل حساب مدير',
+  admin_deleted: 'حذف مدير',
   role_created: 'إنشاء دور',
   role_updated: 'تعديل دور',
   role_deleted: 'حذف دور',
