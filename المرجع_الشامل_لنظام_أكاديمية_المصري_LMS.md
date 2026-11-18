@@ -34,6 +34,7 @@
 | **14** | **إرشادات النشر والاستضافة السحابية** | إعدادات Vercel / Netlify، متغيرات البيئة، وضوابط أمان مفاتيح API وعزل مفتاح service_role. |
 | **15** | **إدارة المديرين وتنبيهات تسجيل الدخول** | دعوة مدير جديد، تعيين كلمة مروره ذاتياً، صلاحيات superadmin الحالية، تدفق تنبيه Telegram، الخصوصية، وخطوات التفعيل والحالة غير المنشورة. |
 | **16** | **الصلاحيات الدقيقة ومراقبة الدخول** | خريطة الوحدات، مصفوفة RBAC، حالة الميجريشنات والواجهة المحلية، وحدود مسار مراقبة الدخول. |
+| **17** | **تدقيق خط الأساس وتوحيد الأدلة الفنية (PHASE 0 Consolidation)** | توثيق لقطة المستودع (12 نوفمبر 2026)، حصر دوال v2 الـ 18، فحص ثغرات تدفق المصادقة، حدود سكريبت postflight، مطابقة ترويسات Vercel، وقائمة المخاطر المفتوحة. |
 
 ---
 
@@ -729,5 +730,196 @@ sequenceDiagram
 * **التصميم والتنفيذ المعماري:** م/ أحمد الفلاح (Lead Software Engineer & System Architect).
 * **تاريخ مراجعة وتحديث المرجع:** 22 أكتوبر 2026.
 * **الحالة:** مرجع معماري وتشغيلي يوثق المخطط والكود ويفصل بين نتائج التدقيق الميداني المبلغة والحالة المتحقق منها. في 22 أكتوبر طُبقت ميجريشن 010 على `TrainerPro` وسُجلت بالإصدار `20261021214608`، ونُشرت `login-alert` بالإصدار 2؛ محاولة الدخول المحلية وصلت لمرحلة الإرسال لكن لم تصل رسالة Telegram. الإصدار 2 يضيف تصنيفاً آمناً لسبب الفشل. واجهة تسجيل الدخول لم تُنشر إلى الموقع المستضاف. `admin-invite` وإعدادات البريد لم تُفعّل. تظل نتائج ميجريشن 008 مستندة إلى مخرجات التدقيق الميداني المبلغة، بينما ميجريشن 009 مُبلّغ عن تشغيله فقط دون تحقق مستقل من معرف المشروع أو السلوك التشغيلي.
+
+</div>
+## سجل التغييرات وخطة التطوير المعتمدة (30 أكتوبر 2026)
+
+### المرحلة 1: بيانات الطلاب ودليل الطلاب — تنفيذ محلي
+
+- أضيفت حقول اختيارية للدولة والمحافظة، مع حقلي جهة العمل والسنة الدراسية. تظهر الحقول المهنية أو الدراسية وفق الحالة في نموذجي إضافة الطالب والتسجيل السريع.
+- أضيفت دالة `rbac_list_students_v2` لتصفية دليل الطلاب وترقيمه من قاعدة البيانات، وإرجاع اسم أول دورة نشطة وعدد الدورات النشطة مع احترام صلاحية قراءة التسجيلات. تعرض الواجهة اسم الدورة مع `+N` عند تعددها.
+- أصبح النقر المزدوج على اسم الطالب يفتح نافذة تعديل البيانات، وأزيلت أزرار الإجراءات المنفصلة من صف الطالب. صفحة ملف الطالب تعرض الدولة والمحافظة وجهة العمل والسنة الدراسية عند توفرها.
+- أضيف ترقيم للصفحات يبدأ بعشرة صفوف مع خيارات 25 و50، وفلاتر الحالة الوظيفية والسنة الدراسية. أزيل تاريخ الإضافة من تصدير Excel وأضيفت الحقول الجديدة وملخص الدورة.
+- أضيف بحث مستقل باسم الطالب والكورس في نافذة التسجيل السريع. روابط الموارد تعرض خيار فتح آمن لروابط HTTP(S) وخيار نسخ. حالة `Dropped` الموجودة تستخدم كحالة انسحاب وتبقي سجل الطالب والمدفوعات.
+- الترحيل `supabase/migrations/20261030120000_student_profile_directory_v2.sql` مسودة محلية فقط. لم يُطبق على TrainerPro، لذلك لا تنشر واجهة تعتمد على دواله قبل تطبيقه والتحقق منه على قاعدة اختبار مناسبة. فحص `lint` و`build` نجح؛ يلزم إعادة الفحوص النهائية بعد اكتمال بقية الخطة. لا يتوفر PostgreSQL أو PGlite للتحقق من تنفيذ SQL في البيئة الحالية.
+
+### المراحل المتبقية
+
+1. دعم سعري الجنيه والدولار مع تثبيت السعر والعملة في التسجيل، وربط العملة بالدفعات وأرصدة الخزائن كي لا تختلط المجاميع.
+2. إضافة بحث مستقل للطالب والدورة في التسجيل، وحفظ الانسحاب كسجل دون حذف الطالب أو الحركات المالية، وتحسين نسخ وفتح الروابط الخارجية.
+3. تعميم الترقيم والتحميل المحدود على جداول التسجيلات والدفعات والمصروفات والكورسات.
+4. تعديل لوحة المؤشرات وعرض أحدث الحركات كاملة، ومراجعة أرصدة الخزائن قبل حصر الخزائن النشطة في «خزنة يحيى» و«خزنة المصري». تُحفظ الخزائن والحركات التاريخية ولا تُدمج الأرصدة تلقائياً.
+5. استكمال اختبارات الأدوار واللغتين ونشر Preview بعد مواءمة قاعدة الاختبار، ثم إعداد قائمة قبول. لا يوجد نشر Production أو تعديل قاعدة مستضافة ضمن هذا السجل.
+
+
+### تحديث تنفيذ المرحلة الأولى (30 أكتوبر 2026)
+
+- أضيف بحث مستقل لاختيار الطالب والكورس في نموذجي التسجيل. يصدّر ملف الطلاب كل النتائج المطابقة بجلب صفحات محدودة من قاعدة البيانات، ويواصل استبعاد تاريخ الإضافة من التصدير.
+- أضيف نسخ روابط موارد الكورس مع رسالة وصول للنجاح أو للفشل. اجتازت فحوص `typecheck` و`lint` و`build` و`git diff --check`.
+- الترحيل `supabase/migrations/20261030120000_student_profile_directory_v2.sql` مسودة محلية فقط، ولم يخضع لتنفيذ PostgreSQL أو للتطبيق على مشروع مستضاف. لا تنشر واجهة الطلاب المعتمدة عليه قبل تطبيقه واختباره على قاعدة مناسبة.
+
+
+### تطبيق ترحيل بيانات الطلاب (30 أكتوبر 2026)
+
+- طُبّق الترحيل `20261030120000_student_profile_directory_v2.sql` على `TrainerPro` في معاملة واحدة، وسُجّل الإصدار `20261030120000` في جدول الترحيلات.
+- أكد فحص ما بعد التطبيق وجود الأعمدة الأربعة ودوال `v2` الثلاث، وأن صلاحية تنفيذها مقتصرة على `authenticated` ومرفوضة عن `anon` و`PUBLIC`. لم يتم إدخال أو تعديل سجلات طلاب.
+- لا تزال مشكلة عدم تطابق سجل الترحيلات القديم قائمة؛ لذلك يظل `db push` غير آمن قبل مصالحة السجل. نشر Preview واختبار الواجهة لم يتما.
+
+### Phase 2 — dual-currency pricing (local implementation, 30 October 2026)
+
+- Added the local migration draft `supabase/migrations/20261030130000_course_enrollment_currency_v2.sql`. It adds optional USD course pricing; snapshots EGP/USD currency on enrollments and payments; adds USD opening balances for cash boxes; creates permission-checked v2 RPCs; keeps old aggregate reports scoped to EGP; adds separate USD dashboard and per-course figures; and revokes direct authenticated access to `public.record_payment` so payment writes use the RBAC endpoint.
+- Updated course pricing, enrollment, quick enrollment, payment, receipt, cash box, dashboard, course detail, and enrollment detail views to show currency-specific amounts. EGP and USD totals are displayed separately. Existing records default to EGP; no currency conversion or historical value changes are performed.
+- Enrollment selectors now submit the chosen currency; server-side enrollment creation snapshots that currency and the current default price. Payment creation derives the currency from the locked enrollment, checks overpayment in that currency, and cash-box balances separate USD inflows from EGP expenses/transfers.
+- Local checks passed after the UI changes: `npm run typecheck`, `npm run lint`, `npm run build`. SQL has not been executed against TrainerPro; no Preview deployment, Production deployment, commit, or push was made. The migration-history mismatch remains; do not use `supabase db push`.
+- Before this migration can be applied, validate it against a disposable PostgreSQL/Supabase database, review the exact production preflight and backup/rollback plan, then apply only the approved migration without replaying legacy files. Until then, the dual-currency UI is not deployable to the current hosted database.
+
+
+
+---
+
+<div dir="rtl" style="text-align: right; direction: rtl; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; line-height: 1.8;">
+
+## 17. توحيد وتوثيق تدقيق خط الأساس الشامل والأدلة الفنية (PHASE 0 Consolidation — 12 نوفمبر 2026)
+
+> **تاريخ التوثيق والتدقيق:** 12 نوفمبر 2026  
+> **نوع المهمة:** توثيق تدقيق شامل لخط الأساس الفني ومطابقة الأدلة (Consolidated Technical Audit Baseline)  
+> **حالة المرحلة 0 (Phase 0 Status):** `IN REVIEW / BLOCKED — NOT CLOSED`  
+> **ملاحظة أمنية وتشغيلية عليا:** تقدمت إجراءات حماية المستودع وجمع الأدلة بشكل كبير، ولكن المراجعة الأمنية لمسار المصادقة، ومصالحة سجل الترحيلات السحابية، والتوثيق الكامل لعقود مخرجات دوال RPC لا تزال مفتوحة وقيد المراجعة. لا يُصرّح بأي تطبيق للميجريشنات أو نشر على بيئة الإنتاج بموجب مهمة التوثيق هذه.
+
+---
+
+### 1. تدقيق حالة المستودع وشجرة العمل (Repository & Working Tree Audit)
+
+سجل التدقيق الميداني والفحص الصارم في لقطة 12 نوفمبر 2026 الحالة الفعلية التالية للمستودع:
+
+* **الفرع الحالي (Active Branch):** `feat/lms-v2-phases` (مشتق محلياً من خط الأساس المعتمد).
+* **معرف الـ HEAD الحالي:** `1c14f1f5b01370d25e1c14dbe3e7c259a3080d70`.
+* **مرجع `origin/main` المتوفر محلياً:** يطابق الـ HEAD تماماً (`1c14f1f5b01370d25e1c14dbe3e7c259a3080d70`).
+  > **تنبيه منهجي صريح:** مطابقة مرجع `origin/main` المتوفر محلياً مع HEAD **لا يثبت** أنه أحدث حالة على مستودع GitHub البعيد، نظراً لعدم تنفيذ أي عملية `git fetch` أو اتصال بالخادم البعيد التزاماً بقواعد الفحص المحلي الصارم (Read-Only).
+* **حالة شجرة العمل (Working Tree State):** **شجرة العمل غير نظيفة (Working tree is NOT clean)** وتحتوي على تغييرات غير مثبتة بـ Commit تم الحفاظ عليها بالكامل:
+  * **32 ملفاً معدلاً خاضعاً للتتبع (Tracked Modified Files):** تشمل ملفات الواجهة والأنواع والتوجيه والإعدادات.
+  * **129 ملفاً فردياً غير متتبع (Individual Untracked Files):** مقسمة إلى 13 ملفاً في جذر ومجلدات المشروع الأساسية (مثل الميجريشنز، ومكون الترقيم، وصفحة الباسورد، وتوثيق Roadmap)، و 116 ملفاً فردياً داخل مجلد أدوات المطورين `.agents/` (مهارات React و Supabase).
+  * **161 سطراً في مخرجات الحالة الدقيقة (`git status --porcelain=v1 -uall`):** (32 سطر `M` + 129 سطر `??`).
+  * **التعديلات في منطقة التجهيز (Staged Changes):** **لا توجد أي تغييرات مجهزة (`0 staged changes`)**.
+
+---
+
+### 2. حصر دوال الميجريشن ودعم العملتين ودليل الطلاب v2 (Multi-Currency & Student Directory v2)
+
+أثبت الفحص الشامل لملفي الميجريشن المحليين حصر إعلانات الدوال كالتالي:
+
+* **ملف ميجريشن بيانات الطلاب (`20261030120000_student_profile_directory_v2.sql`):** 3 دوال (جميعها دوال `_v2` جديدة).
+* **ملف ميجريشن العملات والمالية (`20261030130000_course_enrollment_currency_v2.sql`):** 11 دالة بصيغة `_v2` جديدة.
+* **دوال التوافق التراجعي (Compatibility Wrappers / v1 Stubs):** 4 دوال في ملف العملات.
+* **إجمالي إعلانات الدوال في الملفين:** **18 إعلاناً**، وتمثل **18 اسماً فريداً** (14 دالة `_v2` + 4 دوال توافق تراجعي). جميع الدوال الـ 18 معرفة بـ `SECURITY DEFINER` وتضبط صراحة `SET search_path = pg_catalog, public, private, auth`.
+
+#### تصحيح ومطابقة معاملات استدعاء `rbac_enroll_student_v2`:
+* في كود SQL السحابي: المعامل معلن صراحة بـ:
+  ```sql
+  CREATE OR REPLACE FUNCTION public.rbac_enroll_student_v2(
+    p_student_id uuid, p_course_id uuid, p_currency text DEFAULT 'EGP',
+    p_agreed_cost numeric DEFAULT NULL, p_status text DEFAULT 'Active'
+  )
+  ```
+* في كود الواجهة الأمامية المراجع:
+  * في `src/components/forms/EnrollForm.tsx`: الاستدعاء يمرر `p_currency: currency`.
+  * في `src/components/forms/QuickEnrollModal.tsx`: الاستدعاء يمرر `p_currency: currency`.
+* **تصحيح التدقيق:** ما ورد في بعض الجداول السابقة من ذكر المعامل باسم `p_agreed_currency` كان **خطأ صياغي مطبعي في التقرير** ناتجاً عن الخلط مع اسم عمود الجدول `agreed_currency`؛ بينما الكود البرمجي في الـ Frontend والـ SQL متطابقان تماماً ويعتمدان `p_currency`.
+
+> **حالة عقود المخرجات (RPC Contract Inventory):** تظل تفاصيل أعمدة المخرجات الدقيقة `RETURNS TABLE` لكافة دوال الميجريشن **معلقة وقيد التوثيق (Pending)**. ولا يُزعم هنا أن التعريفات المحلية مطابقة بالبايت للتعريفات المنشورة حياً على السيرفر حتى يتم فحصها بشكل مستقل.
+
+---
+
+### 3. تدقيق بنية وأمان المصادقة واستعادة كلمة المرور (Authentication & Password Recovery)
+
+#### التنفيذ البرمجي المرصود حالياً في الكود (Current Observed Implementation):
+1. في `src/lib/supabase.ts`: يتم اشتقاق حالة `pendingPasswordSetup` من متغيرات الـ URL Hash/Query وتخزينها في `sessionStorage`.
+2. في `src/App.tsx`: يتم تمرير `linkVerified={Boolean(user)}` إلى صفحة `SetPasswordPage`.
+3. في `src/context/AuthContext.tsx`: مستمع أحداث التغيير يتجاهل معامل نوع الحدث `(_event, session)`.
+4. في `src/App.tsx`: يتم فحص مسار تعيين كلمة المرور `if (pendingPasswordSetup)` **قبل** فحص حالة تحميل المصادقة `if (loading)`.
+
+#### المراجعة الأمنية ونقاط المخاطرة (Security Review):
+* مجرد وجود قيمة `type=recovery` في رابط الـ URL **ليس دليلاً** على التحقق بنجاح من صلاحية توكن الاستعادة.
+* وجود جلسة مصادقة نشطة مسبقاً (Authenticated Session) يمكن أن يُفعل واجهة تعيين كلمة المرور دون إثبات أن الرابط الحالي أكمل تدفق الاستعادة المقصود.
+* **طبيعة الخطر:** هذا الخطر يمثل خللاً في تكامل التدفق البرمجي (Flow-Integrity Risk) وخطر تغيير غير مقصود لكلمة المرور عبر واجهة المستخدم (Unintended Password-Change UI Risk)؛ ولا يجب المبالغة في تصنيفه كثغرة اختراق حسابات مؤكدة (Proven Account Takeover).
+* الحدث الرسمي المعتمد لتأكيد الاستعادة في Supabase هو حدث `PASSWORD_RECOVERY`.
+* الأحداث العامة مثل `SIGNED_IN` و `USER_UPDATED` لا تكفي بمفردها لإثبات التحقق من توكن الدعوة.
+
+#### التصميم الآمن المقترح — لم يتم تنفيذه بعد (Proposed Secure Design — NOT IMPLEMENTED):
+1. تتبع حالة الاستعادة الموثقة حصرياً من حدث المصادقة المناسب (`PASSWORD_RECOVERY`).
+2. التحقق من روابط الدعوة من خلال آلية التحقق الصريحة من توكن الدعوة (مثل تدفق `verifyOtp` بنوع `invite`).
+3. التأكد من اكتمال تهيئة المصادقة ومعالجة الرابط قبل عرض صفحة تعيين كلمة المرور.
+4. مسح حالة الـ Callback المعلقة بأمان فور اكتمال العملية أو فشلها، وتفريغ الـ Hash من المتصفح.
+5. ربط عملية تعيين كلمة المرور بالجلسة المؤكدة والحساب الصحيح فقط.
+
+* **الحالة الرسمية لهذا البند:** `SECURITY REVIEW OPEN — FIX NOT IMPLEMENTED`.
+
+---
+
+### 4. حدود ونطاق سكريبت الفحص اللاحق للـ RBAC (RBAC Postflight Verification Scope)
+
+تم فحص سكريبت التحقق المحلي: `supabase/verification/rbac_authorization_cutover_postflight.sql`، وتوثيق حدوده كالتالي:
+
+* **الفحوصات المنفذة بالسكريبت:**
+  * فحص سحب صلاحيات الجداول (Table-level Privileges) عن الأدوار العامة لدور `anon` و `authenticated` على كائنات محددة.
+  * فحص إلغاء تنفيذ دوال العمليات القديمة (Legacy RPCs).
+  * فحص وجود علامة `SECURITY DEFINER` وكون مالك الدالة يمتلك صلاحية تجاوز RLS.
+  * فحص سحب صلاحية `USAGE` و `SELECT` و `UPDATE` عن دور `authenticated` على سيكونس السندات `public.payment_receipt_number_seq`.
+  * فحص احتفاظ `service_role` بصلاحيات الجداول الأساسية.
+
+* **الفحوصات الغائبة عن السكريبت (Missing Checks):**
+  * غياب فحص صلاحيات مستوى الأعمدة (Column-level ACL Checks).
+  * غياب فحص تفعيل RLS (`relrowsecurity`) وغياب فحص سياسات الـ RLS المكتوبة.
+  * غياب فحص صلاحيات `SELECT` و `UPDATE` لدور `anon` على السيكونس (يفحص USAGE فقط).
+  * غياب فحص تعيين `search_path` الآمن داخل تعريفات الدوال بالسكريبت.
+  * غياب التحقق من وجود فحوص الصلاحيات الداخلية (`private.has_permission`) داخل متن الدوال.
+  * وجود خاصية `SECURITY DEFINER` وامتيازات مالك الدالة لا يثبتان بمفردهما أن كود الدالة يفرض الصلاحيات المطلوبة.
+
+> **إقرار مهني صريح وملزم:**  
+> `The postflight script is a scoped verification aid, not proof of complete RBAC security.`  
+> (سكريبت الفحص اللاحق هو أداة مساعدة محدودة النطاق، وليس دليلاً على الأمان الكامل للـ RBAC).
+
+---
+
+### 5. ترويسات نشر منصة Vercel ومطابقتها (Vercel Deployment Headers)
+
+التكوين المحلي الفعلي المصرح به في ملف `vercel.json` هو:
+
+* `X-Content-Type-Options: nosniff`
+* `X-Frame-Options: DENY`
+* `X-XSS-Protection: 1; mode=block`
+* `Referrer-Policy: strict-origin-when-cross-origin`
+* `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`
+* `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()`
+* `Cache-Control` للأصول الاستاتيكية (`/assets/(.*)`): `public, max-age=31536000, immutable`
+* `Cache-Control` لملف الصفحة الرئيسية (`/index.html`): `public, max-age=0, must-revalidate`
+* `Content-Security-Policy`: **غير مضافة إطلاقاً (Not configured)**.
+
+> **سجل التحقق الشبكي الحي:**  
+> تم تسجيل استجابة طلب `HEAD` للإنتاج المباشر على `https://elmasry-academy-lms.vercel.app` (كود الاستجابة: HTTP 200 OK، التاريخ: 12 نوفمبر 2026) كدليل فحص قدمه Antigravity، ويجب تمييزه عن أي أدلة استجابة خام يتم التقاطها بشكل مستقل بواسطة المراجع. ونؤكد قطيعة **عدم تفعيل CSP** على بيئة Vercel حالياً.
+
+---
+
+### 6. قائمة المخاطر والبنود الفنية المفتوحة (Remaining Technical Risks — Pending / Open)
+
+تظل البنود الفنية التالية **مفتوحة ومعلقة (Open / Pending)** ولم يتم إغلاقها أو الزعم بإصلاحها:
+
+1. **تحصين تدفق المصادقة (Authentication Flow Hardening):** معالجة فصل فحص التحميل عن فحص مسار تعيين كلمة المرور، وربط التحقق بحدث `PASSWORD_RECOVERY`.
+2. **عقود مخرجات دوال الـ RPC الكاملة:** توثيق أعمدة `RETURNS TABLE` ومطابقتها مع واجهات TypeScript في `src/types/database.ts`.
+3. **مصالحة سجل الترحيلات وقاعدة البيانات الحية:** التوفيق بين ملفات الميجريشن المحلية وما تم تنفيذه حياً على `TrainerPro` وجدول `supabase_migrations.schema_migrations`.
+4. **مراجعة ثوابت العملات والخزائن والمدفوعات داخل كود SQL:** فحص نصوص الدوال في قاعدة البيانات للتأكد من منع التداخل المالي بين الجنيه والدولار.
+5. **مراجعة مستدعي الدوال القديمة المتبقية في الواجهة:** أظهرت الـ Diffs استمرار استدعاء دوال قديمة مثل `rbac_list_students` في `QuickEnrollModal.tsx` و `rbac_list_courses` في `ExpenseForm.tsx` بدلاً من إصدارات `_v2`.
+6. **سد فجوات تغطية سكريبت التحقق اللاحق (RBAC Postflight Gaps):** إضافة فحوصات لمستوى الأعمدة وإعدادات `search_path`.
+7. **توحيد وثائق النشر والبيئة:** لا يزال ملف `supabase/functions/SETUP.md` يحتوي على إشارات لنشر Preview القديم على Cloudflare Pages بالتزامن مع وجود إعدادات Vercel المعتمدة؛ ويلزم التمييز الصريح بين التفاصيل التاريخية والوضع الحالي.
+
+---
+
+### 7. حالة المرحلة 0 والقرارات الإدارية (Phase 0 Status)
+
+* **الحالة المعتمدة للمرحلة 0:**  
+  `IN REVIEW / BLOCKED — NOT CLOSED`  
+  **(قيد المراجعة / معلقة — غير مغلقة)**
+* **بيان الموقف:** أحرزت عمليات حماية المستودع وحصر التغييرات وجمع الأدلة الفنية تقدماً جوهرياً وموثقاً، ولكن نظراً لأن التدقيق الأمني لتدفق المصادقة، ومصالحة سجل الميجريشن، وتوثيق عقود الـ RPC الكاملة لا تزال بنوداً مفتوحة، فإن المرحلة 0 تظل غير مغلقة حتى يتم اعتماد المراجعة المشتركة.
+* **حظر العمليات:** لا يُصرح بأي تطبيق لميجريشنات أو نشر على الإنتاج بموجب هذه المهمة التوثيقية.
 
 </div>

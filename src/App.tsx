@@ -21,6 +21,7 @@ const SettingsPage = lazy(() => import('@/pages/SettingsPage').then((module) => 
 const LoginPage = lazy(() => import('@/pages/LoginPage').then((module) => ({ default: module.LoginPage })));
 import { PageLoader } from '@/components/ui/Feedback';
 import { ShieldAlert, LogOut } from 'lucide-react';
+import { SetPasswordPage } from '@/pages/SetPasswordPage';
 
 function PageRenderer() {
   const { route } = useRouter();
@@ -52,14 +53,39 @@ function PageRenderer() {
 }
 
 function AuthenticatedApp() {
-  const { user, isAdmin, loading, signOut } = useAuth();
+  const { user, isAdmin, loading, signOut, authFlow, clearAuthFlow } = useAuth();
   const { locale } = useLocale();
 
-  if (loading) {
+  if (loading || authFlow.mode === 'processing') {
     return (
       <div className="min-h-screen bg-obsidian-900 flex items-center justify-center">
         <PageLoader />
       </div>
+    );
+  }
+
+  if (
+    authFlow.mode === 'verified_recovery' ||
+    authFlow.mode === 'verified_invitation' ||
+    authFlow.mode === 'callback_error'
+  ) {
+    const isRecovery = authFlow.flowType === 'recovery' || authFlow.mode === 'verified_recovery';
+    return (
+      <SetPasswordPage
+        mode={isRecovery ? 'recovery' : 'invite'}
+        verified={authFlow.mode === 'verified_recovery' || authFlow.mode === 'verified_invitation'}
+        expectedUserId={authFlow.userId}
+        expectedSessionId={authFlow.sessionId}
+        email={authFlow.email ?? user?.email ?? undefined}
+        errorMessage={authFlow.error}
+        onComplete={() => {
+          clearAuthFlow();
+        }}
+        onExit={() => {
+          clearAuthFlow();
+          void signOut();
+        }}
+      />
     );
   }
 

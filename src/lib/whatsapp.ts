@@ -5,6 +5,7 @@
  */
 import { getLocale } from '@/context/localeState';
 import { translateTemplate } from '@/lib/translations';
+import { formatCurrency } from '@/lib/format';
 
 export function formatEgyptPhoneForWhatsApp(phone: string | null | undefined): string | null {
   if (!phone) return null;
@@ -32,18 +33,19 @@ export function generatePaymentReminderUrl({
   studentName,
   courseName,
   remainingAmount,
+  currency = 'EGP',
 }: {
   phone: string | null | undefined;
   studentName: string;
   courseName: string;
   remainingAmount: number;
+  currency?: 'EGP' | 'USD';
 }): string | null {
   const formattedPhone = formatEgyptPhoneForWhatsApp(phone);
   if (!formattedPhone) return null;
 
   const locale = getLocale();
-  const amount = new Intl.NumberFormat(locale === 'ar' ? 'ar-EG' : 'en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(remainingAmount);
-  const currencyAmount = locale === 'ar' ? `${amount} ج.م` : `EGP ${amount}`;
+  const currencyAmount = formatCurrency(remainingAmount, currency);
   const message = translateTemplate(
     'مرحباً أستاذ {student}،\nنود تذكيركم من أكاديمية المصري بمتبقي قسط الدورة التدريبية «{course}» وقدره {amount}.\n\nنتمنى لكم دوام التوفيق والتميز! 🎓',
     { student: studentName, course: courseName, amount: currencyAmount },

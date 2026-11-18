@@ -17,6 +17,7 @@ export function CourseForm({ open, onClose, onSaved, course }: CourseFormProps) 
   const [form, setForm] = useState({
     course_name: '',
     default_cost: '',
+    default_cost_usd: '',
     availability_status: 'Upcoming',
     level: 'Beginner',
     duration_weeks: '4',
@@ -46,6 +47,7 @@ export function CourseForm({ open, onClose, onSaved, course }: CourseFormProps) 
         setForm({
           course_name: course.course_name,
           default_cost: course.default_cost == null ? '' : String(course.default_cost),
+          default_cost_usd: course.default_cost_usd == null ? '' : String(course.default_cost_usd),
           availability_status: course.availability_status,
           level: course.level ?? 'Beginner',
           duration_weeks: course.duration_weeks ? String(course.duration_weeks) : '4',
@@ -61,7 +63,7 @@ export function CourseForm({ open, onClose, onSaved, course }: CourseFormProps) 
         });
       } else {
         setForm({
-          course_name: '', default_cost: '', availability_status: 'Upcoming', level: 'Beginner',
+          course_name: '', default_cost: '', default_cost_usd: '', availability_status: 'Upcoming', level: 'Beginner',
           duration_weeks: '4', start_date: '', end_date: '', max_students: '', prerequisite_courses: '', description: '',
           link_whatsapp: '', link_tasks: '', link_drive: '', link_sources: '',
         });
@@ -85,13 +87,14 @@ export function CourseForm({ open, onClose, onSaved, course }: CourseFormProps) 
     const payload = {
       p_course_name: form.course_name.trim(),
       p_description: form.description.trim() || null,
-      p_level: form.level,
-      p_duration_weeks: parseInt(form.duration_weeks) || 4,
+      p_level: form.level || null,
+      p_duration_weeks: form.duration_weeks ? parseInt(form.duration_weeks) || null : null,
       p_prerequisite_courses: form.prerequisite_courses.trim() || null,
       p_start_date: form.start_date || null,
       p_end_date: form.end_date || null,
       p_max_students: form.max_students ? parseInt(form.max_students) : null,
-      p_default_cost: canEditPrice && form.default_cost ? parseFloat(form.default_cost) : null,
+      p_default_cost: canEditPrice && form.default_cost ? parseFloat(form.default_cost) : (canEditPrice ? 0 : null),
+      p_default_cost_usd: canEditPrice && form.default_cost_usd ? parseFloat(form.default_cost_usd) : null,
       p_availability_status: form.availability_status,
       p_link_whatsapp: form.link_whatsapp.trim() || null,
       p_link_tasks: form.link_tasks.trim() || null,
@@ -101,13 +104,13 @@ export function CourseForm({ open, onClose, onSaved, course }: CourseFormProps) 
 
     try {
       if (course) {
-        const { error: err } = await supabase.rpc('rbac_update_course', {
+        const { error: err } = await supabase.rpc('rbac_update_course_v2', {
           p_course_id: course.course_id,
           ...payload,
         });
         if (err) throw err;
       } else {
-        const { error: err } = await supabase.rpc('rbac_create_course', payload);
+        const { error: err } = await supabase.rpc('rbac_create_course_v2', payload);
         if (err) throw err;
       }
       onSaved();
@@ -124,15 +127,17 @@ export function CourseForm({ open, onClose, onSaved, course }: CourseFormProps) 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <Alert variant="error">{error}</Alert>}
         <Input label={translate("اسم الكورس")} placeholder={translate("اسم الكورس التدريبي")} required value={form.course_name} onChange={(e) => setForm({ ...form, course_name: e.target.value })} />
-        <div className="grid grid-cols-2 gap-4">
-          {canEditPrice && <Input label={translate("التكلفة الافتراضية (ج.م)")} type="number" step="0.01" placeholder="1500" value={form.default_cost} onChange={(e) => setForm({ ...form, default_cost: e.target.value })} />}
-          <Input label={translate("المدة (أسابيع)")} type="number" placeholder="4" value={form.duration_weeks} onChange={(e) => setForm({ ...form, duration_weeks: e.target.value })} />
-        </div>
+        {canEditPrice && (
+          <div className="grid grid-cols-2 gap-4">
+            <Input label={translate('السعر بالجنيه المصري')} type="number" min="0" step="0.01" placeholder="1500" value={form.default_cost} onChange={(e) => { const v = e.target.value; if (!v.startsWith("-")) setForm({ ...form, default_cost: v }); }} />
+            <Input label={translate('السعر بالدولار الأمريكي (اختياري)')} type="number" min="0" step="0.01" placeholder="50" value={form.default_cost_usd} onChange={(e) => { const v = e.target.value; if (!v.startsWith("-")) setForm({ ...form, default_cost_usd: v }); }} />
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label={translate('\u062a\u0627\u0631\u064a\u062e \u0628\u062f\u0627\u064a\u0629 \u0627\u0644\u0643\u0648\u0631\u0633 (\u0627\u062e\u062a\u064a\u0627\u0631\u064a)')} type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
-          <Input label={translate('\u062a\u0627\u0631\u064a\u062e \u0646\u0647\u0627\u064a\u0629 \u0627\u0644\u0643\u0648\u0631\u0633 (\u0627\u062e\u062a\u064a\u0627\u0631\u064a)')} type="date" min={form.start_date || undefined} value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+          <Input label={translate('تاريخ بداية الكورس (اختياري)')} type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+          <Input label={translate('تاريخ نهاية الكورس (اختياري)')} type="date" min={form.start_date || undefined} value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <Select
             label={translate("الحالة")}
             value={form.availability_status}
@@ -141,16 +146,6 @@ export function CourseForm({ open, onClose, onSaved, course }: CourseFormProps) 
               { value: 'Upcoming', label: translate("قادم") },
               { value: 'Active', label: translate("نشط") },
               { value: 'Closed', label: translate("مغلق") },
-            ]}
-          />
-          <Select
-            label={translate("المستوى")}
-            value={form.level}
-            onChange={(e) => setForm({ ...form, level: e.target.value })}
-            options={[
-              { value: 'Beginner', label: translate("مبتدئ") },
-              { value: 'Intermediate', label: translate("متوسط") },
-              { value: 'Advanced', label: translate("متقدم") },
             ]}
           />
           <Input label={translate("السعة (اتركه فارغاً = غير محدود)")} type="number" placeholder="30" value={form.max_students} onChange={(e) => setForm({ ...form, max_students: e.target.value })} />

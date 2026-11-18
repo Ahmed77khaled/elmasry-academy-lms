@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <title>دعوة للانضمام إلى أكاديمية المصري</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Tahoma,sans-serif;color:#172033;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+      دعوة شخصية للانضمام إلى فريق إدارة أكاديمية المصري وتفعيل حسابك.
+    </div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f1f5f9;padding:32px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:620px;background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;overflow:hidden;">
+            <tr>
+              <td style="height:7px;background:#0eb889;font-size:0;line-height:0;">&nbsp;</td>
+            </tr>
+            <tr>
+              <td style="padding:28px 34px 22px;text-align:center;background:#101a2e;">
+                <div style="display:inline-block;width:42px;height:42px;line-height:42px;border-radius:13px;background:#0eb889;color:#ffffff;font-size:22px;font-weight:bold;vertical-align:middle;">م</div>
+                <span style="display:inline-block;margin-right:10px;color:#ffffff;font-size:20px;font-weight:bold;vertical-align:middle;">أكاديمية المصري</span>
+                <div dir="ltr" style="margin-top:7px;color:#b8c5d8;font-size:12px;letter-spacing:1.5px;">ELMASRY ACADEMY</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:34px 34px 12px;text-align:center;">
+                <span style="display:inline-block;padding:7px 13px;border-radius:999px;background:#e7f8f2;color:#087a5b;font-size:12px;font-weight:bold;letter-spacing:.4px;">
+                  دعوة للانضمام · INVITATION TO JOIN
+                </span>
+                <h1 style="margin:22px 0 10px;color:#101a2e;font-size:27px;line-height:1.45;">أهلاً بك في فريق أكاديمية المصري</h1>
+                <p style="margin:0;color:#087a5b;font-size:19px;line-height:1.7;font-weight:bold;">تمت دعوتك للانضمام بصفتك {{ .Data.invitation_role_name_ar }}</p>
+                <p dir="ltr" style="margin:2px 0 0;color:#526176;font-size:16px;line-height:1.6;font-weight:bold;">You’re invited to join as {{ .Data.invitation_role_name_en }}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:12px 38px 4px;text-align:right;">
+                <p style="margin:0 0 13px;color:#334155;font-size:16px;line-height:1.9;">
+                  يسعدنا انضمامك إلى فريق أكاديمية المصري. اقبل الدعوة لإكمال تفعيل حسابك والوصول إلى المنصة.
+                </p>
+                <p dir="ltr" style="margin:0 0 13px;color:#334155;font-size:15px;line-height:1.8;text-align:left;">
+                  We’re pleased to welcome you to Elmasry Academy. Accept this invitation to activate your account and continue to the platform.
+                </p>
+                <p style="margin:0 0 5px;color:#526176;font-size:13px;line-height:1.8;">
+                  أُرسلت هذه الدعوة بواسطة <strong style="color:#101a2e;">{{ .Data.invitation_sent_by_name_ar }}</strong>
+                </p>
+                <p dir="ltr" style="margin:0 0 13px;color:#526176;font-size:13px;line-height:1.8;text-align:left;">
+                  Invitation sent by <strong style="color:#101a2e;">{{ .Data.invitation_sent_by_name_en }}</strong>
+                </p>
+                <p style="margin:18px 0 0;color:#64748b;font-size:13px;line-height:1.8;">
+                  الدعوة مخصصة لهذا البريد: <strong dir="ltr" style="color:#334155;">{{ .Email }}</strong>
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 38px 10px;text-align:right;">
+                <div style="padding:18px 20px;border:1px solid #dbe7e3;border-radius:12px;background:#f7fbf9;">
+                  <h2 style="margin:0 0 5px;color:#101a2e;font-size:18px;line-height:1.6;">الدور والصلاحيات المعيّنة لك</h2>
+                  <p dir="ltr" style="margin:0 0 10px;color:#526176;font-size:14px;line-height:1.6;">Your assigned role and permissions</p>
+                  <p style="margin:0 0 10px;color:#087a5b;font-size:15px;font-weight:bold;line-height:1.7;">{{ .Data.invitation_role_name_ar }}</p>
+                  <p dir="ltr" style="margin:0 0 12px;color:#334155;font-size:14px;line-height:1.6;">{{ .Data.invitation_role_name_en }}</p>
+                  {{ if .Data.invitation_permission_items }}
+                  <ul style="margin:0;padding-right:20px;color:#334155;font-size:14px;line-height:1.9;">
+                    {{ range .Data.invitation_permission_items }}
+                    <li style="padding:2px 0;">
+                      <span>{{ .ar }}</span>
+                      <span dir="ltr" style="display:block;color:#64748b;font-size:12px;line-height:1.6;">{{ .en }}</span>
+                    </li>
+                    {{ end }}
+                  </ul>
+                  {{ else }}
+                  <p style="margin:0;color:#64748b;font-size:13px;line-height:1.8;">لم تُسند إلى هذا الدور صلاحيات إضافية بعد. / No additional permissions are assigned to this role yet.</p>
+                  {{ end }}
+                  <p style="margin:14px 0 0;color:#64748b;font-size:12px;line-height:1.8;">
+                    هذه لقطة للصلاحيات المرتبطة بالدور وقت إرسال الدعوة، وقد يحدّثها مالك المنصة لاحقًا. حافظ على سرية بيانات الطلاب واستخدمها في مهام الأكاديمية فقط.
+                  </p>
+                  <p dir="ltr" style="margin:5px 0 0;color:#64748b;font-size:12px;line-height:1.8;">
+                    This is a snapshot of the permissions linked to the role when the invitation was sent. The platform owner may update them later. Keep student data confidential and use it only for academy work.
+                  </p>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:26px 30px 18px;">
+                <a href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block;padding:15px 28px;border-radius:10px;background:#0eb889;color:#ffffff;text-decoration:none;font-size:16px;font-weight:bold;line-height:1.4;">
+                  قبول الدعوة وتفعيل الحساب
+                </a>
+                <p dir="ltr" style="margin:12px 0 0;color:#64748b;font-size:13px;">Accept invitation &amp; activate your account</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px 38px 28px;text-align:center;">
+                <p style="margin:0;color:#64748b;font-size:13px;line-height:1.8;">
+                  إذا لم تكن تتوقع هذه الدعوة، يمكنك تجاهل الرسالة دون اتخاذ أي إجراء.
+                </p>
+                <p dir="ltr" style="margin:5px 0 0;color:#64748b;font-size:13px;line-height:1.8;">
+                  If you weren’t expecting this invitation, you can safely ignore this email.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:18px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">
+                <p style="margin:0;color:#64748b;font-size:12px;line-height:1.8;">أكاديمية المصري · فريق إدارة التدريب</p>
+                <p dir="ltr" style="margin:3px 0 0;color:#94a3b8;font-size:11px;">Elmasry Academy · Training Management</p>
+                <p style="margin:10px 0 0;font-size:11px;line-height:1.7;">
+                  <a href="{{ .SiteURL }}" style="color:#087a5b;text-decoration:underline;">زيارة المنصة / Visit the platform</a>
+                </p>
+              </td>
+            </tr>
+          </table>
+          <p style="max-width:580px;margin:16px auto 0;color:#94a3b8;text-align:center;font-size:11px;line-height:1.7;">
+            إذا لم يعمل الزر، استخدم <a href="{{ .ConfirmationURL }}" style="color:#087a5b;">رابط الدعوة هذا</a>. / If the button doesn’t work, <a href="{{ .ConfirmationURL }}" style="color:#087a5b;">open this invitation link</a>.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

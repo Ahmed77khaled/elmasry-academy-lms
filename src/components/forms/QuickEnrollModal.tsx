@@ -1,14 +1,15 @@
 import { translate } from '@/lib/translations';
 import { translateTemplate } from '@/lib/translations';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Modal } from '@/components/ui/Modal';
 import { Input, Select, FormActions } from '@/components/ui/Form';
 import { Alert } from '@/components/ui/Alert';
-import { formatEGP } from '@/lib/format';
+import { formatCurrency } from '@/lib/format';
 import { UserPlus, UserCheck, CreditCard } from 'lucide-react';
-import type { Course, Student, CashBoxBalance } from '@/types/database';
+import type { Course, Student, CashBoxBalance, Currency } from '@/types/database';
 import { useAuth } from '@/context/useAuth';
+import { COUNTRIES, getGovernoratesForCountry } from '@/lib/geoData';
 
 interface QuickEnrollModalProps {
   open: boolean;
@@ -33,6 +34,8 @@ export function QuickEnrollModal({
   const [courses, setCourses] = useState<Course[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [cashBoxes, setCashBoxes] = useState<CashBoxBalance[]>([]);
+  const [courseSearch, setCourseSearch] = useState('');
+  const [studentSearch, setStudentSearch] = useState('');
 
   // Form Mode: 'existing' | 'new'
   const [studentMode, setStudentMode] = useState<'existing' | 'new'>('existing');
@@ -41,6 +44,7 @@ export function QuickEnrollModal({
   const [courseId, setCourseId] = useState(preselectedCourseId ?? '');
   const [studentId, setStudentId] = useState(preselectedStudentId ?? '');
   const [agreedCost, setAgreedCost] = useState('');
+  const [currency, setCurrency] = useState<Currency>('EGP');
 
   // New Student Fields
   const [newName, setNewName] = useState('');
@@ -48,6 +52,11 @@ export function QuickEnrollModal({
   const [newEmail, setNewEmail] = useState('');
   const [newEmployment, setNewEmployment] = useState('Student');
   const [newGrad, setNewGrad] = useState('Undergrad');
+  const [newCollege, setNewCollege] = useState('');
+  const [newCountry, setNewCountry] = useState('مصر');
+  const [newGovernorate, setNewGovernorate] = useState('');
+  const [newWorkplace, setNewWorkplace] = useState('');
+  const [newStudyYear, setNewStudyYear] = useState('');
   const [newNotes] = useState('');
 
   // Immediate Initial Payment (Optional)
@@ -60,13 +69,21 @@ export function QuickEnrollModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const quickGovernorates = useMemo(() => {
+    return getGovernoratesForCountry(newCountry || 'مصر');
+  }, [newCountry]);
+
   useEffect(() => {
     if (open) {
       setError(null);
       setSaving(false);
+      setCourseSearch('');
+      setStudentSearch('');
       setWithPayment(false);
       setPaymentAmount('');
       setReceiptRef('');
+      setNewCountry('مصر');
+      setNewGovernorate('');
       if (preselectedCourseId) setCourseId(preselectedCourseId);
       if (preselectedStudentId) {
         setStudentId(preselectedStudentId);
@@ -74,9 +91,9 @@ export function QuickEnrollModal({
       }
 
       Promise.all([
-        supabase.rpc('rbac_list_courses', { p_limit: 500, p_offset: 0 }),
-        supabase.rpc('rbac_list_students', { p_search: null, p_limit: 500, p_offset: 0 }),
-        canRecordPayment ? supabase.rpc('rbac_list_cash_boxes') : Promise.resolve({ data: [], error: null }),
+        supabase.rpc('rbac_list_courses_v2', { p_limit: 500, p_offset: 0 }),
+        supabase.rpc('rbac_list_students_v2', { p_search: null, p_limit: 500, p_offset: 0 }),
+        canRecordPayment ? supabase.rpc('rbac_list_cash_boxes_v2') : Promise.resolve({ data: [], error: null }),
       ]).then(([coursesRes, studentsRes, boxesRes]) => {
         const openCourses = ((coursesRes.data ?? []) as Course[]).filter((course) => course.availability_status !== 'Closed');
         setCourses(openCourses as Course[]);
@@ -95,8 +112,16 @@ export function QuickEnrollModal({
 
   const handleCourseChange = (id: string) => {
     setCourseId(id);
+    setCurrency('EGP');
     const c = courses.find((x) => x.course_id === id);
     if (c) setAgreedCost(c.default_cost == null ? '' : String(c.default_cost));
+  };
+
+  const handleCurrencyChange = (value: Currency) => {
+    setCurrency(value);
+    const c = courses.find((x) => x.course_id === courseId);
+    const price = value === 'USD' ? c?.default_cost_usd : c?.default_cost;
+    setAgreedCost(price == null ? '' : String(price));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -117,41 +142,60 @@ export function QuickEnrollModal({
         if (!newName.trim()) {
           throw new Error(translate("اسم الطالب مطلوب"));
         }
-        const { data: newStudent, error: sErr } = await supabase.rpc('rbac_create_student', {
+        const { data: newStudent, error: sErr } = await supabase.rpc('rbac_create_student_v2', {
           p_name: newName.trim(),
           p_phone: canManagePhone ? newPhone.trim() || null : null,
           p_email: canManageEmail ? newEmail.trim() || null : null,
           p_employment_status: newEmployment,
           p_grad_status: newGrad,
-          p_grad_college: null,
+          p_grad_college: (newGrad === 'Graduate' || newEmployment === 'Student') ? newCollege.trim() || null : null,
           p_previous_courses: null,
           p_notes: newNotes.trim() || null,
+          p_country: newCountry.trim() || null,
+          p_governorate: newGovernorate.trim() || null,
+          p_workplace: newEmployment === 'Employed' || newEmployment === 'Freelancer' ? newWorkplace.trim() || null : null,
+          p_study_year: newEmployment === 'Student' ? newStudyYear.trim() || null : null,
         });
 
-        if (sErr) throw sErr;
-        if (typeof newStudent !== 'string') throw new Error(translate("تعذر استلام رقم الطالب الجديد"));
+        if (sErr) {
+          setError(sErr.message || translate("تعذر إضافة بيانات الطالب الجديد"));
+          setSaving(false);
+          return;
+        }
+        if (typeof newStudent !== 'string' || !newStudent) {
+          setError(translate("تعذر استلام رقم الطالب الجديد"));
+          setSaving(false);
+          return;
+        }
         finalStudentId = newStudent;
       } else {
         if (!finalStudentId) {
-          throw new Error(translate("يرجى اختيار الطالب المسجل"));
+          setError(translate("يرجى اختيار الطالب المسجل"));
+          setSaving(false);
+          return;
         }
       }
 
       // 2. Enroll student into course via RPC
       const costNum = canOverridePrice && agreedCost ? parseFloat(agreedCost) : null;
-      const { data: enrData, error: enrErr } = await supabase.rpc('rbac_enroll_student', {
+      const { data: enrData, error: enrErr } = await supabase.rpc('rbac_enroll_student_v2', {
         p_student_id: finalStudentId,
         p_course_id: courseId,
+        p_currency: currency,
         p_agreed_cost: costNum,
       });
 
-      if (enrErr) throw enrErr;
+      if (enrErr) {
+        setError(enrErr.message || translate("حدث خطأ أثناء تسجيل الطالب في الكورس"));
+        setSaving(false);
+        return;
+      }
       const enrollment = Array.isArray(enrData) ? enrData[0] : enrData;
 
       // 3. If immediate payment was checked, record initial payment
       const pAmt = parseFloat(paymentAmount) || 0;
       if (withPayment && canRecordPayment && pAmt > 0 && enrollment?.enrollment_id && paymentBoxId) {
-        const { error: payErr } = await supabase.rpc('rbac_record_payment', {
+        const { error: payErr } = await supabase.rpc('rbac_record_payment_v2', {
           p_enrollment_id: enrollment.enrollment_id,
           p_cash_box_id: paymentBoxId,
           p_amount: pAmt,
@@ -168,13 +212,16 @@ export function QuickEnrollModal({
       onSaved();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : translate("حدث خطأ أثناء التسجيل"));
+      const msg = err instanceof Error ? err.message : typeof err === 'string' ? err : null;
+      setError(msg || translate("حدث خطأ أثناء التسجيل"));
     } finally {
       setSaving(false);
     }
   };
 
   const selectedCourse = courses.find((c) => c.course_id === courseId);
+  const filteredCourses = courses.filter((course) => course.course_name.toLocaleLowerCase().includes(courseSearch.trim().toLocaleLowerCase()));
+  const filteredStudents = students.filter((student) => student.name.toLocaleLowerCase().includes(studentSearch.trim().toLocaleLowerCase()));
 
   return (
     <Modal
@@ -189,21 +236,25 @@ export function QuickEnrollModal({
 
         {/* Course selection */}
         {!preselectedCourseId && (
-          <Select
-            label={translate("الكورس التدريبي")}
-            value={courseId}
-            onChange={(e) => handleCourseChange(e.target.value)}
-            options={[
-              { value: '', label: translate("-- اختر الكورس --") },
-              ...courses.map((c) => ({
+          <div className="space-y-2">
+            <Input label={translate("بحث باسم الكورس")} value={courseSearch} onChange={(e) => setCourseSearch(e.target.value)} />
+            <Select
+              label={translate("الكورس التدريبي")}
+              value={courseId}
+              onChange={(e) => handleCourseChange(e.target.value)}
+              options={[
+                { value: '', label: translate("-- اختر الكورس --") },
+                ...filteredCourses.map((c) => ({
                 value: c.course_id,
-                label: c.default_cost == null
-                  ? c.course_name
-                  : translateTemplate('{course} (التكلفة: {amount})', { course: c.course_name, amount: formatEGP(c.default_cost) }),
-              })),
-            ]}
-            required
-          />
+                label: translateTemplate('{course} ({prices})', {
+                  course: c.course_name,
+                  prices: [c.default_cost != null && formatCurrency(c.default_cost), c.default_cost_usd != null && formatCurrency(c.default_cost_usd, 'USD')].filter(Boolean).join(' ? ') || translate('No default price'),
+                }),
+                })),
+              ]}
+              required
+            />
+          </div>
         )}
 
         {/* Student Mode Selector (Toggle between Existing vs New) */}
@@ -236,19 +287,22 @@ export function QuickEnrollModal({
 
         {/* Existing Student Choice */}
         {studentMode === 'existing' && !preselectedStudentId && (
-          <Select
-            label={translate("اختر الطالب المسجل")}
-            value={studentId}
-            onChange={(e) => setStudentId(e.target.value)}
-            options={[
-              { value: '', label: translate("-- اختر الطالب من القائمة --") },
-              ...students.map((s) => ({
+          <div className="space-y-2">
+            <Input label={translate("بحث باسم الطالب")} value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} />
+            <Select
+              label={translate("اختر الطالب المسجل")}
+              value={studentId}
+              onChange={(e) => setStudentId(e.target.value)}
+              options={[
+                { value: '', label: translate("-- اختر الطالب من القائمة --") },
+                ...filteredStudents.map((s) => ({
                 value: s.student_id,
                 label: `${s.name} ${s.phone ? `(${s.phone})` : ''}`,
-              })),
-            ]}
-            required
-          />
+                })),
+              ]}
+              required
+            />
+          </div>
         )}
 
         {/* New Student Instant Fields */}
@@ -280,6 +334,39 @@ export function QuickEnrollModal({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Select
+                label={translate("الدولة")}
+                value={newCountry || 'مصر'}
+                onChange={(e) => {
+                  const countryVal = e.target.value;
+                  setNewCountry(countryVal);
+                  if (countryVal !== 'مصر') setNewGovernorate('');
+                }}
+                options={COUNTRIES.map((c) => ({ value: c.name, label: c.name }))}
+              />
+              {quickGovernorates.length > 0 ? (
+                <Select
+                  label={translate("المحافظة")}
+                  value={newGovernorate}
+                  onChange={(e) => setNewGovernorate(e.target.value)}
+                  options={[
+                    { value: '', label: translate("-- اختر المحافظة --") },
+                    ...quickGovernorates.map((gov) => ({ value: gov, label: gov })),
+                  ]}
+                />
+              ) : (
+                <Input
+                  label={translate("المحافظة / المدينة (اختياري)")}
+                  placeholder={translate("مثال: المدينة أو المنطقة")}
+                  value={newGovernorate}
+                  onChange={(e) => setNewGovernorate(e.target.value)}
+                />
+              )}
+            </div>
+            {(newEmployment === 'Employed' || newEmployment === 'Freelancer') && <Input label={translate("جهة العمل أو المسمى الوظيفي")} value={newWorkplace} onChange={(e) => setNewWorkplace(e.target.value)} />}
+            {newEmployment === 'Student' && <Input label={translate("السنة الدراسية")} value={newStudyYear} onChange={(e) => setNewStudyYear(e.target.value)} />}
+            {(newGrad === 'Graduate' || newEmployment === 'Student') && <Input label={translate("\u0627\u0644\u0643\u0644\u064a\u0629")} value={newCollege} onChange={(e) => setNewCollege(e.target.value)} />}
+            <div className="grid grid-cols-2 gap-3">
+              <Select
                 label={translate("الحالة الوظيفية")}
                 value={newEmployment}
                 onChange={(e) => setNewEmployment(e.target.value)}
@@ -304,14 +391,21 @@ export function QuickEnrollModal({
         )}
 
         {/* Agreed Cost */}
-        <div className="p-3 bg-obsidian-700/30 rounded-xl border border-obsidian-500/20">
+        <div className="p-3 bg-obsidian-700/30 rounded-xl border border-obsidian-500/20 space-y-3">
+          <Select
+            label={translate('عملة التسجيل')}
+            value={currency}
+            onChange={(e) => handleCurrencyChange(e.target.value as Currency)}
+            options={[{ value: 'EGP', label: translate('جنيه مصري (EGP)') }, { value: 'USD', label: translate('دولار أمريكي (USD)') }]}
+          />
           {canOverridePrice ? <Input
-            label={translate("المبلغ المتفق عليه للكورس (ج.م)")}
+            label={translateTemplate('المبلغ المتفق عليه للكورس ({currency})', { currency })}
             type="number"
             step="0.01"
-            placeholder={selectedCourse?.default_cost == null ? translate("السعر الافتراضي") : String(selectedCourse.default_cost)}
+            min="0"
+            placeholder={(currency === 'USD' ? selectedCourse?.default_cost_usd : selectedCourse?.default_cost) == null ? translate("السعر الافتراضي") : String(currency === 'USD' ? selectedCourse?.default_cost_usd : selectedCourse?.default_cost)}
             value={agreedCost}
-            onChange={(e) => setAgreedCost(e.target.value)}
+            onChange={(e) => { const v = e.target.value; if (!v.startsWith("-")) setAgreedCost(v); }}
           /> : <p className="text-sm text-obsidian-200">{translate("سيُحدد السعر من إعدادات الكورس، ولا يمكن تغييره من هذا الحساب.")}</p>}
           {canOverridePrice && <p className="text-xs text-obsidian-300 mt-1.5">{translate("يمكن تعديل السعر وفقاً لأي خصم أو اتفاق خاص مع الطالب")}</p>}
         </div>
@@ -336,9 +430,10 @@ export function QuickEnrollModal({
                 label={translate("مبلغ الدفعة الأولى (ج.م)")}
                 type="number"
                 step="0.01"
+                min="0.01"
                 placeholder={translate("مثال: 500")}
                 value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
+                onChange={(e) => { const v = e.target.value; if (!v.startsWith("-")) setPaymentAmount(v); }}
                 required={withPayment}
               />
               <Select
@@ -347,7 +442,7 @@ export function QuickEnrollModal({
                 onChange={(e) => setPaymentBoxId(e.target.value)}
                 options={cashBoxes.map((b) => ({
                   value: b.cash_box_id,
-                  label: `${b.name} (${formatEGP(b.current_balance)})`,
+                  label: `${b.name} (${formatCurrency(currency === 'USD' ? (b.current_balance_usd ?? 0) : b.current_balance, currency)})`,
                 }))}
                 required={withPayment}
               />

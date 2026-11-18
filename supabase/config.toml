@@ -10,3 +10,7 @@ verify_jwt = false
 
 [functions.telegram-group-dispatch]
 verify_jwt = false
+
+[auth.email.template.invite]
+subject = "دعوتك للانضمام إلى أكاديمية المصري بصفتك {{ .Data.invitation_role_name_subject }} | Elmasry Academy"
+content_path = "./supabase/templates/admin-invite.html"

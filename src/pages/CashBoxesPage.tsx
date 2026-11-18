@@ -1,15 +1,16 @@
 import { translate } from '@/lib/translations';
 import { translateTemplate } from '@/lib/translations';
 import { useState } from 'react';
-import { Plus, ArrowRightLeft, Archive } from 'lucide-react';
+import { Plus, ArrowRightLeft, Archive, History } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { Alert } from '@/components/ui/Alert';
 import { CashBoxForm, TransferForm } from '@/components/forms/CashBoxForm';
+import { CashBoxLedgerModal } from '@/components/CashBoxLedgerModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { formatEGP } from '@/lib/format';
+import { formatCurrency, formatEGP, formatBalance } from '@/lib/format';
 import type { CashBoxBalance } from '@/types/database';
 import { useAuth } from '@/context/useAuth';
 
@@ -28,12 +29,13 @@ export function CashBoxesPage() {
   const canTransferFunds = permissions.includes('finance.transfers.create');
   const [formOpen, setFormOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [ledgerTarget, setLedgerTarget] = useState<CashBoxBalance | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<CashBoxBalance | null>(null);
   const [archiving, setArchiving] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
 
   const { data: boxes, loading, refetch } = useQuery<CashBoxBalance[]>(async () => {
-    const { data, error } = await supabase.rpc('rbac_list_cash_boxes');
+    const { data, error } = await supabase.rpc('rbac_list_cash_boxes_v2');
     return { data: data as CashBoxBalance[] | null, error: error?.message ?? null };
   });
 
@@ -112,9 +114,10 @@ export function CashBoxesPage() {
 
                 <div className="bg-obsidian-700/40 rounded-xl p-4 mb-4 text-center">
                   <p className="text-obsidian-300 text-xs mb-1">{translate("الرصيد الفعلي المتوفر")}</p>
-                  <p className={`font-num font-bold text-2xl ${box.current_balance < 0 ? 'text-rose-400' : 'text-emerald-light'}`}>
-                    {formatEGP(box.current_balance)}
-                  </p>
+                  <div className="space-y-1">
+                    <p className={`font-num font-bold text-2xl ${box.current_balance < 0 ? 'text-rose-400' : 'text-emerald-light'}`}>{formatBalance(box.current_balance)}</p>
+                    <p className={`font-num font-bold text-lg ${(box.current_balance_usd ?? 0) < 0 ? 'text-rose-400' : 'text-emerald-light'}`}>{formatBalance(box.current_balance_usd ?? 0, 'USD')}</p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
@@ -127,24 +130,32 @@ export function CashBoxesPage() {
                     <p className="text-emerald-light font-num font-semibold">{formatEGP(box.total_payments_in)}</p>
                   </div>
                   <div className="bg-obsidian-700/30 rounded-lg p-2.5">
+                    <p className="text-obsidian-300 mb-0.5">{translate('المقبوضات الواردة بالدولار')}</p>
+                    <p className="text-emerald-light font-num font-semibold">{formatCurrency(box.total_payments_in_usd ?? 0, 'USD')}</p>
+                  </div>
+                  <div className="bg-obsidian-700/30 rounded-lg p-2.5">
                     <p className="text-obsidian-300 mb-0.5">{translate("المصروفات الصادرة")}</p>
-                    <p className="text-rose-400 font-num font-semibold">{formatEGP(box.total_expenses_out)}</p>
+                    <p className="text-rose-400 font-num font-semibold">{formatEGP(Math.abs(box.total_expenses_out))}</p>
                   </div>
                   <div className="bg-obsidian-700/30 rounded-lg p-2.5">
                     <p className="text-obsidian-300 mb-0.5">{translate("صافي حركات التحويل")}</p>
                     <p className="text-azure-brand font-num font-semibold">
-                      {formatEGP(box.total_transfers_in - box.total_transfers_out)}
+                      {box.total_transfers_in - box.total_transfers_out === 0
+                        ? formatEGP(0)
+                        : box.total_transfers_in >= box.total_transfers_out
+                        ? `${translate("وارد")} ${formatEGP(box.total_transfers_in - box.total_transfers_out)}`
+                        : `${translate("صادر")} ${formatEGP(Math.abs(box.total_transfers_in - box.total_transfers_out))}`}
                     </p>
                   </div>
                 </div>
 
                 <div className="flex gap-2 mt-4 pt-3 border-t border-obsidian-500/20">
                   <button
-                    onClick={() => setTransferOpen(true)}
-                    className="btn-secondary flex-1 text-xs py-1.5"
-                    disabled={activeBoxes.length < 2}
+                    onClick={() => setLedgerTarget(box)}
+                    className="btn-secondary flex-1 text-xs py-1.5 flex items-center justify-center gap-1.5"
                   >
-                    <ArrowRightLeft size={14} /> {translate("تحويل أموال")}</button>
+                    <History size={14} /> {translate("سجل الحركات")}
+                  </button>
                   {canArchiveCashBox && <button
                     onClick={() => setArchiveTarget(box)}
                     className="btn-ghost text-xs py-1.5 text-obsidian-300 hover:text-amber-400"
@@ -165,10 +176,19 @@ export function CashBoxesPage() {
                   <div key={box.cash_box_id} className="card-surface p-4 opacity-50 hover:opacity-80 transition-opacity">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="text-white font-medium text-sm">{box.name}</h4>
-                      <Badge variant="gray">{translate("مؤرشفة")}</Badge>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setLedgerTarget(box)}
+                          className="text-xs text-obsidian-300 hover:text-white flex items-center gap-1"
+                          title={translate("سجل الحركات")}
+                        >
+                          <History size={13} /> {translate("سجل الحركات")}
+                        </button>
+                        <Badge variant="gray">{translate("مؤرشفة")}</Badge>
+                      </div>
                     </div>
                     <p className="text-obsidian-300 text-xs font-num">
-                      {translate("الرصيد:")}{' '}{formatEGP(box.current_balance)}
+                      {translate("الرصيد:")}{' '}{formatBalance(box.current_balance)}
                     </p>
                   </div>
                 ))}
@@ -180,6 +200,7 @@ export function CashBoxesPage() {
 
       <CashBoxForm open={formOpen} onClose={() => setFormOpen(false)} onSaved={refetch} />
       <TransferForm open={transferOpen} onClose={() => setTransferOpen(false)} onSaved={refetch} cashBoxes={activeBoxes} />
+      <CashBoxLedgerModal open={!!ledgerTarget} onClose={() => setLedgerTarget(null)} box={ledgerTarget} />
       <ConfirmDialog
         open={!!archiveTarget}
         onClose={() => {

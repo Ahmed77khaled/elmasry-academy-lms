@@ -1,7 +1,7 @@
 import { translate } from '@/lib/translations';
 import { translateTemplate } from '@/lib/translations';
 import { useState } from 'react';
-import { Search, Plus, Pencil, Eye, MessageCircle, ListTodo, HardDrive, BookMarked, MoreVertical, Lock } from 'lucide-react';
+import { Search, Plus, Pencil, Eye, MessageCircle, ListTodo, HardDrive, BookMarked, MoreVertical, Lock, Copy } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from '@/context/useRouter';
@@ -10,7 +10,7 @@ import { courseStatusBadge } from '@/components/ui/badgeStatus';
 import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { CourseForm } from '@/components/forms/CourseForm';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { formatEGP, formatDate } from '@/lib/format';
+import { formatCurrency, formatDate } from '@/lib/format';
 import type { Course, EnrollmentBalance } from '@/types/database';
 import { useAuth } from '@/context/useAuth';
 
@@ -33,9 +33,11 @@ export function CoursesPage() {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [closeTarget, setCloseTarget] = useState<Course | null>(null);
   const [closing, setClosing] = useState(false);
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [copyFailedLink, setCopyFailedLink] = useState<string | null>(null);
 
   const { data: courses, loading, refetch } = useQuery<Course[]>(async () => {
-    const { data, error } = await supabase.rpc('rbac_list_courses', { p_limit: 500, p_offset: 0 });
+    const { data, error } = await supabase.rpc('rbac_list_courses_v2', { p_limit: 500, p_offset: 0 });
     if (error) return { data: null, error: error.message };
     const normalizedSearch = search.trim().toLocaleLowerCase();
     const filtered = ((data ?? []) as Course[]).filter((course) =>
@@ -46,7 +48,7 @@ export function CoursesPage() {
 
   const { data: enrollmentCounts } = useQuery<{ course_id: string; count: number }[]>(async () => {
     if (!canReadEnrollments) return { data: [], error: null };
-    const { data, error } = await supabase.rpc('rbac_list_enrollments', {
+    const { data, error } = await supabase.rpc('rbac_list_enrollments_v2', {
       p_search: null, p_limit: 500, p_offset: 0,
     });
     if (error) return { data: null, error: error.message };
@@ -204,7 +206,7 @@ export function CoursesPage() {
 
                 <div className="text-sm mb-3">
                   <span className="text-obsidian-300">{translate("التكلفة:")}{' '}</span>
-                  {canReadCoursePricing && course.default_cost != null && <span className="text-emerald-light font-num font-bold">{formatEGP(course.default_cost)}</span>}
+                  {canReadCoursePricing && (course.default_cost != null || course.default_cost_usd != null) && <span className="text-emerald-light font-num font-bold">{[course.default_cost != null && formatCurrency(course.default_cost), course.default_cost_usd != null && formatCurrency(course.default_cost_usd, 'USD')].filter(Boolean).join(' · ')}</span>}
                 </div>
 
                 {/* Links */}
@@ -212,16 +214,35 @@ export function CoursesPage() {
                   <div className="flex flex-wrap gap-2 mt-auto pt-3 border-t border-obsidian-500/20">
                     {links.map((link, i) => {
                       const Icon = link.icon;
+                      let safeHref: string | null = null;
+                      try {
+                        const parsed = new URL(link.url!);
+                        if (parsed.protocol === 'https:' || parsed.protocol === 'http:') safeHref = parsed.toString();
+                      } catch { safeHref = null; }
                       return (
-                        <a
-                          key={i}
-                          href={link.url!}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs text-azure-brand hover:text-azure-light bg-azure-brand/10 hover:bg-azure-brand/20 px-2.5 py-1.5 rounded-lg border border-azure-brand/20 transition-all"
-                        >
-                          <Icon size={14} /> {link.label}
-                        </a>
+                        <div key={i} className="inline-flex items-center rounded-lg border border-azure-brand/20 bg-azure-brand/10 text-azure-brand">
+                          {safeHref ? <a
+                            href={safeHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs hover:text-azure-light hover:bg-azure-brand/20 px-2.5 py-1.5 rounded-r-lg transition-all"
+                          ><Icon size={14} /> {link.label}</a> : <span className="px-2.5 py-1.5 text-xs text-obsidian-300">{link.label} · {translate("رابط غير صالح")}</span>}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCopyFailedLink(null);
+                              void navigator.clipboard.writeText(link.url!).then(() => {
+                                setCopiedLink(link.url!);
+                                window.setTimeout(() => setCopiedLink(null), 1600);
+                              }).catch(() => setCopyFailedLink(link.url!));
+                            }}
+                            className="px-2 py-1.5 border-r border-azure-brand/20 hover:bg-azure-brand/20 rounded-l-lg"
+                            title={translate("نسخ الرابط")}
+                            aria-label={translate("نسخ الرابط")}
+                          ><Copy size={13} aria-hidden="true" /></button>
+                          {copiedLink === link.url && <span className="sr-only" role="status">{translate("تم نسخ الرابط")}</span>}
+                          {copyFailedLink === link.url && <span className="sr-only" role="status">{translate("\u062a\u0639\u0630\u0631 \u0646\u0633\u062e \u0627\u0644\u0631\u0627\u0628\u0637")}</span>}
+                        </div>
                       );
                     })}
                   </div>

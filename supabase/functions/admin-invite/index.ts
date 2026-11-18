@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import { getBearerToken, getSupabaseKey, handleOptions, jsonResponse } from "../_shared/http.ts";
+import { buildAdminInviteEmailData } from "../_shared/admin-invite-email.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const publishableKey = getSupabaseKey("SUPABASE_ANON_KEY", "SUPABASE_PUBLISHABLE_KEYS");
@@ -62,7 +63,7 @@ Deno.serve(async (request: Request) => {
 
   const { data: role, error: roleLookupError } = await adminClient
     .from("admin_roles")
-    .select("role_key, is_assignable")
+    .select("role_key, display_name, is_assignable")
     .eq("role_key", roleKeyValue)
     .maybeSingle();
   if (roleLookupError) {
@@ -72,6 +73,36 @@ Deno.serve(async (request: Request) => {
   if (!role || role.is_assignable !== true) {
     return jsonResponse({ error: "That administrator role cannot be assigned." }, 400);
   }
+
+  const { data: assignedPermissions, error: assignedPermissionsError } = await adminClient
+    .from("admin_role_permissions")
+    .select("permission_key")
+    .eq("role_key", roleKeyValue)
+    .order("permission_key");
+  if (assignedPermissionsError) {
+    console.error("Unable to read permissions for the requested administrator role.");
+    return jsonResponse({ error: "Could not prepare the role details for this invitation." }, 503);
+  }
+
+  const permissionKeys = (assignedPermissions ?? []).map((item) => item.permission_key);
+  const { data: permissionCatalog, error: permissionCatalogError } = permissionKeys.length
+    ? await adminClient
+      .from("permission_catalog")
+      .select("permission_key, description")
+      .in("permission_key", permissionKeys)
+    : { data: [], error: null };
+  if (permissionCatalogError || !permissionCatalog) {
+    console.error("Unable to load descriptions for the requested administrator role permissions.");
+    return jsonResponse({ error: "Could not prepare the role details for this invitation." }, 503);
+  }
+  const inviteEmailData = buildAdminInviteEmailData(
+    roleKeyValue,
+    role.display_name,
+    [...permissionCatalog].sort((left, right) => left.permission_key.localeCompare(right.permission_key)),
+    typeof userResult.user.user_metadata?.full_name === "string"
+      ? userResult.user.user_metadata.full_name
+      : "",
+  );
 
   // Do not let a rollback delete an Auth account that existed before this invite.
   let existingAuthUser = false;
@@ -95,7 +126,9 @@ Deno.serve(async (request: Request) => {
     return jsonResponse({ error: "An Auth account already uses this email. Ask the platform owner to manage its administrator access." }, 409);
   }
 
-  const { data: inviteResult, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email);
+  const { data: inviteResult, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
+    data: inviteEmailData,
+  });
   const invitedUserId = inviteResult.user?.id;
   if (inviteError || !invitedUserId) {
     return jsonResponse({ error: inviteError?.message ?? "The invitation could not be sent." }, 400);

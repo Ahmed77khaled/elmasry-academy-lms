@@ -1,10 +1,11 @@
 import { translate } from '@/lib/translations';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Modal } from '@/components/ui/Modal';
 import { Input, Select, Textarea, FormActions } from '@/components/ui/Form';
 import { Alert } from '@/components/ui/Alert';
 import type { Student } from '@/types/database';
+import { COUNTRIES, getGovernoratesForCountry } from '@/lib/geoData';
 
 interface StudentFormProps {
   open: boolean;
@@ -21,6 +22,10 @@ export function StudentForm({ open, onClose, onSaved, student }: StudentFormProp
     employment_status: 'Unemployed',
     grad_status: 'Undergrad',
     grad_college: '',
+    country: '',
+    governorate: '',
+    workplace: '',
+    study_year: '',
     previous_courses: '',
     notes: '',
   });
@@ -49,17 +54,25 @@ export function StudentForm({ open, onClose, onSaved, student }: StudentFormProp
           employment_status: student.employment_status ?? 'Unemployed',
           grad_status: student.grad_status ?? 'Undergrad',
           grad_college: student.grad_college ?? '',
+          country: student.country ?? 'مصر',
+          governorate: student.governorate ?? '',
+          workplace: student.workplace ?? '',
+          study_year: student.study_year ?? '',
           previous_courses: student.previous_courses ?? '',
           notes: student.notes ?? '',
         });
       } else {
         setForm({
           name: '', phone: '', email: '', employment_status: 'Unemployed',
-          grad_status: 'Undergrad', grad_college: '', previous_courses: '', notes: '',
+          grad_status: 'Undergrad', grad_college: '', country: 'مصر', governorate: '', workplace: '', study_year: '', previous_courses: '', notes: '',
         });
       }
     }
   }, [open, student]);
+
+  const availableGovernorates = useMemo(() => {
+    return getGovernoratesForCountry(form.country || 'مصر');
+  }, [form.country]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,20 +89,24 @@ export function StudentForm({ open, onClose, onSaved, student }: StudentFormProp
       p_email: canManageEmail ? form.email.trim() || null : null,
       p_employment_status: form.employment_status,
       p_grad_status: form.grad_status,
-      p_grad_college: form.grad_status === 'Graduate' ? form.grad_college.trim() || null : null,
+      p_grad_college: (form.grad_status === 'Graduate' || form.employment_status === 'Student') ? form.grad_college.trim() || null : null,
       p_previous_courses: form.previous_courses.trim() || null,
       p_notes: form.notes.trim() || null,
+      p_country: form.country.trim() || null,
+      p_governorate: form.governorate.trim() || null,
+      p_workplace: form.employment_status === 'Employed' || form.employment_status === 'Freelancer' ? form.workplace.trim() || null : null,
+      p_study_year: form.employment_status === 'Student' ? form.study_year.trim() || null : null,
     };
 
     try {
       if (student) {
-        const { error: err } = await supabase.rpc('rbac_update_student', {
+        const { error: err } = await supabase.rpc('rbac_update_student_v2', {
           p_student_id: student.student_id,
           ...payload,
         });
         if (err) throw err;
       } else {
-        const { error: err } = await supabase.rpc('rbac_create_student', payload);
+        const { error: err } = await supabase.rpc('rbac_create_student_v2', payload);
         if (err) throw err;
       }
       onSaved();
@@ -132,7 +149,46 @@ export function StudentForm({ open, onClose, onSaved, student }: StudentFormProp
             ]}
           />
         </div>
-        {form.grad_status === 'Graduate' && (
+        <div className="grid grid-cols-2 gap-4">
+          <Select
+            label={translate("الدولة")}
+            value={form.country || 'مصر'}
+            onChange={(e) => {
+              const newCountry = e.target.value;
+              setForm({
+                ...form,
+                country: newCountry,
+                governorate: newCountry === 'مصر' ? form.governorate : '',
+              });
+            }}
+            options={COUNTRIES.map((c) => ({ value: c.name, label: c.name }))}
+          />
+          {availableGovernorates.length > 0 ? (
+            <Select
+              label={translate("المحافظة")}
+              value={form.governorate}
+              onChange={(e) => setForm({ ...form, governorate: e.target.value })}
+              options={[
+                { value: '', label: translate("-- اختر المحافظة --") },
+                ...availableGovernorates.map((gov) => ({ value: gov, label: gov })),
+              ]}
+            />
+          ) : (
+            <Input
+              label={translate("المحافظة / المدينة (اختياري)")}
+              placeholder={translate("مثال: المدينة أو المنطقة")}
+              value={form.governorate}
+              onChange={(e) => setForm({ ...form, governorate: e.target.value })}
+            />
+          )}
+        </div>
+        {(form.employment_status === 'Employed' || form.employment_status === 'Freelancer') && (
+          <Input label={translate("جهة العمل أو المسمى الوظيفي")} placeholder={translate("اسم جهة العمل أو المسمى الوظيفي")} value={form.workplace} onChange={(e) => setForm({ ...form, workplace: e.target.value })} />
+        )}
+        {form.employment_status === 'Student' && (
+          <Input label={translate("السنة الدراسية")} placeholder={translate("مثال: السنة الثالثة")} value={form.study_year} onChange={(e) => setForm({ ...form, study_year: e.target.value })} />
+        )}
+        {(form.grad_status === 'Graduate' || form.employment_status === 'Student') && (
           <Input label={translate("الكلية")} placeholder={translate("اسم الكلية / الجامعة")} value={form.grad_college} onChange={(e) => setForm({ ...form, grad_college: e.target.value })} />
         )}
         <Textarea label={translate("كورسات سابقة")} rows={2} placeholder={translate("الكورسات التي درسها الطالب سابقاً")} value={form.previous_courses} onChange={(e) => setForm({ ...form, previous_courses: e.target.value })} />

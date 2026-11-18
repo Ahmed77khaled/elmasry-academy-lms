@@ -1,5 +1,6 @@
 export interface Student {
   student_id: string;
+  student_code?: string | null;
   name: string;
   phone: string | null;
   email: string | null;
@@ -8,6 +9,13 @@ export interface Student {
   grad_college: string | null;
   previous_courses: string | null;
   notes: string | null;
+  country?: string | null;
+  governorate?: string | null;
+  workplace?: string | null;
+  study_year?: string | null;
+  active_courses?: string | null;
+  active_course_count?: number | null;
+  total_count?: number | null;
   created_at: string;
   updated_at?: string;
 }
@@ -16,6 +24,7 @@ export interface Course {
   course_id: string;
   course_name: string;
   default_cost: number | null;
+  default_cost_usd?: number | null;
   availability_status: 'Upcoming' | 'Active' | 'Closed';
   level: 'Beginner' | 'Intermediate' | 'Advanced' | null;
   duration_weeks: number | null;
@@ -49,6 +58,7 @@ export interface Enrollment {
   student_id: string;
   course_id: string;
   agreed_cost: number | null;
+  agreed_currency?: Currency;
   status: 'Active' | 'Completed' | 'Dropped';
   enrolled_at: string;
   updated_at?: string;
@@ -60,6 +70,7 @@ export interface Payment {
   enrollment_id: string;
   cash_box_id: string;
   amount: number;
+  currency?: Currency;
   payment_date: string;
   method: 'Cash' | 'Bank Transfer' | 'Vodafone Cash' | 'InstaPay' | string;
   receipt_ref: string | null;
@@ -107,6 +118,7 @@ export interface EnrollmentBalance {
   student_name: string;
   course_name: string;
   agreed_cost: number | null;
+  agreed_currency?: Currency | null;
   enrollment_status: 'Active' | 'Completed' | 'Dropped';
   enrolled_at: string;
   total_paid: number | null;
@@ -126,7 +138,12 @@ export interface CashBoxBalance {
   total_transfers_in: number;
   total_transfers_out: number;
   current_balance: number;
+  opening_balance_usd?: number;
+  total_payments_in_usd?: number;
+  current_balance_usd?: number;
 }
+
+export type Currency = 'EGP' | 'USD';
 
 export interface CourseFinancialSummary {
   course_id: string;
@@ -141,6 +158,10 @@ export interface CourseFinancialSummary {
   collected_payments: number;
   total_expenses: number;
   net_profit: number;
+  expected_revenue_usd?: number;
+  collected_payments_usd?: number;
+  total_expenses_usd?: number;
+  net_profit_usd?: number;
 }
 
 export interface DashboardMetrics {
@@ -155,6 +176,9 @@ export interface DashboardMetrics {
   total_expenses_all_time: number;
   net_profit_all_time: number;
   total_pending_balance: number;
+  revenue_this_month_usd?: number;
+  total_revenue_all_time_usd?: number;
+  total_pending_balance_usd?: number;
 }
 
 export interface PaymentTableRow extends Payment {

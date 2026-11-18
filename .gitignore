@@ -26,3 +26,7 @@ supabase/.temp/
 
 .vercel
 .env*
+
+.agents/
+.delegate/
+skills-lock.json

@@ -1,7 +1,7 @@
 import { translate } from '@/lib/translations';
 import { useLocale } from '@/context/useLocale';
 import { Modal } from '@/components/ui/Modal';
-import { formatEGP, formatDate } from '@/lib/format';
+import { formatCurrency, formatDate, formatStudentCode } from '@/lib/format';
 import { Printer, CheckCircle2 } from 'lucide-react';
 
 interface ReceiptModalProps {
@@ -10,10 +10,12 @@ interface ReceiptModalProps {
   payment: {
     payment_id: string;
     receipt_number?: number | null;
+    student_code?: string | null;
     student_name: string;
     student_phone?: string | null;
     course_name: string;
     amount: number;
+    currency?: 'EGP' | 'USD';
     payment_date: string;
     method: string;
     receipt_ref?: string | null;
@@ -59,7 +61,7 @@ export function ReceiptModal({ open, onClose, payment }: ReceiptModalProps) {
             <div className="text-left">
               <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-bold">
                 <CheckCircle2 size={13} /> {translate("إيصال تحصيل رسمي")}</span>
-              <p className="text-xs text-gray-500 mt-1 font-mono">
+              <p className="text-xs text-gray-500 mt-1 font-num">
                 {translate("رقم:")}{' '}{payment.receipt_number != null
                   ? `REC-${String(payment.receipt_number).padStart(8, '0')}`
                   : `REC-${payment.payment_id.slice(0, 8).toUpperCase()}`}
@@ -70,19 +72,24 @@ export function ReceiptModal({ open, onClose, payment }: ReceiptModalProps) {
           {/* Main Details Table */}
           {payment.receipt_ref && (
             <p className="text-xs text-gray-500 mb-3">
-              {translate("مرجع التحويل الخارجي:")}{' '}<span className="font-mono">{payment.receipt_ref}</span>
+              {translate("مرجع التحويل الخارجي:")}{' '}<span className="font-num">{payment.receipt_ref}</span>
             </p>
           )}
           <div className="space-y-3 text-sm">
             <div className="flex justify-between py-1.5 border-b border-gray-100">
               <span className="text-gray-500 font-medium">{translate("اسم الطالب:")}</span>
-              <span className="font-bold text-gray-900">{payment.student_name}</span>
+              <div className="font-bold text-gray-900 flex items-center gap-2">
+                <span>{payment.student_name}</span>
+                <span className="text-[11px] font-num text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                  {formatStudentCode(payment.payment_id, payment.student_code)}
+                </span>
+              </div>
             </div>
 
             {payment.student_phone && (
               <div className="flex justify-between py-1.5 border-b border-gray-100">
                 <span className="text-gray-500 font-medium">{translate("رقم الهاتف:")}</span>
-                <span className="font-semibold text-gray-800 font-mono">{payment.student_phone}</span>
+                <span className="font-semibold text-gray-800 font-num">{payment.student_phone}</span>
               </div>
             )}
 
@@ -93,7 +100,7 @@ export function ReceiptModal({ open, onClose, payment }: ReceiptModalProps) {
 
             <div className="flex justify-between py-1.5 border-b border-gray-100">
               <span className="text-gray-500 font-medium">{translate("تاريخ السداد:")}</span>
-              <span className="font-semibold text-gray-800 font-mono">{formatDate(payment.payment_date)}</span>
+              <span className="font-semibold text-gray-800 font-num">{formatDate(payment.payment_date)}</span>
             </div>
 
             <div className="flex justify-between py-1.5 border-b border-gray-100">
@@ -121,8 +128,8 @@ export function ReceiptModal({ open, onClose, payment }: ReceiptModalProps) {
                 <p className="text-xs text-emerald-800 font-bold">{translate("المبلغ المحصل والمدفوع:")}</p>
                 <p className="text-xs text-emerald-600">{translate("تم القيد في الخزينة بنجاح")}</p>
               </div>
-              <p className="text-2xl font-black text-emerald-700 font-mono">
-                {formatEGP(payment.amount)}
+              <p className="text-2xl font-black text-emerald-700 font-num">
+                {formatCurrency(payment.amount, payment.currency ?? 'EGP')}
               </p>
             </div>
           </div>

@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Modal } from '@/components/ui/Modal';
 import { Input, Select, Textarea, FormActions } from '@/components/ui/Form';
 import { Alert } from '@/components/ui/Alert';
-import { formatEGP, todayISO } from '@/lib/format';
+import { formatEGP, formatBalance, todayISO } from '@/lib/format';
 import type { CashBoxBalance, Course } from '@/types/database';
 
 interface ExpenseFormProps {
@@ -42,7 +42,7 @@ export function ExpenseForm({ open, onClose, onSaved }: ExpenseFormProps) {
       setExpenseDate(todayISO());
       setCategory('Other');
       Promise.all([
-        supabase.rpc('rbac_list_cash_boxes'),
+        supabase.rpc('rbac_list_cash_boxes_v2'),
         supabase.rpc('rbac_list_courses', { p_limit: 500, p_offset: 0 }),
       ]).then(([boxRes, courseRes]) => {
         const activeBoxes = ((boxRes.data ?? []) as CashBoxBalance[]).filter((box) => box.is_active);
@@ -56,7 +56,7 @@ export function ExpenseForm({ open, onClose, onSaved }: ExpenseFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cashBoxId) { setError(translate("يرجى اختيار الخزنة")); return; }
-    if (enteredAmount <= 0) { setError(translate("المبلغ يجب أن يكون أكبر من صفر")); return; }
+    if (enteredAmount <= 0) { setError(translate("المبلغ يجب أن يكون أكبر من صفر ولا يمكن إدخال مبالغ بالسالب")); return; }
 
     setSaving(true);
     setError(null);
@@ -95,7 +95,7 @@ export function ExpenseForm({ open, onClose, onSaved }: ExpenseFormProps) {
             { value: '', label: translate("-- اختر الخزنة --") },
             ...cashBoxes.map((b) => ({
               value: b.cash_box_id,
-              label: translateTemplate('{name} (الرصيد: {amount})', { name: b.name, amount: formatEGP(b.current_balance) }),
+              label: translateTemplate('{name} (الرصيد: {amount})', { name: b.name, amount: formatBalance(b.current_balance) }),
             })),
           ]}
         />
@@ -104,9 +104,15 @@ export function ExpenseForm({ open, onClose, onSaved }: ExpenseFormProps) {
           label={translate("المبلغ (ج.م)")}
           type="number"
           step="0.01"
+          min="0.01"
           placeholder="0.00"
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(e) => {
+            const val = e.target.value;
+            if (val.startsWith('-')) return;
+            setAmount(val);
+          }}
+          required
         />
 
         {showWarning && (

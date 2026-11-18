@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Modal } from '@/components/ui/Modal';
 import { Input, Select, FormActions } from '@/components/ui/Form';
 import { Alert } from '@/components/ui/Alert';
-import { formatEGP } from '@/lib/format';
+import { formatEGP, formatBalance } from '@/lib/format';
 import type { CashBoxBalance } from '@/types/database';
 
 interface CashBoxFormProps {
@@ -19,6 +19,7 @@ export function CashBoxForm({ open, onClose, onSaved }: CashBoxFormProps) {
   const [boxType, setBoxType] = useState('Main');
   const [owner, setOwner] = useState('');
   const [openingBalance, setOpeningBalance] = useState('');
+  const [openingBalanceUsd, setOpeningBalanceUsd] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +29,7 @@ export function CashBoxForm({ open, onClose, onSaved }: CashBoxFormProps) {
       setBoxType('Main');
       setOwner('');
       setOpeningBalance('');
+      setOpeningBalanceUsd('');
       setError(null);
     }
   }, [open]);
@@ -62,13 +64,22 @@ export function CashBoxForm({ open, onClose, onSaved }: CashBoxFormProps) {
       return;
     }
 
+    const trimmedUsd = openingBalanceUsd.trim();
+    const parsedUsd = trimmedUsd === '' ? 0 : Number(trimmedUsd);
+    if ((trimmedUsd !== '' && !/^\d+(\.\d{1,2})?$/.test(trimmedUsd)) || !Number.isFinite(parsedUsd) || parsedUsd < 0 || parsedUsd > 99999999.99) {
+      setError(translate('رصيد الافتتاح بالدولار يجب أن يكون بين 0 و99,999,999.99 وبحد أقصى منزلتين عشريتين.'));
+      setSaving(false);
+      return;
+    }
+
     try {
       // Audited RPC create_cash_box only (strictly no fallback to direct INSERT)
-      const { error: rpcErr } = await supabase.rpc('rbac_create_cash_box', {
+      const { error: rpcErr } = await supabase.rpc('rbac_create_cash_box_v2', {
         p_name: name.trim(),
         p_type: boxType,
         p_owner: owner.trim() || null,
         p_opening_balance: parsedBalance,
+        p_opening_balance_usd: parsedUsd,
         p_notes: null,
       });
 
@@ -108,7 +119,8 @@ export function CashBoxForm({ open, onClose, onSaved }: CashBoxFormProps) {
           ]}
         />
         <Input label={translate("مسؤول الخزنة")} placeholder={translate("اسم المسؤول عن الخزنة")} value={owner} onChange={(e) => setOwner(e.target.value)} />
-        <Input label={translate("رصيد الافتتاح (ج.م)")} type="number" step="0.01" min="0" max="99999999.99" placeholder="0.00" value={openingBalance} onChange={(e) => setOpeningBalance(e.target.value)} />
+        <Input label={translate("رصيد الافتتاح (ج.م)")} type="number" step="0.01" min="0" max="99999999.99" placeholder="0.00" value={openingBalance} onChange={(e) => { const v = e.target.value; if (!v.startsWith("-")) setOpeningBalance(v); }} />
+        <Input label={translate('Opening balance in USD (optional)')} type="number" step="0.01" min="0" max="99999999.99" placeholder="0.00" value={openingBalanceUsd} onChange={(e) => { const v = e.target.value; if (!v.startsWith("-")) setOpeningBalanceUsd(v); }} />
         <FormActions>
           <button type="button" onClick={onClose} className="btn-secondary">{translate("إلغاء")}</button>
           <button type="submit" disabled={saving} className="btn-primary">
@@ -157,7 +169,7 @@ export function TransferForm({ open, onClose, onSaved, cashBoxes }: TransferForm
     if (!fromBoxId) { setError(translate("يرجى اختيار الخزنة التي سيتم التحويل منها.")); return; }
     if (!toBoxId) { setError(translate("يرجى اختيار الخزنة التي سيتم التحويل إليها.")); return; }
     if (fromBoxId === toBoxId) { setError(translate("لا يمكن التحويل من الخزنة نفسها وإليها.")); return; }
-    if (enteredAmount <= 0) { setError(translate("المبلغ يجب أن يكون أكبر من صفر")); return; }
+    if (enteredAmount <= 0) { setError(translate("المبلغ يجب أن يكون أكبر من صفر ولا يمكن إدخال مبالغ بالسالب")); return; }
 
     setSaving(true);
     setError(null);
@@ -194,7 +206,7 @@ export function TransferForm({ open, onClose, onSaved, cashBoxes }: TransferForm
             { value: '', label: translate("-- اختر خزنة --") },
             ...cashBoxes.map((b) => ({
               value: b.cash_box_id,
-              label: translateTemplate('{name} (الرصيد: {amount})', { name: b.name, amount: formatEGP(b.current_balance) }),
+              label: translateTemplate('{name} (الرصيد: {amount})', { name: b.name, amount: formatBalance(b.current_balance) }),
             })),
           ]}
         />
@@ -207,7 +219,7 @@ export function TransferForm({ open, onClose, onSaved, cashBoxes }: TransferForm
             { value: '', label: translate("-- اختر خزنة --") },
             ...cashBoxes.filter((b) => b.cash_box_id !== fromBoxId).map((b) => ({
               value: b.cash_box_id,
-              label: translateTemplate('{name} (الرصيد: {amount})', { name: b.name, amount: formatEGP(b.current_balance) }),
+              label: translateTemplate('{name} (الرصيد: {amount})', { name: b.name, amount: formatBalance(b.current_balance) }),
             })),
           ]}
         />
@@ -216,9 +228,15 @@ export function TransferForm({ open, onClose, onSaved, cashBoxes }: TransferForm
           label={translate("المبلغ (ج.م)")}
           type="number"
           step="0.01"
+          min="0.01"
           placeholder="0.00"
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(e) => {
+            const val = e.target.value;
+            if (val.startsWith('-')) return;
+            setAmount(val);
+          }}
+          required
         />
 
         {showWarning && (

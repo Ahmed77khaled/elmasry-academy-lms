@@ -20,14 +20,18 @@ import {
   CalendarDays,
   Award,
   FileSpreadsheet,
+  Copy,
+  Check,
+  Trash2,
 } from 'lucide-react';
+import { PaginationControls } from '@/components/ui/PaginationControls';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from '@/context/useRouter';
 import { Badge } from '@/components/ui/Badge';
 import { paymentStatusBadge, courseStatusBadge } from '@/components/ui/badgeStatus';
 import { PageLoader, EmptyState } from '@/components/ui/Feedback';
-import { formatEGP, formatDate } from '@/lib/format';
+import { formatCurrency, formatEGP, formatDate } from '@/lib/format';
 import { exportToCSV } from '@/lib/exportExcel';
 import { generatePaymentReminderUrl } from '@/lib/whatsapp';
 import { QuickEnrollModal } from '@/components/forms/QuickEnrollModal';
@@ -67,6 +71,12 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
   const [closeTarget, setCloseTarget] = useState<boolean>(false);
   const [closing, setClosing] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [unenrollTarget, setUnenrollTarget] = useState<EnrollmentBalance | null>(null);
+  const [unenrolling, setUnenrolling] = useState(false);
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [copyFailedLink, setCopyFailedLink] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Phone lookup map for enrolled students (for WhatsApp reminders & exports)
   const { data: studentsPhoneMap } = useQuery<Record<string, string>>(async () => {
@@ -87,21 +97,21 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
   // 1. Fetch Course details
   const { data: course, loading: courseLoading, refetch: refetchCourse } = useQuery<Course>(async () => {
     if (!courseId) return { data: null, error: null };
-    const { data, error } = await supabase.rpc('rbac_list_courses', { p_limit: 1, p_offset: 0, p_course_id: courseId });
+    const { data, error } = await supabase.rpc('rbac_list_courses_v2', { p_limit: 1, p_offset: 0, p_course_id: courseId });
     return { data: data?.[0] as Course | undefined ?? null, error: error?.message ?? null };
   }, [courseId]);
 
   // 2. Fetch Course financial summary
   const { data: summary, loading: summaryLoading, refetch: refetchSummary } = useQuery<CourseFinancialSummary>(async () => {
     if (!courseId || !canReadFinancialReports) return { data: null, error: null };
-    const { data, error } = await supabase.rpc('rbac_course_financial_summary', { p_course_id: courseId });
+    const { data, error } = await supabase.rpc('rbac_course_financial_summary_v2', { p_course_id: courseId });
     return { data: data?.[0] as CourseFinancialSummary | undefined ?? null, error: error?.message ?? null };
   }, [courseId, canReadFinancialReports]);
 
   // 3. Fetch Enrolled students
   const { data: enrollments, loading: enrollLoading, refetch: refetchEnrollments } = useQuery<EnrollmentBalance[]>(async () => {
     if (!courseId || !canReadEnrollments) return { data: [], error: null };
-    const { data, error } = await supabase.rpc('rbac_list_enrollments', {
+    const { data, error } = await supabase.rpc('rbac_list_enrollments_v2', {
       p_search: null, p_limit: 500, p_offset: 0, p_course_id: courseId,
     });
     return { data: data as EnrollmentBalance[] | null, error: error?.message ?? null };
@@ -124,15 +134,23 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
     }
   };
 
-  const handleUpdateEnrollmentStatus = async (enrollmentId: string, newStatus: string) => {
-    if (!canUpdateEnrollmentStatus) return;
+  const handleConfirmUnenroll = async () => {
+    if (!unenrollTarget || !canUpdateEnrollmentStatus) return;
+    setUnenrolling(true);
     setStatusError(null);
-    const { error } = await supabase.rpc('rbac_set_enrollment_status', {
-      p_enrollment_id: enrollmentId,
-      p_status: newStatus,
-    });
-    if (error) setStatusError(error.message);
-    else refetchAll();
+    try {
+      const { error } = await supabase.rpc('rbac_set_enrollment_status', {
+        p_enrollment_id: unenrollTarget.enrollment_id,
+        p_status: 'Dropped',
+      });
+      if (error) throw error;
+      setUnenrollTarget(null);
+      refetchAll();
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : translate("حدث خطأ أثناء استبعاد الطالب من الكورس"));
+    } finally {
+      setUnenrolling(false);
+    }
   };
 
   const handleRecordPaymentForEnrollment = (enrId: string) => {
@@ -254,7 +272,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
           </div>
           {canReadCoursePricing && <div className="text-left bg-obsidian-700/60 rounded-xl p-3 border border-obsidian-500/40">
             <p className="text-xs text-obsidian-300">{translate("سعر الاشتراك الافتراضي")}</p>
-            {course.default_cost != null && <p className="text-xl font-black text-emerald-light font-num mt-0.5">{formatEGP(course.default_cost)}</p>}
+            {(course.default_cost != null || course.default_cost_usd != null) && <p className="text-xl font-black text-emerald-light font-num mt-0.5">{[course.default_cost != null && formatCurrency(course.default_cost), course.default_cost_usd != null && formatCurrency(course.default_cost_usd, 'USD')].filter(Boolean).join(' · ')}</p>}
           </div>}
         </div>
 
@@ -321,17 +339,48 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
             <div className="flex flex-wrap gap-2.5">
               {links.map((l, i) => {
                 const Icon = l.icon;
+                let safeHref: string | null = null;
+                try {
+                  const parsed = new URL(l.url!);
+                  if (parsed.protocol === 'https:' || parsed.protocol === 'http:') safeHref = parsed.toString();
+                } catch { safeHref = null; }
+                const isCopied = copiedLink === l.url;
                 return (
-                  <a
-                    key={i}
-                    href={l.url!}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-obsidian-700/80 border border-obsidian-500/40 text-obsidian-200 transition-all ${l.color}`}
-                  >
-                    <Icon size={16} />
-                    <span>{l.label}</span>
-                  </a>
+                  <div key={i} className="inline-flex items-center rounded-xl border border-obsidian-500/40 bg-obsidian-700/80 text-obsidian-200 transition-all hover:border-azure-brand/40">
+                    {safeHref ? (
+                      <a
+                        href={safeHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-r-xl transition-colors ${l.color}`}
+                      >
+                        <Icon size={16} />
+                        <span>{l.label}</span>
+                      </a>
+                    ) : (
+                      <span className="flex items-center gap-2 px-3.5 py-2 text-xs text-obsidian-300">
+                        <Icon size={16} />
+                        <span>{l.label} · {translate("رابط غير صالح")}</span>
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCopyFailedLink(null);
+                        void navigator.clipboard.writeText(l.url!).then(() => {
+                          setCopiedLink(l.url!);
+                          window.setTimeout(() => setCopiedLink(null), 2000);
+                        }).catch(() => setCopyFailedLink(l.url!));
+                      }}
+                      className="px-2.5 py-2 border-r border-obsidian-500/40 hover:bg-obsidian-600/60 rounded-l-xl text-obsidian-300 hover:text-white transition-colors"
+                      title={isCopied ? translate("تم النسخ!") : translate("نسخ الرابط")}
+                      aria-label={translate("نسخ الرابط")}
+                    >
+                      {isCopied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                    </button>
+                    {isCopied && <span className="sr-only" role="status">{translate("تم نسخ الرابط")}</span>}
+                    {copyFailedLink === l.url && <span className="sr-only" role="status">{translate("تعذر نسخ الرابط")}</span>}
+                  </div>
                 );
               })}
             </div>
@@ -349,6 +398,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
             <span className="text-obsidian-300 text-xs">{translate("الإيراد المتوقع")}</span>
           </div>
           <p className="font-num font-bold text-lg text-azure-brand">{formatEGP(summary.expected_revenue)}</p>
+          <p className="font-num text-sm text-azure-brand">{formatCurrency(summary.expected_revenue_usd ?? 0, 'USD')}</p>
         </div>
         <div className="card-surface p-4 bg-gradient-to-b from-emerald-brand/10 to-transparent">
           <div className="flex items-center gap-2 mb-2">
@@ -356,6 +406,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
             <span className="text-obsidian-300 text-xs">{translate("الإيراد المحصل")}</span>
           </div>
           <p className="font-num font-bold text-lg text-emerald-light">{formatEGP(summary.collected_payments)}</p>
+          <p className="font-num text-sm text-emerald-light">{formatCurrency(summary.collected_payments_usd ?? 0, 'USD')}</p>
         </div>
         <div className="card-surface p-4 bg-gradient-to-b from-rose-500/10 to-transparent">
           <div className="flex items-center gap-2 mb-2">
@@ -370,7 +421,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
             <span className="text-obsidian-300 text-xs">{translate("صافي الأرباح")}</span>
           </div>
           <p className={`font-num font-bold text-lg ${summary.net_profit >= 0 ? 'text-emerald-light' : 'text-rose-400'}`}>
-            {formatEGP(summary.net_profit)}
+            {summary.net_profit >= 0 ? formatEGP(summary.net_profit) : `${translate("عجز")} ${formatEGP(Math.abs(summary.net_profit))}`}
           </p>
         </div>
       </div>}
@@ -387,39 +438,78 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
           {enrollLoading ? <PageLoader /> : !enrollments || enrollments.length === 0 ? (
             <EmptyState message={translate("لا يوجد طلاب مسجلون في هذه الدورة بعد.")} />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead><tr className="text-obsidian-300 text-xs border-b border-obsidian-500/30">
-                  <th className="text-right font-medium px-4 py-3">{translate("الطالب")}</th>
-                  <th className="text-right font-medium px-4 py-3">{translate("تاريخ التسجيل")}</th>
-                  {canReadEnrollmentFinance && <><th className="text-right font-medium px-4 py-3">{translate("المتفق عليه (ج.م)")}</th><th className="text-right font-medium px-4 py-3">{translate("المدفوع (ج.م)")}</th><th className="text-right font-medium px-4 py-3">{translate("المتبقي (ج.م)")}</th><th className="text-right font-medium px-4 py-3">{translate("حالة السداد")}</th></>}
-                  <th className="text-right font-medium px-4 py-3">{translate("حالة التسجيل")}</th>
-                  {(canRecordPayments || canReadEnrollmentFinance) && <th className="text-right font-medium px-4 py-3">{translate("إجراءات")}</th>}
-                </tr></thead>
-                <tbody>{enrollments.map((enr) => {
-                  const ps = canReadEnrollmentFinance ? paymentStatusBadge(enr.payment_status ?? 'Unpaid') : null;
-                  const studentPhone = studentsPhoneMap?.[enr.student_id];
-                  const reminderUrl = canReadEnrollmentFinance && enr.remaining_balance != null && enr.remaining_balance > 0 && studentPhone
-                    ? generatePaymentReminderUrl({ phone: studentPhone, studentName: enr.student_name, courseName: course.course_name, remainingAmount: enr.remaining_balance })
-                    : null;
-                  return <tr key={enr.enrollment_id} className="border-b border-obsidian-500/20">
-                    <td className="px-4 py-3 text-white"><button onClick={() => navigate('student-details', { id: enr.student_id })} className="text-right">{enr.student_name}</button></td>
-                    <td className="px-4 py-3 text-obsidian-300">{formatDate(enr.enrolled_at)}</td>
-                    {canReadEnrollmentFinance && <>
-                      <td className="px-4 py-3">{enr.agreed_cost == null ? '—' : formatEGP(enr.agreed_cost)}</td>
-                      <td className="px-4 py-3">{formatEGP(enr.total_paid ?? 0)}</td>
-                      <td className="px-4 py-3">{formatEGP(enr.remaining_balance ?? 0)}</td>
-                      <td className="px-4 py-3">{ps && <Badge variant={ps.variant}>{ps.label}</Badge>}</td>
-                    </>}
-                    <td className="px-4 py-3">{canUpdateEnrollmentStatus ? <select value={enr.enrollment_status} onChange={(e) => void handleUpdateEnrollmentStatus(enr.enrollment_id, e.target.value)} className="bg-obsidian-700 text-xs rounded-lg px-2 py-1"><option value="Active">{translate("نشط")}</option><option value="Completed">{translate("مكتمل")}</option><option value="Dropped">{translate("منسحب")}</option></select> : translate(enr.enrollment_status === 'Active' ? "نشط" : enr.enrollment_status === 'Completed' ? "مكتمل" : "منسحب")}</td>
-                    {(canRecordPayments || canReadEnrollmentFinance) && <td className="px-4 py-3"><div className="flex items-center gap-1.5">
-                      {canRecordPayments && enr.remaining_balance != null && enr.remaining_balance > 0 && <button onClick={() => handleRecordPaymentForEnrollment(enr.enrollment_id)} className="btn-primary text-xs py-1 px-2.5"><CreditCard size={14} /> {translate("تسجيل دفعة")}</button>}
-                      {reminderUrl && <a href={reminderUrl} target="_blank" rel="noreferrer" className="btn-secondary text-xs py-1 px-2"><MessageCircle size={13} /> {translate("إرسال تذكير واتساب")}</a>}
-                    </div></td>}
-                  </tr>;
-                })}</tbody>
-              </table>
-            </div>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="text-obsidian-300 text-xs border-b border-obsidian-500/30">
+                    <th className="text-right font-medium px-4 py-3">{translate("الطالب")}</th>
+                    <th className="text-right font-medium px-4 py-3">{translate("تاريخ التسجيل")}</th>
+                    {canReadEnrollmentFinance && <><th className="text-right font-medium px-4 py-3">{translate("المتفق عليه (ج.م)")}</th><th className="text-right font-medium px-4 py-3">{translate("المدفوع (ج.م)")}</th><th className="text-right font-medium px-4 py-3">{translate("المتبقي (ج.م)")}</th><th className="text-right font-medium px-4 py-3">{translate("حالة السداد")}</th></>}
+                    <th className="text-right font-medium px-4 py-3">{translate("حالة التسجيل")}</th>
+                    {(canRecordPayments || canReadEnrollmentFinance || canUpdateEnrollmentStatus) && <th className="text-right font-medium px-4 py-3">{translate("إجراءات")}</th>}
+                  </tr></thead>
+                  <tbody>{enrollments.slice((page - 1) * pageSize, page * pageSize).map((enr) => {
+                    const ps = canReadEnrollmentFinance ? paymentStatusBadge(enr.payment_status ?? 'Unpaid') : null;
+                    const studentPhone = studentsPhoneMap?.[enr.student_id];
+                    const reminderUrl = canReadEnrollmentFinance && enr.remaining_balance != null && enr.remaining_balance > 0 && studentPhone
+                      ? generatePaymentReminderUrl({ phone: studentPhone, studentName: enr.student_name, courseName: course.course_name, remainingAmount: enr.remaining_balance })
+                      : null;
+                    return <tr key={enr.enrollment_id} className="border-b border-obsidian-500/20">
+                      <td className="px-4 py-3 text-white"><button onClick={() => navigate('student-details', { id: enr.student_id })} className="text-right">{enr.student_name}</button></td>
+                      <td className="px-4 py-3 text-obsidian-300">{formatDate(enr.enrolled_at)}</td>
+                      {canReadEnrollmentFinance && <>
+                        <td className="px-4 py-3">{enr.agreed_cost == null ? '—' : formatCurrency(enr.agreed_cost, enr.agreed_currency ?? 'EGP')}</td>
+                        <td className="px-4 py-3">{formatCurrency(enr.total_paid ?? 0, enr.agreed_currency ?? 'EGP')}</td>
+                        <td className="px-4 py-3">{formatCurrency(Math.max(0, enr.remaining_balance ?? 0), enr.agreed_currency ?? 'EGP')}</td>
+                        <td className="px-4 py-3">{ps && <Badge variant={ps.variant}>{ps.label}</Badge>}</td>
+                      </>}
+                      <td className="px-4 py-3">
+                        <Badge variant={enr.enrollment_status === 'Active' ? 'emerald' : enr.enrollment_status === 'Completed' ? 'blue' : 'rose'}>
+                          {translate(enr.enrollment_status === 'Active' ? "نشط" : enr.enrollment_status === 'Completed' ? "مكتمل" : "مستبعد")}
+                        </Badge>
+                      </td>
+                      {(canRecordPayments || canReadEnrollmentFinance || canUpdateEnrollmentStatus) && (
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5">
+                            {canRecordPayments && enr.remaining_balance != null && enr.remaining_balance > 0 && (
+                              <button onClick={() => handleRecordPaymentForEnrollment(enr.enrollment_id)} className="btn-primary text-xs py-1 px-2.5">
+                                <CreditCard size={14} /> {translate("تسجيل دفعة")}
+                              </button>
+                            )}
+                            {reminderUrl && (
+                              <a href={reminderUrl} target="_blank" rel="noreferrer" className="btn-secondary text-xs py-1 px-2">
+                                <MessageCircle size={13} /> {translate("إرسال تذكير واتساب")}
+                              </a>
+                            )}
+                            {canUpdateEnrollmentStatus && enr.enrollment_status === 'Active' && (
+                              <button
+                                type="button"
+                                onClick={() => setUnenrollTarget(enr)}
+                                className="btn-ghost text-xs py-1 px-2.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/20 rounded-lg flex items-center gap-1 transition-colors"
+                                title={translate("حذف الطالب من الكورس")}
+                              >
+                                <Trash2 size={13} />
+                                <span>{translate("حذف من الكورس")}</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>;
+                  })}</tbody>
+                </table>
+              </div>
+              <PaginationControls
+                page={page}
+                pageSize={pageSize}
+                total={enrollments.length}
+                onPageChange={setPage}
+                onPageSizeChange={(newSize) => {
+                  setPageSize(newSize);
+                  setPage(1);
+                }}
+              />
+            </>
           )}
         </section>
       )}
@@ -456,6 +546,23 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
         message={translate("هل أنت متأكد من رغبتك في إغلاق هذا الكورس؟ لن يتمكن أحد من تسجيل طلاب جدد فيه.")}
         confirmLabel={translate("إغلاق الكورس")}
         loading={closing}
+        danger
+      />
+
+      <ConfirmDialog
+        open={Boolean(unenrollTarget)}
+        onClose={() => setUnenrollTarget(null)}
+        onConfirm={handleConfirmUnenroll}
+        title={translate("استبعاد الطالب من هذه الدورة التدريبية")}
+        message={translateTemplate(
+          'هل أنت متأكد من رغبتك في استبعاد الطالب ({student}) من دورة ({course})؟ لن يتم حذف الطالب أو بياناته من إدارة الطلاب العامة، وسيتم فقط تحويل حالة تسجيله في هذه الدورة إلى "مستبعد / منسحب" مع حفظ سجل الدفعات.',
+          {
+            student: unenrollTarget?.student_name ?? '',
+            course: course?.course_name ?? '',
+          }
+        )}
+        confirmLabel={translate("تأكيد الاستبعاد")}
+        loading={unenrolling}
         danger
       />
     </div>

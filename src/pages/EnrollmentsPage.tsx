@@ -10,10 +10,11 @@ import { paymentStatusBadge } from '@/components/ui/badgeStatus';
 import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { QuickEnrollModal } from '@/components/forms/QuickEnrollModal';
 import { PaymentForm } from '@/components/forms/PaymentForm';
-import { formatEGP, formatDate } from '@/lib/format';
+import { formatCurrency, formatDate } from '@/lib/format';
 import { exportToCSV } from '@/lib/exportExcel';
 import { generatePaymentReminderUrl } from '@/lib/whatsapp';
 import { Alert } from '@/components/ui/Alert';
+import { PaginationControls } from '@/components/ui/PaginationControls';
 import type { EnrollmentBalance } from '@/types/database';
 import { useAuth } from '@/context/useAuth';
 
@@ -33,6 +34,8 @@ export function EnrollmentsPage() {
   const [paymentFormOpen, setPaymentFormOpen] = useState(false);
   const [selectedEnrForPay, setSelectedEnrForPay] = useState<string | undefined>();
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Phone lookup map for students to power 1-click WhatsApp reminders
   const { data: studentsPhoneMap } = useQuery<Record<string, string>>(async () => {
@@ -51,7 +54,7 @@ export function EnrollmentsPage() {
   }, [canReadStudentPhones]);
 
   const { data: enrollments, loading, refetch } = useQuery<EnrollmentBalance[]>(async () => {
-    const { data, error } = await supabase.rpc('rbac_list_enrollments', {
+    const { data, error } = await supabase.rpc('rbac_list_enrollments_v2', {
       p_search: search.trim() || null, p_limit: 500, p_offset: 0,
     });
     if (error) return { data: null, error: error.message };
@@ -176,15 +179,13 @@ export function EnrollmentsPage() {
               <span>
                 {translate("إجمالي المحصل:")}{' '}
                 <span className="font-num text-emerald-light font-bold">
-                  {formatEGP(enrollments.reduce((sum, e) => sum + Number(e.total_paid), 0))}
+                  {formatCurrency(enrollments.filter((e) => (e.agreed_currency ?? 'EGP') === 'EGP').reduce((sum, e) => sum + Number(e.total_paid), 0), 'EGP')} · {formatCurrency(enrollments.filter((e) => e.agreed_currency === 'USD').reduce((sum, e) => sum + Number(e.total_paid), 0), 'USD')}
                 </span>
               </span>
               <span>
                 {translate("المتبقي المطلوب:")}{' '}
                 <span className="font-num text-amber-400 font-bold">
-                  {formatEGP(
-                    enrollments.reduce((sum, e) => sum + (e.remaining_balance != null && e.remaining_balance > 0 ? Number(e.remaining_balance) : 0), 0)
-                  )}
+                  {formatCurrency(enrollments.filter((e) => (e.agreed_currency ?? 'EGP') === 'EGP').reduce((sum, e) => sum + (e.remaining_balance != null && e.remaining_balance > 0 ? Number(e.remaining_balance) : 0), 0), 'EGP')} · {formatCurrency(enrollments.filter((e) => e.agreed_currency === 'USD').reduce((sum, e) => sum + (e.remaining_balance != null && e.remaining_balance > 0 ? Number(e.remaining_balance) : 0), 0), 'USD')}
                 </span>
               </span>
             </div>}
@@ -196,7 +197,8 @@ export function EnrollmentsPage() {
         {loading ? <PageLoader /> : !enrollments || enrollments.length === 0 ? (
           <EmptyState message={translate("لا توجد تسجيلات مطابقة.")} action={canCreateEnrollment ? <button onClick={() => setEnrollModalOpen(true)} className="btn-primary"><Plus size={16} /> {translate("تسجيل طالب")}</button> : undefined} />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-obsidian-300 text-xs border-b border-obsidian-500/30">
                 <th className="text-right font-medium px-4 py-3">{translate("الطالب")}</th>
@@ -206,20 +208,20 @@ export function EnrollmentsPage() {
                 <th className="text-right font-medium px-4 py-3">{translate("حالة التسجيل")}</th>
                 {(canRecordPayments || canReadEnrollmentFinance) && <th className="text-right font-medium px-4 py-3">{translate("إجراءات")}</th>}
               </tr></thead>
-              <tbody>{enrollments.map((enr) => {
+              <tbody>{enrollments.slice((page - 1) * pageSize, page * pageSize).map((enr) => {
                 const ps = canReadEnrollmentFinance ? paymentStatusBadge(enr.payment_status ?? 'Unpaid') : null;
                 const studentPhone = canReadStudentPhones ? studentsPhoneMap?.[enr.student_id] : undefined;
                 const reminderUrl = canReadEnrollmentFinance && enr.remaining_balance != null && enr.remaining_balance > 0 && studentPhone
-                  ? generatePaymentReminderUrl({ phone: studentPhone, studentName: enr.student_name, courseName: enr.course_name, remainingAmount: enr.remaining_balance })
+                  ? generatePaymentReminderUrl({ phone: studentPhone, studentName: enr.student_name, courseName: enr.course_name, remainingAmount: enr.remaining_balance, currency: enr.agreed_currency ?? 'EGP' })
                   : null;
                 return <tr key={enr.enrollment_id} className="border-b border-obsidian-500/20 hover:bg-obsidian-700/30">
                   <td className="px-4 py-3 text-white"><button onClick={() => navigate('student-details', { id: enr.student_id })} className="text-right">{enr.student_name}</button></td>
                   <td className="px-4 py-3 text-obsidian-200"><button onClick={() => navigate('course-details', { id: enr.course_id })} className="text-right">{enr.course_name}</button></td>
                   <td className="px-4 py-3 text-obsidian-300">{formatDate(enr.enrolled_at)}</td>
                   {canReadEnrollmentFinance && <>
-                    <td className="px-4 py-3">{enr.agreed_cost == null ? '—' : formatEGP(enr.agreed_cost)}</td>
-                    <td className="px-4 py-3">{formatEGP(enr.total_paid ?? 0)}</td>
-                    <td className="px-4 py-3">{formatEGP(enr.remaining_balance ?? 0)}</td>
+                    <td className="px-4 py-3">{enr.agreed_cost == null ? '—' : formatCurrency(enr.agreed_cost, enr.agreed_currency ?? 'EGP')}</td>
+                    <td className="px-4 py-3">{formatCurrency(enr.total_paid ?? 0, enr.agreed_currency ?? 'EGP')}</td>
+                    <td className="px-4 py-3">{formatCurrency(Math.max(0, enr.remaining_balance ?? 0), enr.agreed_currency ?? 'EGP')}</td>
                     <td className="px-4 py-3">{ps && <Badge variant={ps.variant}>{ps.label}</Badge>}</td>
                   </>}
                   <td className="px-4 py-3">{canUpdateEnrollmentStatus ? <select value={enr.enrollment_status} onChange={(e) => void handleUpdateStatus(enr.enrollment_id, e.target.value)} className="bg-obsidian-700 text-xs rounded-lg px-2 py-1"><option value="Active">{translate("نشط")}</option><option value="Completed">{translate("مكتمل")}</option><option value="Dropped">{translate("منسحب")}</option></select> : translate(enr.enrollment_status === 'Active' ? "نشط" : enr.enrollment_status === 'Completed' ? "مكتمل" : "منسحب")}</td>
@@ -231,6 +233,14 @@ export function EnrollmentsPage() {
               })}</tbody>
             </table>
           </div>
+          <PaginationControls
+            page={page}
+            pageSize={pageSize}
+            total={enrollments.length}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => { setPageSize(newSize); setPage(1); }}
+          />
+        </>
         )}
       </div>
       <QuickEnrollModal

@@ -11,7 +11,8 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ReceiptModal } from '@/components/modals/ReceiptModal';
 import { Textarea } from '@/components/ui/Form';
 import { Alert } from '@/components/ui/Alert';
-import { formatEGP, formatDate } from '@/lib/format';
+import { PaginationControls } from '@/components/ui/PaginationControls';
+import { formatCurrency, formatDate } from '@/lib/format';
 import { exportToCSV } from '@/lib/exportExcel';
 import { isDateInRange, DateRangePreset } from '@/lib/dateRange';
 import { formatEgyptPhoneForWhatsApp } from '@/lib/whatsapp';
@@ -30,6 +31,7 @@ interface RawPaymentRow {
   enrollment_id: string;
   cash_box_id: string;
   amount: number;
+  currency: 'EGP' | 'USD';
   payment_date: string;
   method: string;
   receipt_ref: string | null;
@@ -62,6 +64,8 @@ export function PaymentsPage() {
   const [datePreset, setDatePreset] = useState<DateRangePreset>('all');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Receipt Modal
   const [receiptTarget, setReceiptTarget] = useState<{
@@ -71,6 +75,7 @@ export function PaymentsPage() {
     student_phone?: string | null;
     course_name: string;
     amount: number;
+    currency: 'EGP' | 'USD';
     payment_date: string;
     method: string;
     receipt_ref?: string | null;
@@ -79,7 +84,7 @@ export function PaymentsPage() {
   } | null>(null);
 
   const { data: payments, loading, refetch } = useQuery<RawPaymentRow[]>(async () => {
-    const { data, error } = await supabase.rpc('rbac_list_payments', { p_limit: 500, p_offset: 0 });
+    const { data, error } = await supabase.rpc('rbac_list_payments_v2', { p_limit: 500, p_offset: 0 });
     if (error) return { data: null, error: error.message };
     const rows = ((data ?? []) as unknown as (RawPaymentRow & { student_name: string; student_phone: string | null; course_name: string; cash_box_name: string })[]).map((payment) => ({
       ...payment,
@@ -121,6 +126,7 @@ export function PaymentsPage() {
       student_phone: p.enrollments?.students?.phone,
       course_name: p.enrollments?.courses?.course_name ?? translate("كورس تدريبي"),
       amount: p.amount,
+      currency: p.currency,
       payment_date: p.payment_date,
       method: p.method,
       receipt_ref: p.receipt_ref,
@@ -148,9 +154,8 @@ export function PaymentsPage() {
   });
 
   // Calculate totals of filtered active payments
-  const activeFilteredTotal = filteredPayments
-    .filter((p) => !p.voided_at)
-    .reduce((sum, p) => sum + Number(p.amount), 0);
+  const activeFilteredEGP = filteredPayments.filter((p) => !p.voided_at && p.currency !== 'USD').reduce((sum, p) => sum + Number(p.amount), 0);
+  const activeFilteredUSD = filteredPayments.filter((p) => !p.voided_at && p.currency === 'USD').reduce((sum, p) => sum + Number(p.amount), 0);
 
   // Export to Excel handler
   const handleExportExcel = () => {
@@ -160,7 +165,8 @@ export function PaymentsPage() {
       translate("تاريخ السداد"),
       translate("اسم المتدرب"),
       translate("الدورة التدريبية"),
-      translate("المبلغ (ج.م)"),
+      translate("العملة"),
+      translate("المبلغ"),
       translate("الخزينة"),
       translate("طريقة الدفع"),
       translate("المرجع الخارجي"),
@@ -174,6 +180,7 @@ export function PaymentsPage() {
       p.payment_date,
       p.enrollments?.students?.name ?? '—',
       p.enrollments?.courses?.course_name ?? '—',
+      p.currency,
       p.amount,
       p.cash_boxes?.name ?? '—',
       translate(METHOD_LABELS[p.method] ?? p.method),
@@ -283,7 +290,7 @@ export function PaymentsPage() {
             {translate("عدد السندات المعروضة:")}{' '}<span className="font-num text-white font-semibold">{filteredPayments.length}</span>
           </div>
           <div>
-            {translate("إجمالي المقبوضات المعتمدة:")}{' '}<span className="font-num text-emerald-light font-bold text-sm">{formatEGP(activeFilteredTotal)}</span>
+            {translate("إجمالي المقبوضات المعتمدة:")}{' '}<span className="font-num text-emerald-light font-bold text-sm">{formatCurrency(activeFilteredEGP)} · {formatCurrency(activeFilteredUSD, 'USD')}</span>
           </div>
         </div>
       </div>
@@ -297,7 +304,8 @@ export function PaymentsPage() {
             action={canRecordPayments ? <button onClick={() => setFormOpen(true)} className="btn-primary"><Plus size={16} /> {translate("تسجيل دفعة")}</button> : undefined}
           />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-obsidian-300 text-xs border-b border-obsidian-500/30">
@@ -312,7 +320,7 @@ export function PaymentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredPayments.map((p) => {
+                {filteredPayments.slice((page - 1) * pageSize, page * pageSize).map((p) => {
                   const isVoided = !!p.voided_at;
                   const studentPhone = p.enrollments?.students?.phone;
                   const formattedWa = formatEgyptPhoneForWhatsApp(studentPhone);
@@ -328,7 +336,7 @@ export function PaymentsPage() {
                           <span>{p.enrollments?.students?.name ?? '—'}</span>
                           {formattedWa && !isVoided && (
                             <a
-                              href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(translateTemplate('مرحباً أستاذ {student}، نود تأكيد استلام دفعة بقيمة {amount} لدورة ({course}) برقم سند {receipt}. شكراً لكم!', { student: p.enrollments?.students?.name ?? '', amount: formatEGP(p.amount), course: p.enrollments?.courses?.course_name ?? '', receipt: receiptLabel }))}`}
+                              href={`https://wa.me/${formattedWa}?text=${encodeURIComponent(translateTemplate('مرحباً أستاذ {student}، نود تأكيد استلام دفعة بقيمة {amount} لدورة ({course}) برقم سند {receipt}. شكراً لكم!', { student: p.enrollments?.students?.name ?? '', amount: formatCurrency(p.amount, p.currency), course: p.enrollments?.courses?.course_name ?? '', receipt: receiptLabel }))}`}
                               target="_blank"
                               rel="noreferrer"
                               className="text-emerald-400 hover:text-emerald-300 p-0.5"
@@ -350,7 +358,7 @@ export function PaymentsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span className={`font-num font-semibold ${isVoided ? 'text-rose-400 line-through' : 'text-emerald-light'}`}>
-                          {formatEGP(p.amount)}
+                          {formatCurrency(p.amount, p.currency)}
                         </span>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
@@ -389,6 +397,17 @@ export function PaymentsPage() {
               </tbody>
             </table>
           </div>
+          <PaginationControls
+            page={page}
+            pageSize={pageSize}
+            total={filteredPayments.length}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+          />
+        </>
         )}
       </div>
 
@@ -404,7 +423,7 @@ export function PaymentsPage() {
         }}
         onConfirm={handleVoid}
         title={translate("إلغاء الدفعة")}
-        message={translateTemplate('سيتم إلغاء الدفعة بقيمة {amount} مع الاحتفاظ بسجلها. لا يمكن التراجع عن هذا الإجراء.', { amount: formatEGP(voidTarget?.amount ?? 0) })}
+        message={translateTemplate('سيتم إلغاء الدفعة بقيمة {amount} مع الاحتفاظ بسجلها. لا يمكن التراجع عن هذا الإجراء.', { amount: formatCurrency(voidTarget?.amount ?? 0, voidTarget?.currency ?? 'EGP') })}
         confirmLabel={translate("إلغاء الدفعة")}
         loading={voiding}
         confirmDisabled={voidReason.trim().length < 5}

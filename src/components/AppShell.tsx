@@ -128,7 +128,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ? supabase.rpc('rbac_list_students', { p_search: q, p_limit: 5, p_offset: 0 })
             : Promise.resolve({ data: [], error: null }),
           permissions.includes('courses.read')
-            ? supabase.rpc('rbac_list_courses', { p_limit: 500, p_offset: 0 })
+            ? supabase.rpc('rbac_list_courses_v2', { p_limit: 500, p_offset: 0 })
             : Promise.resolve({ data: [], error: null }),
           permissions.includes('finance.payments.read')
             ? supabase.rpc('rbac_search_payments', { p_query: q, p_limit: 5 })

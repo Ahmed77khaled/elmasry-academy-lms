@@ -6,6 +6,7 @@ import { AcademyLogo } from '@/components/AcademyLogo';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { useLocale } from '@/context/useLocale';
 import { translate } from '@/lib/translations';
+import { supabase } from '@/lib/supabase';
 
 export function LoginPage() {
   const { signIn } = useAuth();
@@ -15,6 +16,8 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +35,33 @@ export function LoginPage() {
       setError(translate("بيانات الدخول غير صحيحة، يرجى التحقق من البريد وكلمة المرور"));
       setLoading(false);
     }
+  };
+
+  const handlePasswordReset = async () => {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) {
+      setError(locale === 'ar' ? 'اكتب البريد الإلكتروني أولاً.' : 'Enter your email address first.');
+      return;
+    }
+
+    setResettingPassword(true);
+    setError(null);
+    setResetMessage(null);
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: window.location.origin,
+    });
+    setResettingPassword(false);
+
+    if (resetError) {
+      setError(locale === 'ar'
+        ? 'تعذر إرسال الرابط. حاول مرة أخرى بعد قليل.'
+        : 'Could not send the reset link. Please try again shortly.');
+      return;
+    }
+
+    setResetMessage(locale === 'ar'
+      ? 'إذا كان هذا البريد مسجلاً، فسيصل إليه رابط آمن لإعادة تعيين كلمة المرور.'
+      : 'If this email is registered, a secure password reset link will arrive shortly.');
   };
 
   return (
@@ -62,6 +92,7 @@ export function LoginPage() {
               <Alert variant="error">{error}</Alert>
             </div>
           )}
+          {resetMessage && <div className="mb-5"><Alert variant="success">{resetMessage}</Alert></div>}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -121,6 +152,17 @@ export function LoginPage() {
               )}
             </button>
           </form>
+
+          <button
+            type="button"
+            onClick={() => void handlePasswordReset()}
+            disabled={resettingPassword}
+            className="mt-4 w-full text-center text-sm text-emerald-light underline-offset-4 hover:underline disabled:opacity-60"
+          >
+            {resettingPassword
+              ? (locale === 'ar' ? 'جارٍ إرسال الرابط...' : 'Sending reset link...')
+              : (locale === 'ar' ? 'نسيت كلمة المرور؟ إرسال رابط جديد' : 'Forgot password? Send a reset link')}
+          </button>
 
           <p className="mt-4 text-center text-[11px] leading-5 text-obsidian-300">
             {translate("لأغراض حماية الحساب، يُسجَّل وقت الدخول وعنوان IP للمديرين المعتمدين ويُرسل تنبيه أمني إلى تيليجرام.")}</p>

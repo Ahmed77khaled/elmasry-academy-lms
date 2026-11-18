@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { PageLoader } from '@/components/ui/Feedback';
 import { Alert } from '@/components/ui/Alert';
 import { Input, FormActions } from '@/components/ui/Form';
-import { formatEGP } from '@/lib/format';
+import { formatBalance } from '@/lib/format';
 import type { CashBoxBalance } from '@/types/database';
 import { AdminInviteForm } from '@/components/forms/AdminInviteForm';
 import { AdminAccessManagement } from '@/components/AdminAccessManagement';
@@ -37,7 +37,7 @@ export function SettingsPage() {
 
   const { data: boxes, loading } = useQuery<CashBoxBalance[]>(async () => {
     if (!canReadTreasury) return { data: [], error: null };
-    const { data, error } = await supabase.rpc('rbac_list_cash_boxes');
+    const { data, error } = await supabase.rpc('rbac_list_cash_boxes_v2');
     return { data: (data as CashBoxBalance[] | null)?.filter((box) => box.is_active) ?? null, error: error?.message ?? null };
   }, [canReadTreasury]);
 
@@ -251,7 +251,7 @@ export function SettingsPage() {
                   </td>
                   <td className="px-4 py-3 text-obsidian-200">{box.owner}</td>
                   <td className={`px-4 py-3 font-num font-bold ${box.current_balance < 0 ? 'text-rose-400' : 'text-emerald-light'}`}>
-                    {formatEGP(box.current_balance)}
+                    {formatBalance(box.current_balance)} · {formatBalance(box.current_balance_usd ?? 0, 'USD')}
                   </td>
                 </tr>
               ))}
