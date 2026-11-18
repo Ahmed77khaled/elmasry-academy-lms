@@ -1,6 +1,6 @@
 import { translate } from '@/lib/translations';
 import { useEffect, useState } from 'react';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Copy, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getRoleDisplayName } from '@/lib/adminLabels';
 
@@ -13,6 +13,8 @@ export function AdminInviteForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -49,10 +51,12 @@ export function AdminInviteForm() {
     event.preventDefault();
     setError(null);
     setSuccess(null);
+    setInviteLink(null);
+    setCopied(false);
     setSubmitting(true);
 
     try {
-      const { data, error: inviteError } = await supabase.functions.invoke<{ message?: string }>('admin-invite', {
+      const { data, error: inviteError } = await supabase.functions.invoke<{ message?: string; inviteLink?: string | null }>('admin-invite', {
         body: { email: email.trim(), roleKey },
       });
 
@@ -69,7 +73,10 @@ export function AdminInviteForm() {
         throw new Error(responseMessage || translate("تعذر إرسال الدعوة. حاول مرة أخرى."));
       }
 
-      setSuccess(data?.message ?? translate("تم إرسال الدعوة إلى البريد الإلكتروني. سيُعيّن المدير كلمة مروره من الرابط المرسل إليه."));
+      setSuccess(data?.message ?? translate("تمت معالجة الدعوة بنجاح."));
+      if (data?.inviteLink) {
+        setInviteLink(data.inviteLink);
+      }
       setEmail('');
     } catch (inviteError) {
       setError(inviteError instanceof Error ? inviteError.message : translate("تعذر إرسال الدعوة. حاول مرة أخرى."));
@@ -95,6 +102,40 @@ export function AdminInviteForm() {
       {success && (
         <div role="status" className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200 mb-4">
           {success}
+        </div>
+      )}
+
+      {inviteLink && (
+        <div className="rounded-lg border border-emerald-500/30 bg-obsidian-800/90 p-4 mb-4 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+            <span className="text-xs font-semibold text-emerald-300">
+              {translate("رابط الدعوة المباشر للمدير الجديد:")}
+            </span>
+            <span className="text-[11px] text-obsidian-300">
+              {translate("يمكنك إرساله للمدير عبر واتساب لتسجيل الدخول فوراً")}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              readOnly
+              value={inviteLink}
+              className="input-base text-xs font-mono flex-1 text-emerald-200 select-all bg-obsidian-900 border-obsidian-600"
+              dir="ltr"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard.writeText(inviteLink);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2500);
+              }}
+              className="btn-secondary px-3 py-2 text-xs shrink-0 flex items-center gap-1.5 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/10"
+            >
+              {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+              {copied ? translate("تم النسخ!") : translate("نسخ الرابط")}
+            </button>
+          </div>
         </div>
       )}
 

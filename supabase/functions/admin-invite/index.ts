@@ -126,12 +126,37 @@ Deno.serve(async (request: Request) => {
     return jsonResponse({ error: "An Auth account already uses this email. Ask the platform owner to manage its administrator access." }, 409);
   }
 
+  let invitedUserId: string | undefined;
+  let inviteActionLink: string | undefined;
+
+  // 1. Try sending the invitation email via GoTrue
   const { data: inviteResult, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
     data: inviteEmailData,
   });
-  const invitedUserId = inviteResult.user?.id;
-  if (inviteError || !invitedUserId) {
-    return jsonResponse({ error: inviteError?.message ?? "The invitation could not be sent." }, 400);
+
+  if (!inviteError && inviteResult.user?.id) {
+    invitedUserId = inviteResult.user.id;
+  } else {
+    // 2. If SMTP delivery failed (e.g. Resend unverified domain 550 or SMTP down),
+    // generate the invitation link directly without depending on external SMTP delivery.
+    console.warn("inviteUserByEmail failed, falling back to generateLink:", inviteError?.message);
+    const origin = request.headers.get("origin") || "https://preview.elmasry-academy-lms.pages.dev";
+    const { data: linkResult, error: linkError } = await adminClient.auth.admin.generateLink({
+      type: "invite",
+      email: email,
+      options: {
+        data: inviteEmailData,
+        redirectTo: `${origin}/`,
+      },
+    });
+
+    if (linkError || !linkResult.user?.id) {
+      console.error("generateLink fallback also failed:", linkError?.message);
+      return jsonResponse({ error: inviteError?.message ?? linkError?.message ?? "The invitation could not be sent." }, 400);
+    }
+
+    invitedUserId = linkResult.user.id;
+    inviteActionLink = linkResult.properties?.action_link;
   }
 
   const { error: insertError } = await adminClient.from("admins").insert({
@@ -176,5 +201,11 @@ Deno.serve(async (request: Request) => {
     return jsonResponse({ error: "The invitation could not be completed. Try again." }, 500);
   }
 
-  return jsonResponse({ ok: true, message: "Invitation sent. The invited administrator sets their own password from the email link." });
+  return jsonResponse({
+    ok: true,
+    message: inviteActionLink
+      ? "تم إنشاء حساب المدير بنجاح وتجهيز رابط الدعوة المباشر."
+      : "تم إرسال الدعوة إلى البريد الإلكتروني. سيُعيّن المدير كلمة مروره من الرابط المرسل إليه.",
+    inviteLink: inviteActionLink ?? null,
+  });
 });
