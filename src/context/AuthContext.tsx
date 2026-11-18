@@ -135,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setRoleKey(null);
           setIsOwner(false);
           setPermissions([]);
-          setAuthorizationReady(false);
+          setAuthorizationReady(true);
         }
       } catch {
         if (mounted) setIsAdmin(false);
@@ -236,6 +236,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Authorization checks strictly outside event callback
       if (snapshot.session?.user) {
+        setLoading(true);
+        setAuthorizationReady(false);
         const userId = snapshot.session.user.id;
         window.setTimeout(() => {
           void (async () => {
@@ -249,7 +251,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setRoleKey(null);
               setIsOwner(false);
               setPermissions([]);
-              setAuthorizationReady(false);
+              setAuthorizationReady(true);
             }
             if (mounted) setLoading(false);
           })();
@@ -259,7 +261,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRoleKey(null);
         setIsOwner(false);
         setPermissions([]);
-        setAuthorizationReady(false);
+        setAuthorizationReady(true);
         setLoading(false);
       }
     });
@@ -271,12 +273,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    setLoading(true);
+    setAuthorizationReady(false);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (!error) {
+    if (error) {
+      setLoading(false);
+    } else {
       void (async () => {
         try {
           const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin');

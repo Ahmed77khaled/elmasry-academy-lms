@@ -53,10 +53,10 @@ function PageRenderer() {
 }
 
 function AuthenticatedApp() {
-  const { user, isAdmin, loading, signOut, authFlow, clearAuthFlow } = useAuth();
+  const { user, isAdmin, loading, authorizationReady, signOut, authFlow, clearAuthFlow } = useAuth();
   const { locale } = useLocale();
 
-  if (loading || authFlow.mode === 'processing') {
+  if (loading || authFlow.mode === 'processing' || (user && !isAdmin && !authorizationReady)) {
     return (
       <div className="min-h-screen bg-obsidian-900 flex items-center justify-center">
         <PageLoader />
