@@ -11,7 +11,7 @@ import { supabase } from '@/lib/supabase';
 export function LoginPage() {
   const { signIn } = useAuth();
   const { locale } = useLocale();
-  const [email, setEmail] = useState('ahmed.elfalah@trainerpro.com');
+  const [email, setEmail] = useState('admin@elmasry-academy.com');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
