@@ -48,17 +48,24 @@ export function ReceiptModal({ open, onClose, payment }: ReceiptModalProps) {
           className="bg-white text-gray-900 p-6 rounded-2xl shadow-xl border border-gray-200 relative overflow-hidden"
           dir={locale === 'ar' ? 'rtl' : 'ltr'}
         >
-          {/* Header watermark */}
-          <div className="absolute top-2 left-2 opacity-10 text-emerald-600 font-extrabold text-7xl select-none pointer-events-none">
-            {translate("مدفوع")}</div>
+          {/* Background diagonal stamp watermark */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0"
+          >
+            <span className="-rotate-12 opacity-[0.07] text-emerald-700 font-extrabold text-6xl sm:text-7xl tracking-wider border-4 border-emerald-700/60 px-6 py-2 rounded-2xl">
+              {translate("مدفوع")}
+            </span>
+          </div>
 
+          <div className="relative z-10">
           {/* Top Brand Banner */}
           <div className="flex items-center justify-between border-b-2 border-emerald-600 pb-4 mb-4">
             <div>
               <h2 className="text-xl font-extrabold text-gray-900 font-arabic">{translate("أكاديمية المصري")}</h2>
               <p className="text-xs text-gray-500 font-medium">{translate("نظام إدارة التدريب وهندسة النظم المعتمد")}</p>
             </div>
-            <div className="text-left">
+            <div className="text-end">
               <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-bold">
                 <CheckCircle2 size={13} /> {translate("إيصال تحصيل رسمي")}</span>
               <p className="text-xs text-gray-500 mt-1 font-num">
@@ -140,10 +147,11 @@ export function ReceiptModal({ open, onClose, payment }: ReceiptModalProps) {
               <p className="font-bold text-gray-700">{translate("توقيع المسؤول المالي / الخزينة:")}</p>
               <p className="mt-2 text-emerald-800 font-semibold font-arabic">{translate("أكاديمية المصري")}</p>
             </div>
-            <div className="text-left font-mono text-[11px] text-gray-400">
+            <div className="text-end font-mono text-[11px] text-gray-400">
               <p>Elmasry Academy LMS</p>
               <p>{translate("نظام إدارة التدريب والمالية")}</p>
             </div>
+          </div>
           </div>
         </div>
 

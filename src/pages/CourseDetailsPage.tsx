@@ -410,7 +410,9 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
             <span className="text-obsidian-300 text-xs">{translate("الإيراد المتوقع")}</span>
           </div>
           <p className="font-num font-bold text-lg text-azure-light">{formatEGP(summary.expected_revenue)}</p>
-          <p className="font-num text-sm text-azure-light">{formatCurrency(summary.expected_revenue_usd ?? 0, 'USD')}</p>
+          {(summary.expected_revenue_usd ?? 0) !== 0 && (
+            <p className="font-num text-sm text-azure-light">{formatCurrency(summary.expected_revenue_usd ?? 0, 'USD')}</p>
+          )}
         </div>
         <div className="card-surface p-4 bg-gradient-to-b from-emerald-brand/10 to-transparent">
           <div className="flex items-center gap-2 mb-2">
@@ -418,7 +420,9 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
             <span className="text-obsidian-300 text-xs">{translate("الإيراد المحصل")}</span>
           </div>
           <p className="font-num font-bold text-lg text-emerald-light">{formatEGP(summary.collected_payments)}</p>
-          <p className="font-num text-sm text-emerald-light">{formatCurrency(summary.collected_payments_usd ?? 0, 'USD')}</p>
+          {(summary.collected_payments_usd ?? 0) !== 0 && (
+            <p className="font-num text-sm text-emerald-light">{formatCurrency(summary.collected_payments_usd ?? 0, 'USD')}</p>
+          )}
         </div>
         <div className="card-surface p-4 bg-gradient-to-b from-rose-500/10 to-transparent">
           <div className="flex items-center gap-2 mb-2">

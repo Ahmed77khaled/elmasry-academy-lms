@@ -290,7 +290,7 @@ export function PaymentsPage() {
             {translate("عدد السندات المعروضة:")}{' '}<span className="font-num text-white font-semibold">{filteredPayments.length}</span>
           </div>
           <div>
-            {translate("إجمالي المقبوضات المعتمدة:")}{' '}<span className="font-num text-emerald-light font-bold text-sm">{formatCurrency(activeFilteredEGP)} · {formatCurrency(activeFilteredUSD, 'USD')}</span>
+            {translate("إجمالي المقبوضات المعتمدة:")}{' '}<span className="font-num text-emerald-light font-bold text-sm">{formatCurrency(activeFilteredEGP)}{activeFilteredUSD !== 0 ? ` · ${formatCurrency(activeFilteredUSD, 'USD')}` : ''}</span>
           </div>
         </div>
       </div>

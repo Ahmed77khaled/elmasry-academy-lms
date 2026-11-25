@@ -251,7 +251,8 @@ export function SettingsPage() {
                   </td>
                   <td className="px-4 py-3 text-obsidian-200">{box.owner}</td>
                   <td className={`px-4 py-3 font-num font-bold ${box.current_balance < 0 ? 'text-rose-400' : 'text-emerald-light'}`}>
-                    {formatBalance(box.current_balance)} · {formatBalance(box.current_balance_usd ?? 0, 'USD')}
+                    {formatBalance(box.current_balance)}
+                    {(box.current_balance_usd ?? 0) !== 0 && ` · ${formatBalance(box.current_balance_usd ?? 0, 'USD')}`}
                   </td>
                 </tr>
               ))}

@@ -139,7 +139,7 @@ const en: Record<string, string> = {
   'صلاحية': 'Permission', ' — دور أساسي': ' — built-in role', ' — دور مخصص': ' — custom role', 'تعديل الصلاحيات': 'Edit permissions',
   'حذف الدور': 'Delete role', 'سجل تغييرات الصلاحيات': 'Permission change log', 'لا توجد أحداث مسجلة حتى الآن.': 'No events have been recorded yet.',
   'معرّف الحساب الذي أجرى التغيير:': 'Account ID that made the change:', 'إزالة الصورة': 'Remove photo', 'بوابة الإدارة': 'Administration portal',
-  'تسجيل الخروج': 'Sign out', 'جاري البحث...': 'Searching…', 'إيصالات الدفع': 'Payment receipts',
+  'تسجيل الخروج': 'Sign out', 'جاري البحث...': 'Searching…', 'بحث': 'Search', 'إغلاق البحث': 'Close search', 'إيصالات الدفع': 'Payment receipts',
   'تعذر إرسال الدعوة. حاول مرة أخرى.': 'Could not send the invitation. Try again.', 'تم إرسال الدعوة إلى البريد الإلكتروني. سيُعيّن المدير كلمة مروره من الرابط المرسل إليه.': 'Invitation sent. The administrator can set a password using the link in the email.',
   'جارٍ إرسال الدعوة...': 'Sending invitation…', 'إرسال دعوة': 'Send invitation', 'اسم الخزنة مطلوب': 'Cash box name is required.',
   'الرصيد الافتتاحي يجب أن يكون رقماً موجباً أو صفراً (بحد أقصى خانتين عشريتين)': 'Opening balance must be zero or a positive amount with no more than two decimal places.',

@@ -175,20 +175,28 @@ export function EnrollmentsPage() {
             <div>
               {translate("عدد الاشتراكات:")}{' '}<span className="font-num text-white font-semibold">{enrollments.length}</span>
             </div>
-            {canReadEnrollmentFinance && <div className="flex items-center gap-4">
-              <span>
-                {translate("إجمالي المحصل:")}{' '}
-                <span className="font-num text-emerald-light font-bold">
-                  {formatCurrency(enrollments.filter((e) => (e.agreed_currency ?? 'EGP') === 'EGP').reduce((sum, e) => sum + Number(e.total_paid), 0), 'EGP')} · {formatCurrency(enrollments.filter((e) => e.agreed_currency === 'USD').reduce((sum, e) => sum + Number(e.total_paid), 0), 'USD')}
-                </span>
-              </span>
-              <span>
-                {translate("المتبقي المطلوب:")}{' '}
-                <span className="font-num text-amber-400 font-bold">
-                  {formatCurrency(enrollments.filter((e) => (e.agreed_currency ?? 'EGP') === 'EGP').reduce((sum, e) => sum + (e.remaining_balance != null && e.remaining_balance > 0 ? Number(e.remaining_balance) : 0), 0), 'EGP')} · {formatCurrency(enrollments.filter((e) => e.agreed_currency === 'USD').reduce((sum, e) => sum + (e.remaining_balance != null && e.remaining_balance > 0 ? Number(e.remaining_balance) : 0), 0), 'USD')}
-                </span>
-              </span>
-            </div>}
+            {canReadEnrollmentFinance && (() => {
+              const totalPaidEgp = enrollments.filter((e) => (e.agreed_currency ?? 'EGP') === 'EGP').reduce((sum, e) => sum + Number(e.total_paid), 0);
+              const totalPaidUsd = enrollments.filter((e) => e.agreed_currency === 'USD').reduce((sum, e) => sum + Number(e.total_paid), 0);
+              const totalRemEgp = enrollments.filter((e) => (e.agreed_currency ?? 'EGP') === 'EGP').reduce((sum, e) => sum + (e.remaining_balance != null && e.remaining_balance > 0 ? Number(e.remaining_balance) : 0), 0);
+              const totalRemUsd = enrollments.filter((e) => e.agreed_currency === 'USD').reduce((sum, e) => sum + (e.remaining_balance != null && e.remaining_balance > 0 ? Number(e.remaining_balance) : 0), 0);
+              return (
+                <div className="flex items-center gap-4 flex-wrap">
+                  <span>
+                    {translate("إجمالي المحصل:")}{' '}
+                    <span className="font-num text-emerald-light font-bold">
+                      {formatCurrency(totalPaidEgp, 'EGP')}{totalPaidUsd !== 0 ? ` · ${formatCurrency(totalPaidUsd, 'USD')}` : ''}
+                    </span>
+                  </span>
+                  <span>
+                    {translate("المتبقي المطلوب:")}{' '}
+                    <span className="font-num text-amber-400 font-bold">
+                      {formatCurrency(totalRemEgp, 'EGP')}{totalRemUsd !== 0 ? ` · ${formatCurrency(totalRemUsd, 'USD')}` : ''}
+                    </span>
+                  </span>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>

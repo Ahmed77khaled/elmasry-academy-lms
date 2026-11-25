@@ -479,7 +479,7 @@ export function DashboardPage() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {activeBoxes.map((box) => (
               <div
                 key={box.cash_box_id}
