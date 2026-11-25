@@ -308,6 +308,11 @@ const en: Record<string, string> = {
   'رصيد الافتتاح بالدولار يجب أن يكون بين 0 و99,999,999.99 وبحد أقصى منزلتين عشريتين.': 'USD opening balance must be between 0 and 99,999,999.99 with at most two decimal places.',
   'العملة': 'Currency',
   'لا يوجد سعر افتراضي': 'No default price',
+  'مبلغ الدفعة الأولى ({currency})': 'Initial payment ({currency})',
+  'مبلغ الدفعة الأولى يتجاوز التكلفة المتفق عليها للدورة.': 'Initial payment exceeds the agreed course fee.',
+  'تم تسجيل الطالب في الدورة بنجاح، ولكن تعذر تسجيل الدفعة الأولى: {error}. يمكنك إعادة المحاولة أدناه أو إغلاق النافذة وتسجيلها لاحقاً.': 'Student enrolled successfully, but the initial payment could not be recorded: {error}. Retry below or close and record it later.',
+  'تعذر تسجيل الطالب: لم يتم اختيار الخزنة لاستلام الدفعة.': 'Select a receiving cash box for the initial payment.',
+  'إعادة محاولة تسجيل الدفعة': 'Retry recording payment',
 };
 
 export function translate(text: string, locale: Locale = getLocale()): string {
