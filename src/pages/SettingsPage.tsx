@@ -54,8 +54,8 @@ export function SettingsPage() {
       setPasswordError(translate("كلمتا المرور غير متطابقتين"));
       return;
     }
-    if (newPassword.length < 6) {
-      setPasswordError(translate("كلمة المرور يجب أن تكون 6 أحرف على الأقل"));
+    if (newPassword.length < 8) {
+      setPasswordError(translate("كلمة المرور يجب أن تكون 8 أحرف على الأقل"));
       return;
     }
 
@@ -171,6 +171,8 @@ export function SettingsPage() {
             label={translate("كلمة المرور الجديدة")}
             type="password"
             placeholder="••••••••"
+            minLength={8}
+            autoComplete="new-password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
           />
@@ -178,6 +180,8 @@ export function SettingsPage() {
             label={translate("تأكيد كلمة المرور")}
             type="password"
             placeholder="••••••••"
+            minLength={8}
+            autoComplete="new-password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
           />

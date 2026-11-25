@@ -1,6 +1,6 @@
 import { translate, translateTemplate } from '@/lib/translations';
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, Plus, BookOpen, FileSpreadsheet, MessageCircle } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Search, Plus, BookOpen, FileSpreadsheet, MessageCircle, Pencil } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
 import { Badge } from '@/components/ui/Badge';
@@ -66,34 +66,6 @@ export function StudentsPage() {
   // Quick Enroll Modal state
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
   const [selectedStudentForEnroll, setSelectedStudentForEnroll] = useState<string | undefined>();
-
-  // Single click vs double click handler ref
-  const clickTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-
-  // Clear any pending single-click navigation timers on unmount
-  useEffect(() => {
-    const timers = clickTimeoutRef.current;
-    return () => {
-      Object.values(timers).forEach((timer) => clearTimeout(timer));
-    };
-  }, []);
-
-  const handleStudentClick = (s: Student) => {
-    if (clickTimeoutRef.current[s.student_id]) {
-      // Double click: open edit modal
-      clearTimeout(clickTimeoutRef.current[s.student_id]);
-      delete clickTimeoutRef.current[s.student_id];
-      if (canUpdateStudent) {
-        handleEdit(s);
-      }
-    } else {
-      // Single click: wait 250ms then navigate to student-details
-      clickTimeoutRef.current[s.student_id] = setTimeout(() => {
-        delete clickTimeoutRef.current[s.student_id];
-        navigate('student-details', { id: s.student_id });
-      }, 250);
-    }
-  };
 
   const hasClientFilters = Boolean(govFilter || courseFilter);
 
@@ -425,17 +397,23 @@ export function StudentsPage() {
                             {formatStudentCode(s.student_id, s.student_code)}
                           </span>
                           <button
-                            onClick={() => handleStudentClick(s)}
-                            onKeyDown={(event) => {
-                              if (event.key === 'Enter') {
-                                navigate('student-details', { id: s.student_id });
-                              }
-                            }}
-                            title={translate("ضغطة لفتح ملف وسجل دفعات الطالب، ونقرتان لتعديل البيانات")}
-                            className="hover:text-emerald-light focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 transition-colors text-right cursor-pointer"
+                            onClick={() => navigate('student-details', { id: s.student_id })}
+                            title={translate("عرض ملف الطالب")}
+                            className="hover:text-emerald-light focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 transition-colors text-start cursor-pointer"
                           >
                             {s.name}
                           </button>
+                          {canUpdateStudent && (
+                            <button
+                              type="button"
+                              onClick={() => handleEdit(s)}
+                              title={translate("تعديل بيانات الطالب")}
+                              aria-label={translate("تعديل بيانات الطالب")}
+                              className="p-1.5 rounded-lg text-obsidian-300 hover:text-emerald-light hover:bg-obsidian-700/70 transition-colors shrink-0"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-obsidian-200 font-num hidden md:table-cell">

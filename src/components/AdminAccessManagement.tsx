@@ -503,7 +503,12 @@ export function AdminAccessManagement() {
           <div key={role.role_key} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg bg-obsidian-700/40 p-3">
             <div>
               <p className="text-white font-medium">{getRoleDisplayName(role.role_key, role.display_name)}</p>
-              <p className="text-obsidian-300 text-xs mt-1">{formatCountPhrase(role.permission_keys.length, PERMISSION_COUNT_FORMS, locale)}{role.is_system ? translate(" — دور أساسي") : translate(" — دور مخصص")}</p>
+              <p className="text-obsidian-300 text-xs mt-1">
+                {role.role_key === 'superadmin'
+                  ? translate("كل الصلاحيات (إدارة كاملة للمنصة)")
+                  : formatCountPhrase(role.permission_keys.length, PERMISSION_COUNT_FORMS, locale)}
+                {role.is_system ? translate(" — دور أساسي") : translate(" — دور مخصص")}
+              </p>
             </div>
             {!role.is_system && <div className="flex gap-2">
               <button type="button" className="btn-secondary px-3 py-1.5 text-xs flex items-center gap-1" onClick={() => beginRoleEdit(role)}><Pencil size={13} /> {translate("تعديل الصلاحيات")}</button>
