@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/context/useAuth';
-import { Lock, Mail, ShieldCheck, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Alert } from '@/components/ui/Alert';
 import { AcademyLogo } from '@/components/AcademyLogo';
 import { LanguageToggle } from '@/components/LanguageToggle';
@@ -11,7 +11,7 @@ import { supabase } from '@/lib/supabase';
 export function LoginPage() {
   const { signIn } = useAuth();
   const { locale } = useLocale();
-  const [email, setEmail] = useState('admin@elmasry-academy.com');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -22,17 +22,17 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password) {
-      setError(translate("يرجى إدخال البريد الإلكتروني وكلمة المرور"));
+      setError("يرجى إدخال البريد الإلكتروني وكلمة المرور");
       return;
     }
 
     setLoading(true);
     setError(null);
 
-    const { error: signInError } = await signIn(email.trim(), password);
+    const result = await signIn(email.trim(), password).catch(() => null);
 
-    if (signInError) {
-      setError(translate("بيانات الدخول غير صحيحة، يرجى التحقق من البريد وكلمة المرور"));
+    if (!result || result.error) {
+      setError("تعذر تسجيل الدخول. تأكد من البريد وكلمة المرور وحاول مرة أخرى.");
       setLoading(false);
     }
   };
@@ -80,57 +80,58 @@ export function LoginPage() {
               <AcademyLogo imageClassName="w-full h-full object-contain p-2" fallbackClassName="text-white font-bold text-3xl" />
             </div>
             <h1 className="text-2xl font-bold text-white mb-1">{translate("أكاديمية المصري")}</h1>
-            <p className="text-obsidian-300 text-sm">{translate("نظام إدارة التدريب المعتمد")}</p>
-            <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-emerald-brand/10 border border-emerald-brand/30 text-emerald-light text-xs font-medium">
-              <ShieldCheck size={14} />
-              <span>{translate("بوابة الإدارة المركزية الآمنة")}</span>
-            </div>
+            <p className="text-obsidian-200 text-sm">{translate("نظام إدارة التدريب المعتمد")}</p>
           </div>
 
-          {error && (
-            <div className="mb-6">
-              <Alert variant="error">{error}</Alert>
-            </div>
-          )}
+          <div role="alert">
+            {error && <Alert variant="error" className="mb-6">{translate(error, locale)}</Alert>}
+          </div>
           {resetMessage && <div className="mb-5"><Alert variant="success">{resetMessage}</Alert></div>}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-xs font-medium text-obsidian-200 mb-2">
-                {translate("البريد الإلكتروني الإداري")}</label>
+              <label htmlFor="login-email" className="block text-xs font-medium text-obsidian-200 mb-2">
+                {translate("البريد الإلكتروني الإداري")}
+              </label>
               <div className="relative">
                 <input
+                  id="login-email"
                   type="email"
+                  autoComplete="username"
                   dir="ltr"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@academy.com"
+                  placeholder="name@example.com"
                   required
-                  className="w-full bg-obsidian-700 border border-obsidian-500/50 rounded-xl px-4 py-3 pl-11 text-sm text-white placeholder-obsidian-400 focus:outline-none focus:border-emerald-brand focus:ring-1 focus:ring-emerald-brand transition-all font-num"
+                  className="w-full bg-obsidian-700 border border-obsidian-300 rounded-xl px-4 py-3 pl-11 text-sm text-white placeholder:text-obsidian-200 focus:outline-none focus:border-emerald-brand focus:ring-1 focus:ring-emerald-brand transition-all font-num"
                 />
-                <Mail size={18} className="absolute left-3.5 top-3.5 text-obsidian-400" />
+                <Mail size={18} className="absolute left-3.5 top-3.5 text-obsidian-200" />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-obsidian-200 mb-2">
-                {translate("كلمة المرور")}</label>
+              <label htmlFor="login-password" className="block text-xs font-medium text-obsidian-200 mb-2">
+                {translate("كلمة المرور")}
+              </label>
               <div className="relative">
                 <input
+                  id="login-password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   dir="ltr"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full bg-obsidian-700 border border-obsidian-500/50 rounded-xl px-4 py-3 pl-11 pr-11 text-sm text-white placeholder-obsidian-400 focus:outline-none focus:border-emerald-brand focus:ring-1 focus:ring-emerald-brand transition-all font-num"
+                  className="w-full bg-obsidian-700 border border-obsidian-300 rounded-xl px-4 py-3 pl-11 pr-11 text-sm text-white placeholder:text-obsidian-200 focus:outline-none focus:border-emerald-brand focus:ring-1 focus:ring-emerald-brand transition-all font-num"
                 />
-                <Lock size={18} className="absolute left-3.5 top-3.5 text-obsidian-400" />
+                <Lock size={18} className="absolute left-3.5 top-3.5 text-obsidian-200" />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-3.5 text-obsidian-400 hover:text-white transition-colors"
+                  aria-label={translate(showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور", locale)}
+                  className="absolute right-3.5 top-3.5 text-obsidian-200 hover:text-white transition-colors"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -140,7 +141,7 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-brand hover:bg-emerald-dark text-obsidian-950 font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-brand/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              className="w-full bg-emerald-brand hover:bg-emerald-dark text-obsidian-900 font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-brand/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
             >
               {loading ? (
                 <>
@@ -164,12 +165,9 @@ export function LoginPage() {
               : (locale === 'ar' ? 'نسيت كلمة المرور؟ إرسال رابط جديد' : 'Forgot password? Send a reset link')}
           </button>
 
-          <p className="mt-4 text-center text-[11px] leading-5 text-obsidian-300">
-            {translate("لأغراض حماية الحساب، يُسجَّل وقت الدخول وعنوان IP للمديرين المعتمدين ويُرسل تنبيه أمني إلى تيليجرام.")}</p>
-
           {/* Footer signature */}
           <div className="mt-8 pt-6 border-t border-obsidian-500/40 text-center">
-            <p className="text-xs text-obsidian-300">
+            <p className="text-xs text-obsidian-200">
               {translate("نظام إدارة أكاديمية المصري")}</p>
             <p className="text-xs font-semibold text-emerald-light mt-1">
               {translate("لإدارة التدريب والمالية")}</p>

@@ -273,16 +273,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    setLoading(true);
-    setAuthorizationReady(false);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) {
-      setLoading(false);
-    } else {
+    if (!error) {
       void (async () => {
         try {
           const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin');
