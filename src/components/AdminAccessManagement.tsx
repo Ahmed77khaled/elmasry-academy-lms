@@ -1,5 +1,4 @@
-import { translate } from '@/lib/translations';
-import { translateTemplate } from '@/lib/translations';
+import { translate, translateTemplate, formatCountPhrase } from '@/lib/translations';
 import { useLocale } from '@/context/useLocale';
 import { useEffect, useState } from 'react';
 import { RefreshCw, ShieldCheck, UserCog, Pencil, Trash2, History, ChevronDown } from 'lucide-react';
@@ -114,6 +113,15 @@ function formatAuditSummary(event: AuditRow): string {
       return getAuditActionName(event.action);
   }
 }
+
+const PERMISSION_COUNT_FORMS = {
+  ar: { zero: 'صلاحيات', one: 'صلاحية', two: 'صلاحيتان', few: 'صلاحيات', many: 'صلاحية' },
+  en: { one: 'Permission', other: 'Permissions' },
+};
+const AUDIT_EVENT_COUNT_FORMS = {
+  ar: { zero: 'أحداث موثّقة', one: 'حدث موثّق', two: 'حدثان موثّقان', few: 'أحداث موثّقة', many: 'حدثاً موثّقاً' },
+  en: { one: 'logged event', other: 'logged events' },
+};
 
 export function AdminAccessManagement() {
   const { locale } = useLocale();
@@ -495,7 +503,7 @@ export function AdminAccessManagement() {
           <div key={role.role_key} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg bg-obsidian-700/40 p-3">
             <div>
               <p className="text-white font-medium">{getRoleDisplayName(role.role_key, role.display_name)}</p>
-              <p className="text-obsidian-300 text-xs mt-1">{role.permission_keys.length} {translate("صلاحية")}{role.is_system ? translate(" — دور أساسي") : translate(" — دور مخصص")}</p>
+              <p className="text-obsidian-300 text-xs mt-1">{formatCountPhrase(role.permission_keys.length, PERMISSION_COUNT_FORMS, locale)}{role.is_system ? translate(" — دور أساسي") : translate(" — دور مخصص")}</p>
             </div>
             {!role.is_system && <div className="flex gap-2">
               <button type="button" className="btn-secondary px-3 py-1.5 text-xs flex items-center gap-1" onClick={() => beginRoleEdit(role)}><Pencil size={13} /> {translate("تعديل الصلاحيات")}</button>
@@ -512,7 +520,7 @@ export function AdminAccessManagement() {
             {translate("سجل تغييرات الصلاحيات")}
           </h4>
           <span className="text-xs text-obsidian-400">
-            {auditEvents.length} {translate("حدث موثّق")}
+            {formatCountPhrase(auditEvents.length, AUDIT_EVENT_COUNT_FORMS, locale)}
           </span>
         </div>
         <p className="text-xs text-obsidian-300">
@@ -535,7 +543,7 @@ export function AdminAccessManagement() {
                     </span>
                   </div>
                   <time className="text-obsidian-300 text-xs font-mono" dir="ltr">
-                    {new Date(event.created_at).toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-GB', {
+                    {new Date(event.created_at).toLocaleString(locale === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB', {
                       timeZone: 'Africa/Cairo',
                       dateStyle: 'short',
                       timeStyle: 'short',

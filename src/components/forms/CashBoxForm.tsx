@@ -120,7 +120,7 @@ export function CashBoxForm({ open, onClose, onSaved }: CashBoxFormProps) {
         />
         <Input label={translate("مسؤول الخزنة")} placeholder={translate("اسم المسؤول عن الخزنة")} value={owner} onChange={(e) => setOwner(e.target.value)} />
         <Input label={translate("رصيد الافتتاح (ج.م)")} type="number" step="0.01" min="0" max="99999999.99" placeholder="0.00" value={openingBalance} onChange={(e) => { const v = e.target.value; if (!v.startsWith("-")) setOpeningBalance(v); }} />
-        <Input label={translate('Opening balance in USD (optional)')} type="number" step="0.01" min="0" max="99999999.99" placeholder="0.00" value={openingBalanceUsd} onChange={(e) => { const v = e.target.value; if (!v.startsWith("-")) setOpeningBalanceUsd(v); }} />
+        <Input label={translate('رصيد الافتتاح بالدولار (اختياري)')} type="number" step="0.01" min="0" max="99999999.99" placeholder="0.00" value={openingBalanceUsd} onChange={(e) => { const v = e.target.value; if (!v.startsWith("-")) setOpeningBalanceUsd(v); }} />
         <FormActions>
           <button type="button" onClick={onClose} className="btn-secondary">{translate("إلغاء")}</button>
           <button type="submit" disabled={saving} className="btn-primary">

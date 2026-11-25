@@ -313,7 +313,159 @@ const en: Record<string, string> = {
   'تم تسجيل الطالب في الدورة بنجاح، ولكن تعذر تسجيل الدفعة الأولى: {error}. يمكنك إعادة المحاولة أدناه أو إغلاق النافذة وتسجيلها لاحقاً.': 'Student enrolled successfully, but the initial payment could not be recorded: {error}. Retry below or close and record it later.',
   'تعذر تسجيل الطالب: لم يتم اختيار الخزنة لاستلام الدفعة.': 'Select a receiving cash box for the initial payment.',
   'إعادة محاولة تسجيل الدفعة': 'Retry recording payment',
+  // Added complete EN coverage across all pages & components
+  'حذف': 'Delete',
+  'حدث موثّق': 'logged events',
+  'سجل أمني رسمي يوثّق كافة العمليات الإدارية على الحسابات والأدوار.': 'Official security log recording all administrative actions on accounts and roles.',
+  'يجب أن تكون مالكاً للمنصة لحذف حساب مدير.': 'You must be a platform owner to delete an administrator account.',
+  'يجب أن يتبقى مالك نشط واحد على الأقل للمنصة.': 'At least one active platform owner must remain.',
+  'تمت معالجة الدعوة بنجاح.': 'Invitation processed successfully.',
+  'المبلغ يجب أن يكون أكبر من صفر ولا يمكن إدخال مبالغ بالسالب': 'Amount must be greater than zero and cannot be negative.',
+  'يرجى اختيار الدورة التدريبية': 'Select a training course.',
+  '1. اسم الطالب': '1. Student name',
+  'طالب متاح': 'students available',
+  'بحث سريع بالاسم...': 'Quick search by name…',
+  '-- اختر الطالب --': '-- Select student --',
+  '2. الدورة التدريبية': '2. Training course',
+  'دورة مسجلة': 'enrolled courses',
+  'بحث في دورات الطالب...': 'Search student courses…',
+  '-- اختر الطالب أولاً --': '-- Select student first --',
+  'لا توجد دورات نشطة لهذا الطالب': 'No active courses for this student',
+  '-- اختر الدورة التدريبية --': '-- Select training course --',
+  '{course} (المتبقي: {amount})': '{course} (Remaining: {amount})',
+  'المبلغ ({currency})': 'Amount ({currency})',
+  'تعذر إضافة بيانات الطالب الجديد': 'Could not add the new student.',
+  'حدث خطأ أثناء تسجيل الطالب في الكورس': 'Could not enroll the student in the course.',
+  '{course} ({prices})': '{course} ({prices})',
+  'No default price': 'No default price',
+  '-- اختر المحافظة --': '-- Select governorate --',
+  'المحافظة / المدينة (اختياري)': 'Governorate / city (optional)',
+  'مثال: المدينة أو المنطقة': 'Example: city or region',
+  'وارد': 'In',
+  'صادر': 'Out',
+  'سجل الحركات': 'Transaction ledger',
+  'سجل حركات': 'Ledger for',
+  'المسؤول': 'Manager',
+  'إيراد / دفعة طالب': 'Revenue / student payment',
+  'بدون إيصال': 'No receipt',
+  'مصروف': 'Expense',
+  'مصروفات': 'Expenses',
+  'تحويل صادر': 'Outgoing transfer',
+  'تحويل وارد': 'Incoming transfer',
+  'خزنة أخرى': 'Another cash box',
+  'تحويل إلى': 'Transfer to',
+  'تحويل من': 'Transfer from',
+  'بحث بالطرف، البيان، أو رقم الإيصال...': 'Search party, description, or receipt #…',
+  'كل الحركات': 'All transactions',
+  'مقبوضات واردة (إيرادات)': 'Incoming payments (revenue)',
+  'مصروفات صادرة': 'Outgoing expenses',
+  'تحويلات بين الخزن': 'Transfers between cash boxes',
+  'لا توجد حركات مسجلة لهذه الخزنة تطابق الفلتر': 'No transactions match this filter for this cash box.',
+  'نوع الحركة': 'Type',
+  'الطرف / البيان': 'Party / details',
+  'طريقة الدفع / الملاحظات': 'Method / notes',
+  'نشطة': 'Active',
+  'حدث خطأ أثناء استبعاد الطالب من الكورس': 'Could not unenroll the student from this course.',
+  'تعذر نسخ الرابط': 'Could not copy link',
+  'عجز': 'Deficit',
+  'حذف الطالب من الكورس': 'Remove student from course',
+  'حذف من الكورس': 'Remove',
+  'استبعاد الطالب من هذه الدورة التدريبية': 'Unenroll student from this course',
+  'هل أنت متأكد من رغبتك في استبعاد الطالب ({student}) من دورة ({course})؟ لن يتم حذف الطالب أو بياناته من إدارة الطلاب العامة، وسيتم فقط تحويل حالة تسجيله في هذه الدورة إلى "مستبعد / منسحب" مع حفظ سجل الدفعات.': 'Unenroll {student} from {course}? Their student profile and payment history will be kept, and their enrollment status will change to Withdrawn.',
+  'تأكيد الاستبعاد': 'Confirm removal',
+  'مستبعد': 'Withdrawn',
+  'تسجيل مفتوح': 'Open enrollment',
+  'خيارات الدورة التدريبية': 'Course options',
+  'إيراد': 'Revenue',
+  'تحويل بين الخزن': 'Inter-box transfer',
+  'تحويل بين الخزائن': 'Inter-box transfer',
+  'إلى': 'to',
+  'من ': 'from ',
+  'تحويل داخلي': 'Internal transfer',
+  'توزيع الطلاب على الكورسات النشطة:': 'Students across active courses:',
+  'توزيع الطلاب على الدورات التدريبية النشطة:': 'Students across active courses:',
+  'لا توجد كورسات نشطة حالياً': 'No active courses right now',
+  'لا توجد دورات تدريبية نشطة حالياً': 'No active courses right now',
+  'دورة': 'course',
+  'دورات': 'courses',
+  'الدورات التدريبية المتاحة والمفتوحة للدراسة حالياً': 'Training courses currently open and running',
+  'المبالغ المحصلة للكورسات النشطة': 'Active courses fee collection',
+  'المبالغ المحصلة للدورات التدريبية النشطة': 'Active courses fee collection',
+  'على مدار الدورات التدريبية الحالية': 'Across current training courses',
+  'المبلغ الإجمالي': 'Total agreed',
+  'أرصدة الخزن الحالية': 'Current cash box balances',
+  'أرصدة الخزائن الحالية': 'Current cash box balances',
+  'الرصيد الفعلي المتوفر في كل خزنة': 'Available balance in each cash box',
+  'الوارد': 'Inflow',
+  'المنصرف': 'Outflow',
+  'التحويلات': 'Transfers',
+  'أحدث المعاملات بالكامل': 'All recent transactions',
+  'سجل مجمع لكل الإيرادات والمصروفات والتحويلات الأخيرة': 'Unified log of all recent revenue, expenses, and transfers',
+  'معاملة': 'transactions',
+  'لا توجد معاملات مسجلة بعد في النظام': 'No transactions recorded yet.',
+  'نوع العملية': 'Type',
+  'طريقة الدفع / البيان': 'Method / notes',
+  'عرض وطباعة إيصال السداد': 'View and print payment receipt',
+  'الدورة التدريبية المسجلة:': 'Enrolled course:',
+  'الدورة التدريبية المسجل بها': 'Enrolled course',
+  'الدورة التدريبية المرتبطة': 'Related course',
+  'الدورة التدريبية المرتبطة (اختياري)': 'Related course (optional)',
+  'كود الطالب': 'Student ID',
+  'كود الطالب التسلسلي': 'Student code',
+  'سجل دفعات الطالب': 'Student payment history',
+  'تاريخ تسجيل الدفعات بالكامل (القيمة، التاريخ، الخزنة، والكورس)': 'Complete payment log (amount, date, cash box, and course)',
+  'تاريخ تسجيل الدفعات بالكامل (القيمة، التاريخ، الخزنة، والدورة التدريبية)': 'Complete payment log (amount, date, cash box, and course)',
+  'دفعة مسجلة': 'recorded payments',
+  'لا توجد دفعات مسجلة لهذا الطالب بعد': 'No payments recorded for this student yet.',
+  'القيمة': 'Amount',
+  'رقم الإيصال': 'Receipt #',
+  'تعذر تصدير بيانات الطلاب.': 'Could not export student records.',
+  'تصدير الطلاب كملف إكسيل': 'Export students to Excel',
+  'جاري التصدير...': 'Exporting…',
+  'تسجيل طالب في دورة تدريبية': 'Enroll student in course',
+  'كل المحافظات': 'All governorates',
+  'كل الدورات': 'All courses',
+  'إعادة ضبط الفلاتر': 'Reset filters',
+  'لا توجد نتائج تطابق خيارات التصفية المحددة': 'No records match your selected filters.',
+  'مسح الفلاتر': 'Clear filters',
+  'ضغطة لفتح ملف وسجل دفعات الطالب، ونقرتان لتعديل البيانات': 'Click to open student profile, or double-click to edit details',
+  'إغلاق النافذة': 'Close dialog',
+  'إغلاق (Esc)': 'Close (Esc)',
+  'دورة تدريبية': 'Training course',
 };
+
+export interface CountForms {
+  ar: { zero: string; one: string; two: string; few: string; many: string };
+  en: { one: string; other: string };
+}
+
+/**
+ * Formats a count alongside its grammatically correct Arabic or English unit.
+ * When separateDigit is false, Arabic n=2 renders the clean dual noun directly (e.g., "حدثان موثّقان").
+ */
+export function formatCountPhrase(count: number, forms: CountForms, locale: Locale = getLocale()): string {
+  const n = Math.abs(Math.trunc(count));
+  if (locale !== 'ar') {
+    return `${n} ${n === 1 ? forms.en.one : forms.en.other}`;
+  }
+  if (n === 0) return `0 ${forms.ar.zero}`;
+  if (n === 1) return `1 ${forms.ar.one}`;
+  if (n === 2) return forms.ar.two;
+  if (n <= 10) return `${n} ${forms.ar.few}`;
+  return `${n} ${forms.ar.many}`;
+}
+
+export function getCountUnitLabel(count: number, forms: CountForms, locale: Locale = getLocale()): string {
+  const n = Math.abs(Math.trunc(count));
+  if (locale !== 'ar') {
+    return n === 1 ? forms.en.one : forms.en.other;
+  }
+  if (n === 0) return forms.ar.zero;
+  if (n === 1) return forms.ar.one;
+  if (n === 2) return forms.ar.few;
+  if (n <= 10) return forms.ar.few;
+  return forms.ar.many;
+}
 
 export function translate(text: string, locale: Locale = getLocale()): string {
   if (locale !== 'ar') return en[text] ?? text;
@@ -334,7 +486,9 @@ export function translate(text: string, locale: Locale = getLocale()): string {
     .split('الكورس المختار').join('الدورة المختارة')
     .split('الكورس غير موجود').join('الدورة التدريبية غير موجودة')
     .split('الكورسات السابقة').join('الدورات السابقة')
+    .split('للكورسات').join('للدورات التدريبية')
     .split('الكورسات').join('الدورات التدريبية')
+    .split('بالكورس').join('بالدورة التدريبية')
     .split('الكورس').join('الدورة التدريبية')
     .split('كورسات').join('دورات تدريبية')
     .split('كورس جديد').join('دورة تدريبية جديدة')

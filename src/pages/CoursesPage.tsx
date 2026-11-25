@@ -1,5 +1,4 @@
-import { translate } from '@/lib/translations';
-import { translateTemplate } from '@/lib/translations';
+import { translate, translateTemplate, formatCountPhrase } from '@/lib/translations';
 import { useState } from 'react';
 import { Search, Plus, Pencil, Eye, MessageCircle, ListTodo, HardDrive, BookMarked, MoreVertical, Lock, Copy } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
@@ -13,12 +12,19 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { formatCurrency, formatDate } from '@/lib/format';
 import type { Course, EnrollmentBalance } from '@/types/database';
 import { useAuth } from '@/context/useAuth';
+import { useLocale } from '@/context/useLocale';
 
 const LEVEL_LABELS: Record<string, string> = {
   'Beginner': 'مبتدئ', 'Intermediate': 'متوسط', 'Advanced': 'متقدم',
 };
 
+const WEEK_COUNT_FORMS = {
+  ar: { zero: 'أسابيع', one: 'أسبوع', two: 'أسبوعان', few: 'أسابيع', many: 'أسبوعاً' },
+  en: { one: 'week', other: 'weeks' },
+};
+
 export function CoursesPage() {
+  const { locale } = useLocale();
   const { navigate } = useRouter();
   const { permissions } = useAuth();
   const canCreateCourse = permissions.includes('courses.create');
@@ -150,7 +156,7 @@ export function CoursesPage() {
                     <div className="flex items-center gap-2 mt-1.5">
                       <Badge variant={sb.variant}>{sb.label}</Badge>
                       <Badge variant="gray">{course.level ? translate(LEVEL_LABELS[course.level] ?? course.level) : '—'}</Badge>
-                      <span className="text-obsidian-300 text-xs">{course.duration_weeks ?? 0} {translate("أسبوع")}</span>
+                      <span className="text-obsidian-300 text-xs">{formatCountPhrase(course.duration_weeks ?? 0, WEEK_COUNT_FORMS, locale)}</span>
                     </div>
                     {(course.start_date || course.end_date) && (
                       <p className="text-obsidian-300 text-xs mt-2">
@@ -161,7 +167,7 @@ export function CoursesPage() {
                     )}
                   </div>
                   <div className="relative shrink-0">
-                    {(canUpdateCourse || canCloseCourse) && <button onClick={() => setMenuOpen(menuOpen === course.course_id ? null : course.course_id)} className="btn-ghost p-1.5">
+                    {(canUpdateCourse || canCloseCourse) && <button type="button" aria-label={translate("خيارات الدورة التدريبية")} onClick={() => setMenuOpen(menuOpen === course.course_id ? null : course.course_id)} className="btn-ghost p-1.5">
                       <MoreVertical size={18} />
                     </button>}
                     {menuOpen === course.course_id && (

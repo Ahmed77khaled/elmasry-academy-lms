@@ -1,28 +1,33 @@
-import { translate } from '@/lib/translations';
+import { translate, formatCountPhrase, getCountUnitLabel } from '@/lib/translations';
 import { useState, useMemo } from 'react';
 import { Users, BookOpen, TrendingUp, RefreshCw, Printer, Wallet, ArrowDownLeft, ArrowUpRight, ArrowRightLeft } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency, formatEGP, formatNumber, formatDate, formatBalance } from '@/lib/format';
+import { getCashBoxTypeLabel, getExpenseCategoryLabel, getPaymentMethodLabel } from '@/lib/adminLabels';
 import { Badge } from '@/components/ui/Badge';
 import { PageLoader, EmptyState } from '@/components/ui/Feedback';
 import { PaginationControls } from '@/components/ui/PaginationControls';
 import { ReceiptModal } from '@/components/modals/ReceiptModal';
 import type { DashboardMetrics, Course, EnrollmentBalance, CashBoxBalance } from '@/types/database';
 import { useAuth } from '@/context/useAuth';
+import { useLocale } from '@/context/useLocale';
 
 export interface DashboardTransaction {
   id: string;
   type: 'payment' | 'expense' | 'transfer';
-  typeLabel: string;
   date: string;
   createdAt: string;
   cashBoxName: string;
+  transferBoxes?: { from: string; to: string };
   party: string;
+  expenseCategory?: string;
   description: string;
   amount: number;
   currency: 'EGP' | 'USD';
-  methodOrNotes: string;
+  method?: string;
+  receiptRef?: string | null;
+  notes?: string | null;
   receiptData?: {
     payment_id: string;
     receipt_number?: number | null;
@@ -39,24 +44,21 @@ export interface DashboardTransaction {
   };
 }
 
-const METHOD_LABELS: Record<string, string> = {
-  'Cash': 'كاش',
-  'Bank Transfer': 'تحويل بنكي',
-  'Vodafone Cash': 'فودافون كاش',
-  'InstaPay': 'إنستاباي',
+const STUDENT_COUNT_FORMS = {
+  ar: { zero: 'طلاب', one: 'طالب', two: 'طالبان', few: 'طلاب', many: 'طالباً' },
+  en: { one: 'Student', other: 'Students' },
 };
-
-const CATEGORY_LABELS: Record<string, string> = {
-  'Rent': 'إيجار',
-  'Salary': 'مرتبات',
-  'Supplies': 'أدوات',
-  'Hardware': 'أجهزة',
-  'Marketing': 'إعلانات',
-  'Utilities': 'كهرباء وإنترنت',
-  'Other': 'أخرى',
+const COURSE_COUNT_FORMS = {
+  ar: { zero: 'دورات', one: 'دورة', two: 'دورتان', few: 'دورات', many: 'دورة' },
+  en: { one: 'course', other: 'courses' },
+};
+const TRANSACTION_COUNT_FORMS = {
+  ar: { zero: 'معاملات', one: 'معاملة', two: 'معاملتان', few: 'معاملات', many: 'معاملة' },
+  en: { one: 'transaction', other: 'transactions' },
 };
 
 export function DashboardPage() {
+  const { locale } = useLocale();
   const { permissions } = useAuth();
   const canReadFinance = permissions.includes('dashboard.finance.read');
   const canReadOperational = permissions.includes('dashboard.operational.read');
@@ -142,21 +144,22 @@ export function DashboardPage() {
           items.push({
             id: `pay-${p.payment_id}`,
             type: 'payment',
-            typeLabel: translate('إيراد'),
             date: p.payment_date,
             createdAt: p.created_at,
             cashBoxName: p.cash_box_name || '—',
-            party: p.student_name || translate('طالب بالأكاديمية'),
-            description: p.course_name ? `${p.course_name} (${p.receipt_number || translate('بدون إيصال')})` : (p.receipt_number || ''),
+            party: p.student_name || '',
+            description: p.course_name ? `${p.course_name} (${p.receipt_number || ''})` : (p.receipt_number ? String(p.receipt_number) : ''),
             amount: Number(p.amount) || 0,
             currency: (p.currency as 'EGP' | 'USD') || 'EGP',
-            methodOrNotes: [METHOD_LABELS[p.method] ?? p.method, p.receipt_ref, p.notes].filter(Boolean).join(' • ') || '—',
+            method: p.method,
+            receiptRef: p.receipt_ref,
+            notes: p.notes,
             receiptData: {
               payment_id: p.payment_id,
               receipt_number: p.receipt_number,
-              student_name: p.student_name || translate('طالب بالأكاديمية'),
+              student_name: p.student_name || '',
               student_phone: p.student_phone,
-              course_name: p.course_name || translate('كورس تدريبي'),
+              course_name: p.course_name || '',
               amount: Number(p.amount) || 0,
               currency: (p.currency as 'EGP' | 'USD') || 'EGP',
               payment_date: p.payment_date,
@@ -177,15 +180,15 @@ export function DashboardPage() {
           items.push({
             id: `exp-${e.expense_id}`,
             type: 'expense',
-            typeLabel: translate('مصروف'),
             date: e.expense_date,
             createdAt: e.created_at,
             cashBoxName: e.cash_box_name || '—',
-            party: CATEGORY_LABELS[e.category] ?? e.category ?? translate('مصروف'),
+            party: e.category || '',
+            expenseCategory: e.category,
             description: e.description || e.course_name || '',
             amount: Number(e.amount) || 0,
             currency: 'EGP',
-            methodOrNotes: e.notes || '—',
+            notes: e.notes,
           });
         }
       }
@@ -197,15 +200,15 @@ export function DashboardPage() {
         items.push({
           id: `tf-${t.transfer_id}`,
           type: 'transfer',
-          typeLabel: translate('تحويل'),
           date: t.transfer_date,
           createdAt: t.created_at,
-          cashBoxName: `${t.from_box_name} ➔ ${t.to_box_name}`,
-          party: translate('تحويل بين الخزن'),
-          description: t.notes || `${translate('من')} ${t.from_box_name} ${translate('إلى')} ${t.to_box_name}`,
+          cashBoxName: '',
+          transferBoxes: { from: t.from_box_name || '', to: t.to_box_name || '' },
+          party: '',
+          description: t.notes || '',
           amount: Number(t.amount) || 0,
           currency: 'EGP',
-          methodOrNotes: t.notes || translate('تحويل داخلي'),
+          notes: t.notes,
         });
       }
     }
@@ -342,21 +345,21 @@ export function DashboardPage() {
               </div>
             </div>
             <p className="font-num font-bold text-2xl lg:text-3xl text-emerald-light">
-              {formatNumber(m?.total_students ?? 0)} <span className="text-sm font-normal text-obsidian-300">{translate("طالب")}</span>
+              {formatNumber(m?.total_students ?? 0)} <span className="text-sm font-normal text-obsidian-300">{getCountUnitLabel(m?.total_students ?? 0, STUDENT_COUNT_FORMS, locale)}</span>
             </p>
           </div>
 
           <div className="mt-3 pt-3 border-t border-obsidian-500/25">
-            <p className="text-obsidian-400 text-xs mb-2 font-medium">{translate("توزيع الطلاب على الكورسات النشطة:")}</p>
+            <p className="text-obsidian-400 text-xs mb-2 font-medium">{translate("توزيع الطلاب على الدورات التدريبية النشطة:", locale)}</p>
             {courseStudentStats.length === 0 ? (
-              <p className="text-obsidian-400 text-xs">{translate("لا توجد كورسات نشطة حالياً")}</p>
+              <p className="text-obsidian-400 text-xs">{translate("لا توجد دورات تدريبية نشطة حالياً", locale)}</p>
             ) : (
               <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                 {courseStudentStats.map((cs) => (
                   <div key={cs.course_id} className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-obsidian-700/40">
                     <span className="text-obsidian-200 truncate font-medium">{cs.course_name}</span>
                     <span className="font-num font-bold text-emerald-light shrink-0 mr-2">
-                      {cs.student_count} {translate("طالب")}
+                      {formatCountPhrase(cs.student_count, STUDENT_COUNT_FORMS, locale)}
                     </span>
                   </div>
                 ))}
@@ -369,15 +372,15 @@ export function DashboardPage() {
         <div className="card-surface p-4 lg:p-5 bg-gradient-to-b from-azure-brand/15 to-transparent relative overflow-hidden hover:border-obsidian-400/50 transition-all flex flex-col justify-between">
           <div>
             <div className="flex items-start justify-between gap-2 mb-2">
-              <p className="text-obsidian-200 text-xs lg:text-sm font-medium">{translate("الدورات النشطة")}</p>
+              <p className="text-obsidian-200 text-xs lg:text-sm font-medium">{translate("الدورات النشطة", locale)}</p>
               <div className="w-9 h-9 rounded-lg bg-obsidian-700/60 flex items-center justify-center shrink-0 text-azure-light">
                 <BookOpen size={18} />
               </div>
             </div>
             <p className="font-num font-bold text-2xl lg:text-3xl text-azure-light">
-              {formatNumber(activeCourses.length || m?.active_courses || 0)} <span className="text-sm font-normal text-obsidian-300">{translate("دورة")}</span>
+              {formatNumber(activeCourses.length || m?.active_courses || 0)} <span className="text-sm font-normal text-obsidian-300">{getCountUnitLabel(activeCourses.length || m?.active_courses || 0, COURSE_COUNT_FORMS, locale)}</span>
             </p>
-            <p className="text-obsidian-300 text-xs mt-2">{translate("الدورات التدريبية المتاحة والمفتوحة للدراسة حالياً")}</p>
+            <p className="text-obsidian-300 text-xs mt-2">{translate("الدورات التدريبية المتاحة والمفتوحة للدراسة حالياً", locale)}</p>
           </div>
 
           {activeCourses.length > 0 && (
@@ -399,8 +402,8 @@ export function DashboardPage() {
             <div>
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div>
-                  <p className="text-obsidian-200 text-xs lg:text-sm font-medium">{translate("المبالغ المحصلة للكورسات النشطة")}</p>
-                  <p className="text-obsidian-400 text-[11px] mt-0.5">{translate("على مدار الدورات التدريبية الحالية")}</p>
+                  <p className="text-obsidian-200 text-xs lg:text-sm font-medium">{translate("المبالغ المحصلة للدورات التدريبية النشطة", locale)}</p>
+                  <p className="text-obsidian-400 text-[11px] mt-0.5">{translate("على مدار الدورات التدريبية الحالية", locale)}</p>
                 </div>
                 <div className="w-9 h-9 rounded-lg bg-obsidian-700/60 flex items-center justify-center shrink-0 text-amber-400">
                   <TrendingUp size={18} />
@@ -469,10 +472,10 @@ export function DashboardPage() {
           <div className="flex items-center justify-between">
             <h3 className="text-white font-bold text-base flex items-center gap-2">
               <Wallet size={18} className="text-emerald-light" />
-              {translate("أرصدة الخزن الحالية")}
+              {translate("أرصدة الخزائن الحالية", locale)}
             </h3>
             <span className="text-obsidian-400 text-xs">
-              {translate("الرصيد الفعلي المتوفر في كل خزنة")}
+              {translate("الرصيد الفعلي المتوفر في كل خزنة", locale)}
             </span>
           </div>
 
@@ -485,10 +488,10 @@ export function DashboardPage() {
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
                     <h4 className="text-white font-bold text-base">{box.name}</h4>
-                    <p className="text-obsidian-300 text-xs mt-0.5">{box.owner || translate("مسؤول الخزنة")}</p>
+                    <p className="text-obsidian-300 text-xs mt-0.5">{box.owner || translate("مسؤول الخزنة", locale)}</p>
                   </div>
                   <Badge variant={box.type === 'Main' ? 'emerald' : 'blue'}>
-                    {box.type === 'Main' ? translate("خزنة رئيسية") : box.type}
+                    {getCashBoxTypeLabel(box.type, locale)}
                   </Badge>
                 </div>
 
@@ -538,7 +541,7 @@ export function DashboardPage() {
               <h3 className="text-white font-bold text-base">{translate("أحدث المعاملات بالكامل")}</h3>
               <p className="text-obsidian-400 text-xs mt-0.5">{translate("سجل مجمع لكل الإيرادات والمصروفات والتحويلات الأخيرة")}</p>
             </div>
-            <span className="text-obsidian-300 text-xs font-num">{totalTransactions} {translate("معاملة")}</span>
+            <span className="text-obsidian-300 text-xs font-num">{formatCountPhrase(totalTransactions, TRANSACTION_COUNT_FORMS, locale)}</span>
           </div>
 
           {transactionsLoading ? (
@@ -561,26 +564,58 @@ export function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedTransactions.map((tx) => (
+                    {paginatedTransactions.map((tx) => {
+                      const arrow = locale === 'ar' ? '←' : '→';
+                      const typeLabel = tx.type === 'payment'
+                        ? translate('إيراد', locale)
+                        : tx.type === 'expense'
+                        ? translate('مصروف', locale)
+                        : translate('تحويل', locale);
+                      const cashBoxDisplay = tx.transferBoxes
+                        ? `${tx.transferBoxes.from} ${arrow} ${tx.transferBoxes.to}`
+                        : tx.cashBoxName;
+                      const partyDisplay = tx.type === 'transfer'
+                        ? translate('تحويل بين الخزائن', locale)
+                        : tx.type === 'expense'
+                        ? getExpenseCategoryLabel(tx.expenseCategory ?? tx.party, locale)
+                        : (tx.party || translate('طالب بالأكاديمية', locale));
+                      const descDisplay = tx.type === 'payment' && tx.receiptData && !tx.receiptData.course_name && !tx.receiptData.receipt_number
+                        ? translate('بدون إيصال', locale)
+                        : tx.type === 'transfer' && !tx.description && tx.transferBoxes
+                        ? `${translate('من ', locale)}${tx.transferBoxes.from} ${translate('إلى', locale)} ${tx.transferBoxes.to}`
+                        : tx.description;
+                      const methodOrNotesDisplay = tx.type === 'payment'
+                        ? [tx.method ? getPaymentMethodLabel(tx.method, locale) : null, tx.receiptRef, tx.notes].filter(Boolean).join(' • ') || '—'
+                        : tx.type === 'transfer'
+                        ? (tx.notes || translate('تحويل داخلي', locale))
+                        : (tx.notes || '—');
+                      const modalPayment = tx.receiptData
+                        ? {
+                            ...tx.receiptData,
+                            student_name: tx.receiptData.student_name || translate('طالب بالأكاديمية', locale),
+                            course_name: tx.receiptData.course_name || translate('دورة تدريبية', locale),
+                          }
+                        : null;
+                      return (
                       <tr key={tx.id} className="border-b border-obsidian-500/20 hover:bg-obsidian-700/30 transition-colors">
                         {/* 1. نوع العملية */}
                         <td className="px-4 py-3 whitespace-nowrap">
                           {tx.type === 'payment' && (
                             <Badge variant="emerald">
                               <ArrowDownLeft size={12} className="inline ml-0.5" />
-                              {tx.typeLabel}
+                              {typeLabel}
                             </Badge>
                           )}
                           {tx.type === 'expense' && (
                             <Badge variant="rose">
                               <ArrowUpRight size={12} className="inline ml-0.5" />
-                              {tx.typeLabel}
+                              {typeLabel}
                             </Badge>
                           )}
                           {tx.type === 'transfer' && (
                             <Badge variant="blue">
                               <ArrowRightLeft size={12} className="inline ml-0.5" />
-                              {tx.typeLabel}
+                              {typeLabel}
                             </Badge>
                           )}
                         </td>
@@ -592,15 +627,15 @@ export function DashboardPage() {
 
                         {/* 3. الخزنة */}
                         <td className="px-4 py-3 text-obsidian-200 text-xs whitespace-nowrap">
-                          {tx.cashBoxName}
+                          {cashBoxDisplay}
                         </td>
 
                         {/* 4. الطرف / البيان */}
                         <td className="px-4 py-3">
-                          <p className="text-white font-medium text-xs">{tx.party}</p>
-                          {tx.description && (
-                            <p className="text-obsidian-300 text-[11px] mt-0.5 truncate max-w-[220px]" title={tx.description}>
-                              {tx.description}
+                          <p className="text-white font-medium text-xs">{partyDisplay}</p>
+                          {descDisplay && (
+                            <p className="text-obsidian-300 text-[11px] mt-0.5 truncate max-w-[220px]" title={descDisplay}>
+                              {descDisplay}
                             </p>
                           )}
                         </td>
@@ -619,17 +654,17 @@ export function DashboardPage() {
                         </td>
 
                         {/* 6. طريقة الدفع */}
-                        <td className="px-4 py-3 hidden md:table-cell text-obsidian-300 text-xs max-w-[180px] truncate" title={tx.methodOrNotes}>
-                          {tx.methodOrNotes}
+                        <td className="px-4 py-3 hidden md:table-cell text-obsidian-300 text-xs max-w-[180px] truncate" title={methodOrNotesDisplay}>
+                          {methodOrNotesDisplay}
                         </td>
 
                         {/* 7. إيصال */}
                         <td className="px-4 py-3">
-                          {tx.receiptData ? (
+                          {modalPayment ? (
                             <button
-                              onClick={() => setReceiptTarget(tx.receiptData!)}
+                              onClick={() => setReceiptTarget(modalPayment)}
                               className="btn-ghost p-1.5 text-obsidian-200 hover:text-emerald-light"
-                              title={translate("عرض وطباعة إيصال السداد")}
+                              title={translate("عرض وطباعة إيصال السداد", locale)}
                             >
                               <Printer size={15} />
                             </button>
@@ -638,7 +673,8 @@ export function DashboardPage() {
                           )}
                         </td>
                       </tr>
-                    ))}
+                    );
+                    })}
                   </tbody>
                 </table>
               </div>

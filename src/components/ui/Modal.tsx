@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
+import { translate } from '@/lib/translations';
 
 interface ModalProps {
   open: boolean;
@@ -59,8 +60,8 @@ export function Modal({ open, onClose, title, subtitle, children, size = 'md' }:
           </div>
           <button
             onClick={onClose}
-            aria-label="إغلاق النافذة"
-            title="إغلاق (Esc)"
+            aria-label={translate("إغلاق النافذة")}
+            title={translate("إغلاق (Esc)")}
             className="text-obsidian-300 hover:text-white hover:bg-obsidian-500/40 rounded-lg p-1.5 transition-all shrink-0 cursor-pointer"
           >
             <X size={20} />

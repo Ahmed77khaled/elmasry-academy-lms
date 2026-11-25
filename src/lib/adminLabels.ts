@@ -1,3 +1,6 @@
+import { translate } from '@/lib/translations';
+import type { Locale } from '@/context/localeState';
+
 const roleNames: Record<string, string> = {
   superadmin: 'مدير النظام',
   academy_manager: 'مدير الأكاديمية',
@@ -88,8 +91,44 @@ export function getPermissionDescription(permissionKey: string, fallback: string
   return translate(permissionDescriptions[permissionKey] ?? fallback);
 }
 
+const paymentMethodLabels: Record<string, string> = {
+  'Cash': 'كاش',
+  'Bank Transfer': 'تحويل بنكي',
+  'Vodafone Cash': 'فودافون كاش',
+  'InstaPay': 'إنستاباي',
+};
+
+const expenseCategoryLabels: Record<string, string> = {
+  'Rent': 'إيجار',
+  'Salary': 'مرتبات',
+  'Supplies': 'أدوات',
+  'Hardware': 'أجهزة',
+  'Marketing': 'إعلانات',
+  'Utilities': 'كهرباء وإنترنت',
+  'Other': 'أخرى',
+};
+
+const cashBoxTypeLabels: Record<string, string> = {
+  'Main': 'خزنة رئيسية',
+  'Branch': 'فرع',
+  'Online': 'أونلاين',
+  'Bank': 'بنك',
+  'Petty Cash': 'فرعية',
+};
+
+export function getPaymentMethodLabel(method: string, locale?: Locale): string {
+  return translate(paymentMethodLabels[method] ?? method, locale);
+}
+
+export function getExpenseCategoryLabel(category: string, locale?: Locale): string {
+  return translate(expenseCategoryLabels[category] ?? category, locale);
+}
+
+export function getCashBoxTypeLabel(type: string, locale?: Locale): string {
+  return translate(cashBoxTypeLabels[type] ?? type, locale);
+}
+
 export function getAuditActionName(action: string): string {
   return translate(auditActionNames[action] ?? action);
 }
-import { translate } from '@/lib/translations';
 

@@ -1,4 +1,5 @@
-import { translate } from '@/lib/translations';
+import { translate, formatCountPhrase } from '@/lib/translations';
+import { useLocale } from '@/context/useLocale';
 import { useState, useMemo } from 'react';
 import {
   ArrowRight,
@@ -61,7 +62,13 @@ interface StudentPaymentRow {
   created_at: string;
 }
 
+const RECORDED_PAYMENT_COUNT_FORMS = {
+  ar: { zero: 'دفعات مسجلة', one: 'دفعة مسجلة', two: 'دفعتان مسجلتان', few: 'دفعات مسجلة', many: 'دفعة مسجلة' },
+  en: { one: 'recorded payment', other: 'recorded payments' },
+};
+
 export function StudentDetailsPage({ studentId }: { studentId: string }) {
+  const { locale } = useLocale();
   const { navigate } = useRouter();
   const { permissions } = useAuth();
   const canReadEnrollments = permissions.includes('enrollments.read');
@@ -437,10 +444,10 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
                 {translate("سجل دفعات الطالب")}
               </h3>
               <p className="text-obsidian-300 text-xs mt-0.5">
-                {translate("تاريخ تسجيل الدفعات بالكامل (القيمة، التاريخ، الخزنة، والكورس)")}
+                {translate("تاريخ تسجيل الدفعات بالكامل (القيمة، التاريخ، الخزنة، والدورة التدريبية)")}
               </p>
             </div>
-            <span className="text-obsidian-300 text-xs font-num">{totalPayments} {translate("دفعة مسجلة")}</span>
+            <span className="text-obsidian-300 text-xs font-num">{formatCountPhrase(totalPayments, RECORDED_PAYMENT_COUNT_FORMS, locale)}</span>
           </div>
 
           <div className="card-surface overflow-hidden">

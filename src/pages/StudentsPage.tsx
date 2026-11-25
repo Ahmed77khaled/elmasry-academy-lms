@@ -192,7 +192,7 @@ export function StudentsPage() {
         translate("المحافظة"),
         translate("جهة العمل"),
         translate("السنة الدراسية"),
-        translate("الكورس المسجل به"),
+        translate("الدورة التدريبية المسجل بها"),
         translate("الدورات السابقة"),
         translate("ملاحظات"),
       ];
@@ -378,7 +378,7 @@ export function StudentsPage() {
                   <th className="text-right font-medium px-4 py-3 hidden md:table-cell">{translate("الهاتف")}</th>
                   <th className="text-right font-medium px-4 py-3 hidden lg:table-cell">{translate("البريد")}</th>
                   <th className="text-right font-medium px-4 py-3">{translate("الحالة والتفاصيل")}</th>
-                  <th className="text-right font-medium px-4 py-3">{translate("الكورس المسجل به")}</th>
+                  <th className="text-right font-medium px-4 py-3">{translate("الدورة التدريبية المسجل بها")}</th>
                 </tr>
               </thead>
               <tbody>

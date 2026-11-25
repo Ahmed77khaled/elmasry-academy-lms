@@ -94,7 +94,7 @@ export function ReceiptModal({ open, onClose, payment }: ReceiptModalProps) {
             )}
 
             <div className="flex justify-between py-1.5 border-b border-gray-100">
-              <span className="text-gray-500 font-medium">{translate("الكورس المسجل:")}</span>
+              <span className="text-gray-500 font-medium">{translate("الدورة التدريبية المسجلة:")}</span>
               <span className="font-bold text-emerald-700">{payment.course_name}</span>
             </div>
 

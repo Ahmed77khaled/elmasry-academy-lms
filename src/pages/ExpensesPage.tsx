@@ -274,7 +274,7 @@ export function ExpensesPage() {
                   <th className="text-right font-medium px-4 py-3">{translate("التصنيف")}</th>
                   <th className="text-right font-medium px-4 py-3">{translate("الوصف")}</th>
                   <th className="text-right font-medium px-4 py-3 hidden md:table-cell">{translate("الخزينة")}</th>
-                  <th className="text-right font-medium px-4 py-3 hidden lg:table-cell">{translate("كورس مرتبط")}</th>
+                  <th className="text-right font-medium px-4 py-3 hidden lg:table-cell">{translate("الدورة التدريبية المرتبطة")}</th>
                   <th className="text-right font-medium px-4 py-3">{translate("المبلغ")}</th>
                   <th className="text-right font-medium px-4 py-3">{translate("إجراء")}</th>
                 </tr>

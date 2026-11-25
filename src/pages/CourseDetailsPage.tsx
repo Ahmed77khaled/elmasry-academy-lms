@@ -1,5 +1,5 @@
-import { translate } from '@/lib/translations';
-import { translateTemplate } from '@/lib/translations';
+import { translate, translateTemplate, formatCountPhrase } from '@/lib/translations';
+import { useLocale } from '@/context/useLocale';
 import { useState } from 'react';
 import {
   ArrowRight,
@@ -48,7 +48,17 @@ const LEVEL_LABELS: Record<string, string> = {
   Advanced: 'متقدم',
 };
 
+const WEEK_COUNT_FORMS = {
+  ar: { zero: 'أسابيع', one: 'أسبوع', two: 'أسبوعان', few: 'أسابيع', many: 'أسبوعاً' },
+  en: { one: 'week', other: 'weeks' },
+};
+const SEAT_COUNT_FORMS = {
+  ar: { zero: 'مقاعد متاحة', one: 'مقعد متاح', two: 'مقعدان متاحان', few: 'مقاعد متاحة', many: 'مقعداً متاحاً' },
+  en: { one: 'seat available', other: 'seats available' },
+};
+
 export function CourseDetailsPage({ courseId }: { courseId: string }) {
+  const { locale } = useLocale();
   const { navigate } = useRouter();
   const { permissions } = useAuth();
   const canReadEnrollments = permissions.includes('enrollments.read');
@@ -282,7 +292,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
             <Clock size={20} className="text-azure-light shrink-0" />
             <div>
               <p className="text-xs text-obsidian-300">{translate("المدة الزمنية")}</p>
-              <p className="text-sm font-semibold text-white font-num">{course.duration_weeks ?? 4} {translate("أسابيع")}</p>
+              <p className="text-sm font-semibold text-white font-num">{formatCountPhrase(course.duration_weeks ?? 4, WEEK_COUNT_FORMS, locale)}</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 bg-obsidian-700/40 rounded-xl">
@@ -311,7 +321,9 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
             <div>
               <p className="text-xs text-obsidian-300">{translate("المقاعد المتاحة")}</p>
               <p className="text-sm font-semibold text-white font-num">
-                {(summary?.vacant_places ?? (capacity != null ? Math.max(capacity - enrolled, 0) : null)) !== null ? `${summary?.vacant_places ?? Math.max(capacity! - enrolled, 0)} seats available` : "Open enrollment"}
+                {(summary?.vacant_places ?? (capacity != null ? Math.max(capacity - enrolled, 0) : null)) !== null
+                  ? formatCountPhrase(summary?.vacant_places ?? Math.max(capacity! - enrolled, 0), SEAT_COUNT_FORMS, locale)
+                  : translate("تسجيل مفتوح")}
               </p>
             </div>
           </div>}
