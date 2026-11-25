@@ -226,7 +226,7 @@ export function CashBoxLedgerModal({ open, onClose, box }: CashBoxLedgerModalPro
           </div>
           <div className="bg-obsidian-700/30 border border-obsidian-500/20 rounded-xl p-3 text-center">
             <p className="text-obsidian-300 text-xs mb-1">{translate('صافي حركات التحويل')}</p>
-            <p className="text-azure-brand font-num font-bold text-base">
+            <p className="text-azure-light font-num font-bold text-base">
               {box.total_transfers_in - box.total_transfers_out === 0
                 ? formatEGP(0)
                 : box.total_transfers_in >= box.total_transfers_out

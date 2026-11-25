@@ -12,10 +12,10 @@ interface KPICardProps {
 
 const ACCENTS: Record<KPICardProps['accent'], { bg: string; icon: string; value: string }> = {
   emerald: { bg: 'from-emerald-brand/15 to-transparent', icon: 'text-emerald-light', value: 'text-emerald-light' },
-  amber: { bg: 'from-amber-500/15 to-transparent', icon: 'text-amber-400', value: 'text-amber-400' },
-  rose: { bg: 'from-rose-500/15 to-transparent', icon: 'text-rose-400', value: 'text-rose-400' },
-  violet: { bg: 'from-violet-500/15 to-transparent', icon: 'text-violet-400', value: 'text-violet-400' },
-  blue: { bg: 'from-azure-brand/15 to-transparent', icon: 'text-azure-brand', value: 'text-azure-brand' },
+  amber: { bg: 'from-amber-500/15 to-transparent', icon: 'text-amber-300', value: 'text-amber-300' },
+  rose: { bg: 'from-rose-500/15 to-transparent', icon: 'text-rose-300', value: 'text-rose-300' },
+  violet: { bg: 'from-violet-500/15 to-transparent', icon: 'text-violet-300', value: 'text-violet-300' },
+  blue: { bg: 'from-azure-brand/15 to-transparent', icon: 'text-azure-light', value: 'text-azure-light' },
 };
 
 export function KPICard({ label, value, subtitle, icon: Icon, accent, trend }: KPICardProps) {

@@ -197,7 +197,7 @@ export function PaymentForm({ open, onClose, onSaved, preselectedEnrollmentId }:
                 {translate("2. الدورة التدريبية")} <span className="text-rose-400">*</span>
               </label>
               {selectedStudentId && studentEnrollments.length > 0 && (
-                <span className="text-[11px] text-azure-brand font-medium">
+                <span className="text-[11px] text-azure-light font-medium">
                   {studentEnrollments.length} {translate("دورة مسجلة")}
                 </span>
               )}

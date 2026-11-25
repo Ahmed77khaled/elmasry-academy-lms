@@ -217,7 +217,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
 
   const links = [
     { url: course.link_whatsapp, icon: MessageCircle, label: translate("جروب واتساب"), color: 'hover:text-emerald-400 hover:border-emerald-500/40' },
-    { url: course.link_tasks, icon: ListTodo, label: translate("منصة المهام"), color: 'hover:text-azure-brand hover:border-azure-brand/40' },
+    { url: course.link_tasks, icon: ListTodo, label: translate("منصة المهام"), color: 'hover:text-azure-light hover:border-azure-brand/40' },
     { url: course.link_drive, icon: HardDrive, label: translate("جوجل درايف"), color: 'hover:text-amber-400 hover:border-amber-500/40' },
     { url: course.link_sources, icon: BookMarked, label: translate("المصادر والمذكرات"), color: 'hover:text-violet-400 hover:border-violet-500/40' },
   ].filter((l) => l.url);
@@ -263,7 +263,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
             )}
             {(course.start_date || course.end_date) && (
               <p className="flex flex-wrap items-center gap-x-2 text-obsidian-200 text-sm mt-3">
-                <CalendarDays size={15} className="text-azure-brand" />
+                <CalendarDays size={15} className="text-azure-light" />
                 {course.start_date && `${translate('\u0627\u0644\u0628\u062f\u0627\u064a\u0629')}: ${formatDate(course.start_date)}`}
                 {course.start_date && course.end_date && ' \u00b7 '}
                 {course.end_date && `${translate('\u0627\u0644\u0646\u0647\u0627\u064a\u0629')}: ${formatDate(course.end_date)}`}
@@ -279,7 +279,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
         {/* Specifications & Capacity Gauge */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-obsidian-500/30">
           <div className="flex items-center gap-3 p-3 bg-obsidian-700/40 rounded-xl">
-            <Clock size={20} className="text-azure-brand shrink-0" />
+            <Clock size={20} className="text-azure-light shrink-0" />
             <div>
               <p className="text-xs text-obsidian-300">{translate("المدة الزمنية")}</p>
               <p className="text-sm font-semibold text-white font-num">{course.duration_weeks ?? 4} {translate("أسابيع")}</p>
@@ -394,11 +394,11 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
       {summary && canReadFinancialReports && <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="card-surface p-4 bg-gradient-to-b from-azure-brand/10 to-transparent">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp size={16} className="text-azure-brand" />
+            <TrendingUp size={16} className="text-azure-light" />
             <span className="text-obsidian-300 text-xs">{translate("الإيراد المتوقع")}</span>
           </div>
-          <p className="font-num font-bold text-lg text-azure-brand">{formatEGP(summary.expected_revenue)}</p>
-          <p className="font-num text-sm text-azure-brand">{formatCurrency(summary.expected_revenue_usd ?? 0, 'USD')}</p>
+          <p className="font-num font-bold text-lg text-azure-light">{formatEGP(summary.expected_revenue)}</p>
+          <p className="font-num text-sm text-azure-light">{formatCurrency(summary.expected_revenue_usd ?? 0, 'USD')}</p>
         </div>
         <div className="card-surface p-4 bg-gradient-to-b from-emerald-brand/10 to-transparent">
           <div className="flex items-center gap-2 mb-2">

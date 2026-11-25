@@ -220,12 +220,12 @@ export function CoursesPage() {
                         if (parsed.protocol === 'https:' || parsed.protocol === 'http:') safeHref = parsed.toString();
                       } catch { safeHref = null; }
                       return (
-                        <div key={i} className="inline-flex items-center rounded-lg border border-azure-brand/20 bg-azure-brand/10 text-azure-brand">
+                        <div key={i} className="inline-flex items-center rounded-lg border border-azure-brand/25 bg-azure-brand/10 text-azure-light">
                           {safeHref ? <a
                             href={safeHref}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs hover:text-azure-light hover:bg-azure-brand/20 px-2.5 py-1.5 rounded-r-lg transition-all"
+                            className="inline-flex items-center gap-1.5 text-xs hover:text-blue-200 hover:bg-azure-brand/20 px-2.5 py-1.5 rounded-r-lg transition-all"
                           ><Icon size={14} /> {link.label}</a> : <span className="px-2.5 py-1.5 text-xs text-obsidian-300">{link.label} · {translate("رابط غير صالح")}</span>}
                           <button
                             type="button"

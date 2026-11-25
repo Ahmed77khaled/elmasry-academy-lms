@@ -202,7 +202,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
       <div className="card-surface p-5 lg:p-6 space-y-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-azure-brand to-azure-light flex items-center justify-center shrink-0 shadow-lg shadow-azure-brand/20">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-azure-brand to-azure-dark flex items-center justify-center shrink-0 shadow-lg shadow-azure-brand/20">
               <span className="text-white font-bold text-2xl font-arabic">{student.name.charAt(0)}</span>
             </div>
             <div>
@@ -254,7 +254,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
 
           {canReadStudentEmail && student.email ? (
             <div className="flex items-center gap-2.5 text-sm p-2.5 bg-obsidian-700/40 rounded-xl">
-              <Mail size={16} className="text-azure-brand shrink-0" />
+              <Mail size={16} className="text-azure-light shrink-0" />
               <div>
                 <p className="text-[11px] text-obsidian-300">{translate("البريد الإلكتروني")}</p>
                 <p className="text-obsidian-100 font-medium">{student.email}</p>

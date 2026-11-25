@@ -330,7 +330,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     {searchResults.courses.length > 0 && (
                       <div className="border-t border-obsidian-600/40 pt-1.5">
                         <p className="text-[11px] font-bold text-obsidian-400 px-2.5 py-1 flex items-center gap-1">
-                          <BookOpen size={13} className="text-azure-brand" /> {translate("الكورسات")}</p>
+                          <BookOpen size={13} className="text-azure-light" /> {translate("الكورسات")}</p>
                         {searchResults.courses.map((c) => (
                           <button
                             key={c.course_id}
@@ -389,7 +389,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* User Profile */}
           <div className="flex items-center gap-2 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-azure-brand to-azure-light flex items-center justify-center shrink-0 shadow-sm">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-azure-brand to-azure-dark flex items-center justify-center shrink-0 shadow-sm">
               <AdminAvatar user={user} className="w-full h-full rounded-xl object-cover text-white font-bold text-sm font-arabic flex items-center justify-center" />
             </div>
             <div className="hidden lg:block">

@@ -370,11 +370,11 @@ export function DashboardPage() {
           <div>
             <div className="flex items-start justify-between gap-2 mb-2">
               <p className="text-obsidian-200 text-xs lg:text-sm font-medium">{translate("الدورات النشطة")}</p>
-              <div className="w-9 h-9 rounded-lg bg-obsidian-700/60 flex items-center justify-center shrink-0 text-azure-brand">
+              <div className="w-9 h-9 rounded-lg bg-obsidian-700/60 flex items-center justify-center shrink-0 text-azure-light">
                 <BookOpen size={18} />
               </div>
             </div>
-            <p className="font-num font-bold text-2xl lg:text-3xl text-azure-brand">
+            <p className="font-num font-bold text-2xl lg:text-3xl text-azure-light">
               {formatNumber(activeCourses.length || m?.active_courses || 0)} <span className="text-sm font-normal text-obsidian-300">{translate("دورة")}</span>
             </p>
             <p className="text-obsidian-300 text-xs mt-2">{translate("الدورات التدريبية المتاحة والمفتوحة للدراسة حالياً")}</p>
@@ -515,7 +515,7 @@ export function DashboardPage() {
                   </div>
                   <div>
                     <span className="text-obsidian-400 block">{translate("التحويلات")}</span>
-                    <span className="text-azure-brand font-num font-semibold">
+                    <span className="text-azure-light font-num font-semibold">
                       {box.total_transfers_in - box.total_transfers_out === 0
                         ? formatEGP(0)
                         : box.total_transfers_in >= box.total_transfers_out
@@ -614,7 +614,7 @@ export function DashboardPage() {
                             <span className="text-rose-400">{formatCurrency(Math.abs(tx.amount), 'EGP')}</span>
                           )}
                           {tx.type === 'transfer' && (
-                            <span className="text-azure-brand">{formatCurrency(Math.abs(tx.amount), 'EGP')}</span>
+                            <span className="text-azure-light">{formatCurrency(Math.abs(tx.amount), 'EGP')}</span>
                           )}
                         </td>
 
