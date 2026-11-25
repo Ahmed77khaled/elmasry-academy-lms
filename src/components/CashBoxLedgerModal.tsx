@@ -3,7 +3,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, LoadingSpinner } from '@/components/ui/Feedback';
 import { PaginationControls } from '@/components/ui/PaginationControls';
-import { formatCurrency, formatEGP, formatDate, formatBalance } from '@/lib/format';
+import { formatCurrency, formatEGP, formatDate, formatBalance, formatReceiptCode } from '@/lib/format';
 import { getExpenseCategoryLabel, getPaymentMethodLabel } from '@/lib/adminLabels';
 import { translate } from '@/lib/translations';
 import { useLocale } from '@/context/useLocale';
@@ -76,7 +76,9 @@ export function CashBoxLedgerModal({ open, onClose, box }: CashBoxLedgerModalPro
                 amount: Number(p.amount) || 0,
                 currency: p.currency === 'USD' ? 'USD' : 'EGP',
                 party: p.student_name || p.name || translate('طالب بالأكاديمية', locale),
-                description: p.course_name ? `${p.course_name} (${p.receipt_number || translate('بدون إيصال', locale)})` : (p.receipt_number || ''),
+                description: p.course_name
+                  ? `${p.course_name} (${p.receipt_number != null ? formatReceiptCode(p.receipt_number, p.payment_id) : translate('بدون إيصال', locale)})`
+                  : (p.receipt_number != null ? formatReceiptCode(p.receipt_number, p.payment_id) : ''),
                 methodOrNotes: [p.method ? getPaymentMethodLabel(p.method, locale) : null, p.receipt_ref, p.notes].filter(Boolean).join(' • '),
                 isVoid: Boolean(p.voided_at),
               });

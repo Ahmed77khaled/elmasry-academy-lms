@@ -468,7 +468,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
                     const ps = canReadEnrollmentFinance ? paymentStatusBadge(enr.payment_status ?? 'Unpaid') : null;
                     const studentPhone = studentsPhoneMap?.[enr.student_id];
                     const reminderUrl = canReadEnrollmentFinance && enr.remaining_balance != null && enr.remaining_balance > 0 && studentPhone
-                      ? generatePaymentReminderUrl({ phone: studentPhone, studentName: enr.student_name, courseName: course.course_name, remainingAmount: enr.remaining_balance })
+                      ? generatePaymentReminderUrl({ phone: studentPhone, studentName: enr.student_name, courseName: course.course_name, remainingAmount: enr.remaining_balance, currency: enr.agreed_currency ?? 'EGP' })
                       : null;
                     return <tr key={enr.enrollment_id} className="border-b border-obsidian-500/20">
                       <td className="px-4 py-3 text-white"><button onClick={() => navigate('student-details', { id: enr.student_id })} className="text-right">{enr.student_name}</button></td>

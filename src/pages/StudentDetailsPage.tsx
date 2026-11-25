@@ -22,7 +22,7 @@ import { paymentStatusBadge } from '@/components/ui/badgeStatus';
 import { PageLoader, EmptyState } from '@/components/ui/Feedback';
 import { Alert } from '@/components/ui/Alert';
 import { PaginationControls } from '@/components/ui/PaginationControls';
-import { formatCurrency, formatDate, formatStudentCode } from '@/lib/format';
+import { formatCurrency, formatDate, formatReceiptCode, formatStudentCode } from '@/lib/format';
 import { formatEgyptPhoneForWhatsApp, generatePaymentReminderUrl } from '@/lib/whatsapp';
 import { QuickEnrollModal } from '@/components/forms/QuickEnrollModal';
 import { StudentForm } from '@/components/forms/StudentForm';
@@ -341,7 +341,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
               {enrollments.map((enr) => {
                 const ps = canReadEnrollmentFinance ? paymentStatusBadge(enr.payment_status ?? 'Unpaid') : null;
                 const reminderUrl = canReadEnrollmentFinance && student.phone && enr.remaining_balance != null && enr.remaining_balance > 0
-                  ? generatePaymentReminderUrl({ phone: student.phone, studentName: student.name, courseName: enr.course_name, remainingAmount: enr.remaining_balance })
+                  ? generatePaymentReminderUrl({ phone: student.phone, studentName: student.name, courseName: enr.course_name, remainingAmount: enr.remaining_balance, currency: enr.agreed_currency ?? 'EGP' })
                   : null;
                 return (
                   <div key={enr.enrollment_id} className="card-surface p-4 flex flex-col justify-between gap-4">
@@ -511,7 +511,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
 
                           {/* 6. رقم الإيصال */}
                           <td className="px-4 py-3 hidden md:table-cell text-obsidian-300 font-num text-xs">
-                            {p.receipt_number || p.receipt_ref || '—'}
+                            {p.receipt_number != null ? formatReceiptCode(p.receipt_number, p.payment_id) : (p.receipt_ref || '—')}
                           </td>
 
                           {/* 7. إيصال */}

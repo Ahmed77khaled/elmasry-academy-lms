@@ -95,20 +95,44 @@ export function StudentsPage() {
     }
   };
 
+  const hasClientFilters = Boolean(govFilter || courseFilter);
+
   const { data: students, loading, error: queryError, refetch } = useQuery<Student[]>(async () => {
-    const { data, error } = await supabase.rpc('rbac_list_students_v2', {
-      p_search: search.trim() || null,
-      p_limit: pageSize,
-      p_offset: (page - 1) * pageSize,
-      p_employment_status: empFilter || null,
-      p_study_year: studyYearFilter.trim() || null,
-    });
-    return { data: (data as Student[] | null) ?? [], error: error?.message ?? null };
-  }, [search, empFilter, studyYearFilter, page, pageSize]);
+    if (!hasClientFilters) {
+      const { data, error } = await supabase.rpc('rbac_list_students_v2', {
+        p_search: search.trim() || null,
+        p_limit: pageSize,
+        p_offset: (page - 1) * pageSize,
+        p_employment_status: empFilter || null,
+        p_study_year: studyYearFilter.trim() || null,
+      });
+      return { data: (data as Student[] | null) ?? [], error: error?.message ?? null };
+    }
 
-  const totalStudents = Number(students?.[0]?.total_count) || (students?.length ?? 0);
+    const FETCH_PAGE_SIZE = 100;
+    const MAX_ROWS = 5000;
+    const allStudents: Student[] = [];
+    let offset = 0;
 
-  const displayedStudents = useMemo(() => {
+    while (allStudents.length < MAX_ROWS) {
+      const { data, error } = await supabase.rpc('rbac_list_students_v2', {
+        p_search: search.trim() || null,
+        p_limit: FETCH_PAGE_SIZE,
+        p_offset: offset,
+        p_employment_status: empFilter || null,
+        p_study_year: studyYearFilter.trim() || null,
+      });
+      if (error) return { data: null, error: error.message };
+      const batch = (data as Student[] | null) ?? [];
+      allStudents.push(...batch);
+      if (batch.length < FETCH_PAGE_SIZE) break;
+      offset += FETCH_PAGE_SIZE;
+    }
+
+    return { data: allStudents, error: null };
+  }, [search, empFilter, studyYearFilter, hasClientFilters, hasClientFilters ? 1 : page, hasClientFilters ? 0 : pageSize]);
+
+  const filteredStudents = useMemo(() => {
     let list = students ?? [];
     if (govFilter) {
       list = list.filter((s) => s.governorate === govFilter);
@@ -119,12 +143,21 @@ export function StudentsPage() {
     return list;
   }, [students, govFilter, courseFilter]);
 
+  const totalStudents = hasClientFilters
+    ? filteredStudents.length
+    : (Number(students?.[0]?.total_count) || (students?.length ?? 0));
+
+  const displayedStudents = useMemo(() => {
+    if (!hasClientFilters) return filteredStudents;
+    return filteredStudents.slice((page - 1) * pageSize, page * pageSize);
+  }, [filteredStudents, hasClientFilters, page, pageSize]);
+
   // A filter/page-size change can leave the current page out of range.
   useEffect(() => {
-    if (!loading && page > 1 && students && students.length === 0) {
+    if (!loading && page > 1 && displayedStudents.length === 0) {
       setPage(1);
     }
-  }, [loading, page, students]);
+  }, [loading, page, displayedStudents.length]);
 
   const handleSaved = () => {
     refetch();
@@ -451,7 +484,7 @@ export function StudentsPage() {
       <PaginationControls
         page={page}
         pageSize={pageSize}
-        total={govFilter || courseFilter ? displayedStudents.length : totalStudents}
+        total={totalStudents}
         onPageChange={setPage}
         onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
       />

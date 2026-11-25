@@ -19,7 +19,7 @@ import { useRouter } from '@/context/useRouter';
 import type { Page } from '@/context/RouterContext';
 import { getAdminDisplayName, getRoleDisplayName } from '@/lib/adminLabels';
 import { supabase } from '@/lib/supabase';
-import { formatEGP } from '@/lib/format';
+import { formatEGP, formatReceiptCode } from '@/lib/format';
 import { PageLoader } from '@/components/ui/Feedback';
 import { AcademyLogo } from '@/components/AcademyLogo';
 import { AdminAvatar } from '@/components/AdminAvatar';
@@ -233,7 +233,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <button
                   key={p.payment_id}
                   onClick={() => {
-                    navigate('payments');
+                    navigate('payments', {
+                      receipt: formatReceiptCode(p.receipt_number, p.payment_id),
+                      paymentId: p.payment_id,
+                    });
                     closeSearch();
                   }}
                   className="w-full text-start p-2 rounded-lg hover:bg-obsidian-700 flex items-center justify-between gap-2 transition-colors"

@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react';
 import { Users, BookOpen, TrendingUp, RefreshCw, Printer, Wallet, ArrowDownLeft, ArrowUpRight, ArrowRightLeft } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
-import { formatCurrency, formatEGP, formatNumber, formatDate, formatBalance } from '@/lib/format';
+import { formatCurrency, formatEGP, formatNumber, formatDate, formatBalance, formatReceiptCode } from '@/lib/format';
 import { getCashBoxTypeLabel, getExpenseCategoryLabel, getPaymentMethodLabel } from '@/lib/adminLabels';
 import { Badge } from '@/components/ui/Badge';
 import { PageLoader, EmptyState } from '@/components/ui/Feedback';
@@ -148,7 +148,9 @@ export function DashboardPage() {
             createdAt: p.created_at,
             cashBoxName: p.cash_box_name || '—',
             party: p.student_name || '',
-            description: p.course_name ? `${p.course_name} (${p.receipt_number || ''})` : (p.receipt_number ? String(p.receipt_number) : ''),
+            description: p.course_name
+              ? `${p.course_name} (${formatReceiptCode(p.receipt_number, p.payment_id)})`
+              : formatReceiptCode(p.receipt_number, p.payment_id),
             amount: Number(p.amount) || 0,
             currency: (p.currency as 'EGP' | 'USD') || 'EGP',
             method: p.method,

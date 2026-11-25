@@ -1,7 +1,7 @@
 import { translate } from '@/lib/translations';
 import { useLocale } from '@/context/useLocale';
 import { Modal } from '@/components/ui/Modal';
-import { formatCurrency, formatDate, formatStudentCode } from '@/lib/format';
+import { formatCurrency, formatDate, formatReceiptCode, formatStudentCode } from '@/lib/format';
 import { Printer, CheckCircle2 } from 'lucide-react';
 
 interface ReceiptModalProps {
@@ -69,9 +69,7 @@ export function ReceiptModal({ open, onClose, payment }: ReceiptModalProps) {
               <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-bold">
                 <CheckCircle2 size={13} /> {translate("إيصال تحصيل رسمي")}</span>
               <p className="text-xs text-gray-500 mt-1 font-num">
-                {translate("رقم:")}{' '}{payment.receipt_number != null
-                  ? `REC-${String(payment.receipt_number).padStart(8, '0')}`
-                  : `REC-${payment.payment_id.slice(0, 8).toUpperCase()}`}
+                {translate("رقم:")}{' '}{formatReceiptCode(payment.receipt_number, payment.payment_id)}
               </p>
             </div>
           </div>
