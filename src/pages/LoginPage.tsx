@@ -8,6 +8,8 @@ import { useLocale } from '@/context/useLocale';
 import { translate } from '@/lib/translations';
 import { supabase } from '@/lib/supabase';
 
+const signInErrorMessage = "تعذر تسجيل الدخول. تأكد من البريد وكلمة المرور وحاول مرة أخرى.";
+
 export function LoginPage() {
   const { signIn } = useAuth();
   const { locale } = useLocale();
@@ -22,7 +24,7 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password) {
-      setError("يرجى إدخال البريد الإلكتروني وكلمة المرور");
+      setError(signInErrorMessage);
       return;
     }
 
@@ -32,7 +34,7 @@ export function LoginPage() {
     const result = await signIn(email.trim(), password).catch(() => null);
 
     if (!result || result.error) {
-      setError("تعذر تسجيل الدخول. تأكد من البريد وكلمة المرور وحاول مرة أخرى.");
+      setError(signInErrorMessage);
       setLoading(false);
     }
   };
@@ -164,6 +166,10 @@ export function LoginPage() {
               ? (locale === 'ar' ? 'جارٍ إرسال الرابط...' : 'Sending reset link...')
               : (locale === 'ar' ? 'نسيت كلمة المرور؟ إرسال رابط جديد' : 'Forgot password? Send a reset link')}
           </button>
+
+          <p className="mt-3 text-center text-sm text-obsidian-200">
+            {translate("هل تواجه مشكلة في تسجيل الدخول؟ تواصل مع إدارة الأكاديمية.", locale)}
+          </p>
 
           {/* Footer signature */}
           <div className="mt-8 pt-6 border-t border-obsidian-500/40 text-center">
