@@ -27,6 +27,7 @@ import {
 import { PaginationControls } from '@/components/ui/PaginationControls';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
+import { fetchAllRpcPages } from '@/lib/rpcPagination';
 import { useRouter } from '@/context/useRouter';
 import { Badge } from '@/components/ui/Badge';
 import { paymentStatusBadge, courseStatusBadge } from '@/components/ui/badgeStatus';
@@ -91,10 +92,10 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
   // Phone lookup map for enrolled students (for WhatsApp reminders & exports)
   const { data: studentsPhoneMap } = useQuery<Record<string, string>>(async () => {
     if (!canReadStudentPhones) return { data: {}, error: null };
-    const { data, error } = await supabase.rpc('rbac_list_students', {
-      p_search: null, p_limit: 500, p_offset: 0,
-    });
-    if (error || !data) return { data: {}, error: error?.message ?? null };
+    const { data, error } = await fetchAllRpcPages((limit, offset) =>
+      supabase.rpc('rbac_list_students', { p_search: null, p_limit: limit, p_offset: offset }),
+    );
+    if (error || !data) return { data: {}, error };
     const map: Record<string, string> = {};
     (data as Student[]).forEach((s) => {
       if (s.student_id && s.phone) {
@@ -121,10 +122,12 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
   // 3. Fetch Enrolled students
   const { data: enrollments, loading: enrollLoading, refetch: refetchEnrollments } = useQuery<EnrollmentBalance[]>(async () => {
     if (!courseId || !canReadEnrollments) return { data: [], error: null };
-    const { data, error } = await supabase.rpc('rbac_list_enrollments_v2', {
-      p_search: null, p_limit: 500, p_offset: 0, p_course_id: courseId,
-    });
-    return { data: data as EnrollmentBalance[] | null, error: error?.message ?? null };
+    const { data, error } = await fetchAllRpcPages((limit, offset) =>
+      supabase.rpc('rbac_list_enrollments_v2', {
+        p_search: null, p_limit: limit, p_offset: offset, p_course_id: courseId,
+      }),
+    );
+    return { data: (data as EnrollmentBalance[] | null) ?? null, error };
   }, [courseId, canReadEnrollments]);
 
   const refetchAll = () => {
@@ -177,9 +180,10 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
       translate("اسم المتدرب"),
       translate("رقم الهاتف"),
       translate("تاريخ التسجيل"),
-      translate("المتفق عليه (ج.م)"),
-      translate("المدفوع (ج.م)"),
-      translate("المتبقي (ج.م)"),
+      translate("العملة"),
+      translate("المبلغ المتفق عليه"),
+      translate("المدفوع"),
+      translate("المتبقي"),
       translate("حالة السداد"),
       translate("حالة الاشتراك"),
     ];
@@ -190,6 +194,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
         enr.student_name,
         studentsPhoneMap?.[enr.student_id] ?? '',
         enr.enrolled_at?.slice(0, 10) ?? '',
+        enr.agreed_currency ?? 'EGP',
         enr.agreed_cost,
         enr.total_paid,
         enr.remaining_balance,
@@ -409,9 +414,11 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
             <TrendingUp size={16} className="text-azure-light" />
             <span className="text-obsidian-300 text-xs">{translate("الإيراد المتوقع")}</span>
           </div>
-          <p className="font-num font-bold text-lg text-azure-light">{formatEGP(summary.expected_revenue)}</p>
+          {(summary.expected_revenue !== 0 || (summary.expected_revenue_usd ?? 0) === 0) && (
+            <p className="font-num font-bold text-lg text-azure-light">{formatEGP(summary.expected_revenue)}</p>
+          )}
           {(summary.expected_revenue_usd ?? 0) !== 0 && (
-            <p className="font-num text-sm text-azure-light">{formatCurrency(summary.expected_revenue_usd ?? 0, 'USD')}</p>
+            <p className="font-num font-bold text-lg text-azure-light">{formatCurrency(summary.expected_revenue_usd ?? 0, 'USD')}</p>
           )}
         </div>
         <div className="card-surface p-4 bg-gradient-to-b from-emerald-brand/10 to-transparent">
@@ -419,9 +426,11 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
             <Wallet size={16} className="text-emerald-light" />
             <span className="text-obsidian-300 text-xs">{translate("الإيراد المحصل")}</span>
           </div>
-          <p className="font-num font-bold text-lg text-emerald-light">{formatEGP(summary.collected_payments)}</p>
+          {(summary.collected_payments !== 0 || (summary.collected_payments_usd ?? 0) === 0) && (
+            <p className="font-num font-bold text-lg text-emerald-light">{formatEGP(summary.collected_payments)}</p>
+          )}
           {(summary.collected_payments_usd ?? 0) !== 0 && (
-            <p className="font-num text-sm text-emerald-light">{formatCurrency(summary.collected_payments_usd ?? 0, 'USD')}</p>
+            <p className="font-num font-bold text-lg text-emerald-light">{formatCurrency(summary.collected_payments_usd ?? 0, 'USD')}</p>
           )}
         </div>
         <div className="card-surface p-4 bg-gradient-to-b from-rose-500/10 to-transparent">
@@ -460,7 +469,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
                   <thead><tr className="text-obsidian-300 text-xs border-b border-obsidian-500/30">
                     <th className="text-right font-medium px-4 py-3">{translate("الطالب")}</th>
                     <th className="text-right font-medium px-4 py-3">{translate("تاريخ التسجيل")}</th>
-                    {canReadEnrollmentFinance && <><th className="text-right font-medium px-4 py-3">{translate("المتفق عليه (ج.م)")}</th><th className="text-right font-medium px-4 py-3">{translate("المدفوع (ج.م)")}</th><th className="text-right font-medium px-4 py-3">{translate("المتبقي (ج.م)")}</th><th className="text-right font-medium px-4 py-3">{translate("حالة السداد")}</th></>}
+                    {canReadEnrollmentFinance && <><th className="text-right font-medium px-4 py-3">{translate("المبلغ المتفق عليه")}</th><th className="text-right font-medium px-4 py-3">{translate("المدفوع")}</th><th className="text-right font-medium px-4 py-3">{translate("المتبقي")}</th><th className="text-right font-medium px-4 py-3">{translate("حالة السداد")}</th></>}
                     <th className="text-right font-medium px-4 py-3">{translate("حالة التسجيل")}</th>
                     {(canRecordPayments || canReadEnrollmentFinance || canUpdateEnrollmentStatus) && <th className="text-right font-medium px-4 py-3">{translate("إجراءات")}</th>}
                   </tr></thead>

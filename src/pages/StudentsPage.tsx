@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, BookOpen, FileSpreadsheet, MessageCircle, Pencil } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
+import { fetchAllRpcPages } from '@/lib/rpcPagination';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { Alert } from '@/components/ui/Alert';
@@ -53,7 +54,9 @@ export function StudentsPage() {
 
   // Fetch courses list for filtering
   useEffect(() => {
-    supabase.rpc('rbac_list_courses_v2', { p_limit: 100, p_offset: 0 }).then(({ data }) => {
+    void fetchAllRpcPages((limit, offset) =>
+      supabase.rpc('rbac_list_courses_v2', { p_limit: limit, p_offset: offset }),
+    ).then(({ data }) => {
       if (Array.isArray(data)) {
         setCoursesList(data.map((c) => ({
           course_id: String((c as Record<string, unknown>).course_id ?? ''),
@@ -81,27 +84,17 @@ export function StudentsPage() {
       return { data: (data as Student[] | null) ?? [], error: error?.message ?? null };
     }
 
-    const FETCH_PAGE_SIZE = 100;
-    const MAX_ROWS = 5000;
-    const allStudents: Student[] = [];
-    let offset = 0;
-
-    while (allStudents.length < MAX_ROWS) {
-      const { data, error } = await supabase.rpc('rbac_list_students_v2', {
-        p_search: search.trim() || null,
-        p_limit: FETCH_PAGE_SIZE,
-        p_offset: offset,
-        p_employment_status: empFilter || null,
-        p_study_year: studyYearFilter.trim() || null,
-      });
-      if (error) return { data: null, error: error.message };
-      const batch = (data as Student[] | null) ?? [];
-      allStudents.push(...batch);
-      if (batch.length < FETCH_PAGE_SIZE) break;
-      offset += FETCH_PAGE_SIZE;
-    }
-
-    return { data: allStudents, error: null };
+    return fetchAllRpcPages<Student>(
+      (limit, offset) =>
+        supabase.rpc('rbac_list_students_v2', {
+          p_search: search.trim() || null,
+          p_limit: limit,
+          p_offset: offset,
+          p_employment_status: empFilter || null,
+          p_study_year: studyYearFilter.trim() || null,
+        }),
+      { pageSize: 100, maxRows: 5000 },
+    );
   }, [search, empFilter, studyYearFilter, hasClientFilters, hasClientFilters ? 1 : page, hasClientFilters ? 0 : pageSize]);
 
   const filteredStudents = useMemo(() => {
@@ -149,31 +142,21 @@ export function StudentsPage() {
     setExporting(true);
     setExportError(null);
     try {
-      // The server caps each page at 100 rows, so walk the pages until the
-      // directory is exhausted (with a hard safety ceiling).
-      const EXPORT_PAGE_SIZE = 100;
-      const EXPORT_MAX_ROWS = 5000;
-      const exportStudents: Student[] = [];
-      let offset = 0;
+      const { data: exportStudents, error } = await fetchAllRpcPages<Student>(
+        (limit, offset) =>
+          supabase.rpc('rbac_list_students_v2', {
+            p_search: search.trim() || null,
+            p_limit: limit,
+            p_offset: offset,
+            p_employment_status: empFilter || null,
+            p_study_year: studyYearFilter.trim() || null,
+          }),
+        { pageSize: 100, maxRows: 5000 },
+      );
 
-      while (exportStudents.length < EXPORT_MAX_ROWS) {
-        const { data, error } = await supabase.rpc('rbac_list_students_v2', {
-          p_search: search.trim() || null,
-          p_limit: EXPORT_PAGE_SIZE,
-          p_offset: offset,
-          p_employment_status: empFilter || null,
-          p_study_year: studyYearFilter.trim() || null,
-        });
-
-        if (error) {
-          setExportError(error.message);
-          return;
-        }
-
-        const batch = (data as Student[] | null) ?? [];
-        exportStudents.push(...batch);
-        if (batch.length < EXPORT_PAGE_SIZE) break;
-        offset += EXPORT_PAGE_SIZE;
+      if (error || !exportStudents) {
+        setExportError(error ?? translate("تعذر تصدير البيانات"));
+        return;
       }
 
       // Apply client-side filters if active

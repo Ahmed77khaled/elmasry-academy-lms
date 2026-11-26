@@ -19,6 +19,7 @@ import { useRouter } from '@/context/useRouter';
 import type { Page } from '@/context/RouterContext';
 import { getAdminDisplayName, getRoleDisplayName } from '@/lib/adminLabels';
 import { supabase } from '@/lib/supabase';
+import { fetchAllRpcPages } from '@/lib/rpcPagination';
 import { formatEGP, formatReceiptCode } from '@/lib/format';
 import { PageLoader } from '@/components/ui/Feedback';
 import { AcademyLogo } from '@/components/AcademyLogo';
@@ -90,6 +91,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const mobileSearchContainerRef = useRef<HTMLDivElement>(null);
+  const coursesCacheRef = useRef<{ items: SearchResults['courses']; fetchedAt: number } | null>(null);
 
   const handleNav = (page: Page) => {
     navigate(page);
@@ -129,20 +131,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        const [studentsRes, coursesRes, paymentsRes] = await Promise.all([
+        const getCoursesForSearch = async () => {
+          if (!permissions.includes('courses.read')) return [] as SearchResults['courses'];
+          const cached = coursesCacheRef.current;
+          if (cached && Date.now() - cached.fetchedAt < 60_000) {
+            return cached.items;
+          }
+          const { data } = await fetchAllRpcPages<SearchResults['courses'][number]>((limit, offset) =>
+            supabase.rpc('rbac_list_courses_v2', { p_limit: limit, p_offset: offset }),
+          );
+          const items = data ?? [];
+          coursesCacheRef.current = { items, fetchedAt: Date.now() };
+          return items;
+        };
+
+        const [studentsRes, coursesList, paymentsRes] = await Promise.all([
           permissions.includes('students.read')
             ? supabase.rpc('rbac_list_students', { p_search: q, p_limit: 5, p_offset: 0 })
             : Promise.resolve({ data: [], error: null }),
-          permissions.includes('courses.read')
-            ? supabase.rpc('rbac_list_courses_v2', { p_limit: 500, p_offset: 0 })
-            : Promise.resolve({ data: [], error: null }),
+          getCoursesForSearch(),
           permissions.includes('finance.payments.read')
             ? supabase.rpc('rbac_search_payments', { p_query: q, p_limit: 5 })
             : Promise.resolve({ data: [], error: null }),
         ]);
 
         const normalizedQuery = q.toLocaleLowerCase();
-        const matchingCourses = ((coursesRes.data ?? []) as SearchResults['courses'])
+        const matchingCourses = coursesList
           .filter((course) => course.course_name.toLocaleLowerCase().includes(normalizedQuery))
           .slice(0, 5);
         setSearchResults({

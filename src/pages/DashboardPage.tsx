@@ -1,8 +1,9 @@
-import { translate, formatCountPhrase, getCountUnitLabel } from '@/lib/translations';
+import { translate, translateTemplate, formatCountPhrase, getCountUnitLabel } from '@/lib/translations';
 import { useState, useMemo } from 'react';
 import { Users, BookOpen, TrendingUp, RefreshCw, Printer, Wallet, ArrowDownLeft, ArrowUpRight, ArrowRightLeft } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
+import { fetchAllRpcPages } from '@/lib/rpcPagination';
 import { formatCurrency, formatEGP, formatNumber, formatDate, formatBalance, formatReceiptCode } from '@/lib/format';
 import { getCashBoxTypeLabel, getExpenseCategoryLabel, getPaymentMethodLabel } from '@/lib/adminLabels';
 import { Badge } from '@/components/ui/Badge';
@@ -57,6 +58,74 @@ const TRANSACTION_COUNT_FORMS = {
   en: { one: 'transaction', other: 'transactions' },
 };
 
+interface CourseStatSummary {
+  course_id: string;
+  course_name: string;
+  student_count: number;
+  expectedEgp: number;
+  expectedUsd: number;
+  paidEgp: number;
+  paidUsd: number;
+  remainingEgp: number;
+  remainingUsd: number;
+}
+
+function summarizeCoursesFinancials(courses: Course[], enrollments: EnrollmentBalance[], onlyActiveEnrollments: boolean) {
+  const relevantEnrollments = enrollments.filter((e) =>
+    onlyActiveEnrollments ? e.enrollment_status === 'Active' : e.enrollment_status !== 'Dropped',
+  );
+  const stats: CourseStatSummary[] = courses.map((course) => {
+    const courseEnrolls = relevantEnrollments.filter((e) => e.course_id === course.course_id);
+    let expectedEgp = 0;
+    let expectedUsd = 0;
+    let paidEgp = 0;
+    let paidUsd = 0;
+    let remainingEgp = 0;
+    let remainingUsd = 0;
+
+    for (const enrollment of courseEnrolls) {
+      const agreed = Number(enrollment.agreed_cost) || 0;
+      const paid = Number(enrollment.total_paid) || 0;
+      const remaining = Math.max(0, Number(enrollment.remaining_balance) || 0);
+      if (enrollment.agreed_currency === 'USD') {
+        expectedUsd += agreed;
+        paidUsd += paid;
+        remainingUsd += remaining;
+      } else {
+        expectedEgp += agreed;
+        paidEgp += paid;
+        remainingEgp += remaining;
+      }
+    }
+
+    return {
+      course_id: course.course_id,
+      course_name: course.course_name,
+      student_count: courseEnrolls.length,
+      expectedEgp,
+      expectedUsd,
+      paidEgp,
+      paidUsd,
+      remainingEgp,
+      remainingUsd,
+    };
+  });
+
+  const totals = stats.reduce(
+    (acc, item) => ({
+      expectedEgp: acc.expectedEgp + item.expectedEgp,
+      expectedUsd: acc.expectedUsd + item.expectedUsd,
+      paidEgp: acc.paidEgp + item.paidEgp,
+      paidUsd: acc.paidUsd + item.paidUsd,
+      remainingEgp: acc.remainingEgp + item.remainingEgp,
+      remainingUsd: acc.remainingUsd + item.remainingUsd,
+    }),
+    { expectedEgp: 0, expectedUsd: 0, paidEgp: 0, paidUsd: 0, remainingEgp: 0, remainingUsd: 0 },
+  );
+
+  return { stats, totals };
+}
+
 export function DashboardPage() {
   const { locale } = useLocale();
   const { permissions } = useAuth();
@@ -64,6 +133,7 @@ export function DashboardPage() {
   const canReadOperational = permissions.includes('dashboard.operational.read');
   const canReadCashBoxes = permissions.includes('finance.cash_boxes.read');
   const canViewBoxes = canReadCashBoxes || canReadFinance;
+  const [courseFinanceScope, setCourseFinanceScope] = useState<'auto' | 'active' | 'all'>('auto');
 
   const [receiptTarget, setReceiptTarget] = useState<{
     payment_id: string;
@@ -104,16 +174,16 @@ export function DashboardPage() {
     enrollments: EnrollmentBalance[];
   }>(async () => {
     const [coursesRes, enrollmentsRes] = await Promise.allSettled([
-      supabase.rpc('rbac_list_courses_v2', { p_limit: 500, p_offset: 0 }),
-      supabase.rpc('rbac_list_enrollments_v2', { p_search: null, p_limit: 500, p_offset: 0 }),
+      fetchAllRpcPages<Course>((limit, offset) =>
+        supabase.rpc('rbac_list_courses_v2', { p_limit: limit, p_offset: offset }),
+      ),
+      fetchAllRpcPages<EnrollmentBalance>((limit, offset) =>
+        supabase.rpc('rbac_list_enrollments_v2', { p_search: null, p_limit: limit, p_offset: offset }),
+      ),
     ]);
 
-    const courses = coursesRes.status === 'fulfilled' && !coursesRes.value.error && Array.isArray(coursesRes.value.data)
-      ? (coursesRes.value.data as Course[])
-      : [];
-    const enrollments = enrollmentsRes.status === 'fulfilled' && !enrollmentsRes.value.error && Array.isArray(enrollmentsRes.value.data)
-      ? (enrollmentsRes.value.data as EnrollmentBalance[])
-      : [];
+    const courses = coursesRes.status === 'fulfilled' && coursesRes.value.data ? coursesRes.value.data : [];
+    const enrollments = enrollmentsRes.status === 'fulfilled' && enrollmentsRes.value.data ? enrollmentsRes.value.data : [];
 
     return { data: { courses, enrollments }, error: null };
   });
@@ -130,15 +200,49 @@ export function DashboardPage() {
     if (!canReadFinance) return { data: [], error: null };
 
     const [paymentsRes, expensesRes, transfersRes] = await Promise.allSettled([
-      supabase.rpc('rbac_list_payments_v2', { p_limit: 500, p_offset: 0 }),
-      supabase.rpc('rbac_list_expenses', { p_limit: 500, p_offset: 0 }),
-      supabase.rpc('rbac_list_transfers', { p_limit: 500, p_offset: 0 }),
+      fetchAllRpcPages<{
+        payment_id: string;
+        payment_date: string;
+        created_at: string;
+        cash_box_name: string;
+        student_name: string;
+        student_phone?: string | null;
+        course_name?: string | null;
+        receipt_number?: number | null;
+        amount: number;
+        currency?: string | null;
+        method?: string;
+        receipt_ref?: string | null;
+        notes?: string | null;
+        voided_at?: string | null;
+      }>((limit, offset) => supabase.rpc('rbac_list_payments_v2', { p_limit: limit, p_offset: offset })),
+      fetchAllRpcPages<{
+        expense_id: string;
+        expense_date: string;
+        created_at: string;
+        cash_box_name: string;
+        category?: string;
+        description?: string | null;
+        course_name?: string | null;
+        amount: number;
+        notes?: string | null;
+        voided_at?: string | null;
+      }>((limit, offset) => supabase.rpc('rbac_list_expenses', { p_limit: limit, p_offset: offset })),
+      fetchAllRpcPages<{
+        transfer_id: string;
+        transfer_date: string;
+        created_at: string;
+        from_box_name?: string;
+        to_box_name?: string;
+        notes?: string | null;
+        amount: number;
+      }>((limit, offset) => supabase.rpc('rbac_list_transfers', { p_limit: limit, p_offset: offset })),
     ]);
 
     const items: DashboardTransaction[] = [];
 
     // Payments
-    if (paymentsRes.status === 'fulfilled' && !paymentsRes.value.error && Array.isArray(paymentsRes.value.data)) {
+    if (paymentsRes.status === 'fulfilled' && Array.isArray(paymentsRes.value.data)) {
       for (const p of paymentsRes.value.data) {
         if (!p.voided_at) {
           items.push({
@@ -165,7 +269,7 @@ export function DashboardPage() {
               amount: Number(p.amount) || 0,
               currency: (p.currency as 'EGP' | 'USD') || 'EGP',
               payment_date: p.payment_date,
-              method: p.method,
+              method: p.method || 'Cash',
               receipt_ref: p.receipt_ref,
               cash_box_name: p.cash_box_name,
               notes: p.notes,
@@ -176,7 +280,7 @@ export function DashboardPage() {
     }
 
     // Expenses
-    if (expensesRes.status === 'fulfilled' && !expensesRes.value.error && Array.isArray(expensesRes.value.data)) {
+    if (expensesRes.status === 'fulfilled' && Array.isArray(expensesRes.value.data)) {
       for (const e of expensesRes.value.data) {
         if (!e.voided_at) {
           items.push({
@@ -197,7 +301,7 @@ export function DashboardPage() {
     }
 
     // Transfers
-    if (transfersRes.status === 'fulfilled' && !transfersRes.value.error && Array.isArray(transfersRes.value.data)) {
+    if (transfersRes.status === 'fulfilled' && Array.isArray(transfersRes.value.data)) {
       for (const t of transfersRes.value.data) {
         items.push({
           id: `tf-${t.transfer_id}`,
@@ -225,71 +329,27 @@ export function DashboardPage() {
     return { data: items, error: null };
   }, [canReadFinance]);
 
-  // Computed: Active Courses
+  // Computed: Courses & Financials (Active vs All Courses)
+  const allCourses = useMemo(() => coursesData?.courses ?? [], [coursesData]);
   const activeCourses = useMemo(() => {
-    return coursesData?.courses?.filter((c) => c.availability_status === 'Active') ?? [];
-  }, [coursesData]);
+    return allCourses.filter((c) => c.availability_status === 'Active');
+  }, [allCourses]);
 
-  // Computed: Students and Financials per Active Course (kept per currency)
-  const courseStudentStats = useMemo(() => {
-    const activeEnrolls = coursesData?.enrollments?.filter((e) => e.enrollment_status === 'Active') ?? [];
-    return activeCourses.map((course) => {
-      const courseEnrolls = activeEnrolls.filter((e) => e.course_id === course.course_id);
-      let expectedEgp = 0;
-      let expectedUsd = 0;
-      let paidEgp = 0;
-      let paidUsd = 0;
-      let remainingEgp = 0;
-      let remainingUsd = 0;
+  const effectiveScope: 'active' | 'all' = courseFinanceScope === 'auto'
+    ? (activeCourses.length > 0 ? 'active' : 'all')
+    : courseFinanceScope;
 
-      for (const enrollment of courseEnrolls) {
-        const isUsd = enrollment.agreed_currency === 'USD';
-        const agreed = Number(enrollment.agreed_cost) || 0;
-        const paid = Number(enrollment.total_paid) || 0;
-        const remaining = Math.max(0, Number(enrollment.remaining_balance) || 0);
-        if (isUsd) {
-          expectedUsd += agreed;
-          paidUsd += paid;
-          remainingUsd += remaining;
-        } else {
-          expectedEgp += agreed;
-          paidEgp += paid;
-          remainingEgp += remaining;
-        }
-      }
+  const { stats: activeCourseStudentStats } = useMemo(
+    () => summarizeCoursesFinancials(activeCourses, coursesData?.enrollments ?? [], true),
+    [activeCourses, coursesData],
+  );
 
-      return {
-        course_id: course.course_id,
-        course_name: course.course_name,
-        student_count: courseEnrolls.length,
-        expectedEgp,
-        expectedUsd,
-        paidEgp,
-        paidUsd,
-        remainingEgp,
-        remainingUsd,
-      };
-    });
-  }, [activeCourses, coursesData]);
-
-  // Computed: Total Financials Across All Active Courses (never mixes currencies)
-  const activeCoursesFinancials = useMemo(() => {
-    let expectedEgp = 0;
-    let expectedUsd = 0;
-    let paidEgp = 0;
-    let paidUsd = 0;
-    let remainingEgp = 0;
-    let remainingUsd = 0;
-    for (const stat of courseStudentStats) {
-      expectedEgp += stat.expectedEgp;
-      expectedUsd += stat.expectedUsd;
-      paidEgp += stat.paidEgp;
-      paidUsd += stat.paidUsd;
-      remainingEgp += stat.remainingEgp;
-      remainingUsd += stat.remainingUsd;
+  const { stats: scopedCourseStats, totals: scopedFinancials } = useMemo(() => {
+    if (effectiveScope === 'active') {
+      return summarizeCoursesFinancials(activeCourses, coursesData?.enrollments ?? [], true);
     }
-    return { expectedEgp, expectedUsd, paidEgp, paidUsd, remainingEgp, remainingUsd };
-  }, [courseStudentStats]);
+    return summarizeCoursesFinancials(allCourses, coursesData?.enrollments ?? [], false);
+  }, [effectiveScope, activeCourses, allCourses, coursesData]);
 
   // Computed: Active Cash Boxes
   const activeBoxes = useMemo(() => {
@@ -353,11 +413,11 @@ export function DashboardPage() {
 
           <div className="mt-3 pt-3 border-t border-obsidian-500/25">
             <p className="text-obsidian-400 text-xs mb-2 font-medium">{translate("توزيع الطلاب على الدورات التدريبية النشطة:", locale)}</p>
-            {courseStudentStats.length === 0 ? (
+            {activeCourseStudentStats.length === 0 ? (
               <p className="text-obsidian-400 text-xs">{translate("لا توجد دورات تدريبية نشطة حالياً", locale)}</p>
             ) : (
               <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                {courseStudentStats.map((cs) => (
+                {activeCourseStudentStats.map((cs) => (
                   <div key={cs.course_id} className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-obsidian-700/40">
                     <span className="text-obsidian-200 truncate font-medium">{cs.course_name}</span>
                     <span className="font-num font-bold text-emerald-light shrink-0 mr-2">
@@ -383,6 +443,11 @@ export function DashboardPage() {
               {formatNumber(activeCourses.length || m?.active_courses || 0)} <span className="text-sm font-normal text-obsidian-300">{getCountUnitLabel(activeCourses.length || m?.active_courses || 0, COURSE_COUNT_FORMS, locale)}</span>
             </p>
             <p className="text-obsidian-300 text-xs mt-2">{translate("الدورات التدريبية المتاحة والمفتوحة للدراسة حالياً", locale)}</p>
+            {allCourses.length > activeCourses.length && (
+              <p className="text-obsidian-400 text-xs mt-1.5 font-num">
+                {translateTemplate("إجمالي الدورات المسجلة: {count}", { count: formatNumber(allCourses.length) }, locale)}
+              </p>
+            )}
           </div>
 
           {activeCourses.length > 0 && (
@@ -398,52 +463,85 @@ export function DashboardPage() {
           )}
         </div>
 
-        {/* 3. المبلغ المحصل على مدار الكورس النشط (المبلغ الإجمالي – المدفوع – المتبقي) */}
+        {/* 3. المبلغ المحصل للدورات (مع تبديل بين النشطة وكل الدورات) */}
         {canReadFinance && (
           <div className="card-surface p-4 lg:p-5 bg-gradient-to-b from-amber-500/15 to-transparent relative overflow-hidden hover:border-obsidian-400/50 transition-all flex flex-col justify-between">
             <div>
               <div className="flex items-start justify-between gap-2 mb-2">
-                <div>
-                  <p className="text-obsidian-200 text-xs lg:text-sm font-medium">{translate("المبالغ المحصلة للدورات التدريبية النشطة", locale)}</p>
-                  <p className="text-obsidian-400 text-[11px] mt-0.5">{translate("على مدار الدورات التدريبية الحالية", locale)}</p>
+                <div className="min-w-0">
+                  <p className="text-obsidian-200 text-xs lg:text-sm font-medium">
+                    {effectiveScope === 'all'
+                      ? translate("إجمالي تحصيل رسوم كل الدورات", locale)
+                      : translate("المبالغ المحصلة للدورات التدريبية النشطة", locale)}
+                  </p>
+                  <p className="text-obsidian-400 text-[11px] mt-0.5">
+                    {effectiveScope === 'all'
+                      ? translate("يشمل الدورات النشطة والقادمة والمغلقة", locale)
+                      : translate("على مدار الدورات التدريبية الحالية", locale)}
+                  </p>
                 </div>
                 <div className="w-9 h-9 rounded-lg bg-obsidian-700/60 flex items-center justify-center shrink-0 text-amber-400">
                   <TrendingUp size={18} />
                 </div>
               </div>
 
+              <div className="inline-flex items-center gap-1 rounded-lg bg-obsidian-900/60 p-0.5 border border-obsidian-500/30 mt-1">
+                <button
+                  type="button"
+                  onClick={() => setCourseFinanceScope('all')}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors ${
+                    effectiveScope === 'all'
+                      ? 'bg-emerald-brand/20 text-emerald-light border border-emerald-brand/40'
+                      : 'text-obsidian-300 hover:text-white'
+                  }`}
+                >
+                  {translate("كل الدورات", locale)}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCourseFinanceScope('active')}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors ${
+                    effectiveScope === 'active'
+                      ? 'bg-emerald-brand/20 text-emerald-light border border-emerald-brand/40'
+                      : 'text-obsidian-300 hover:text-white'
+                  }`}
+                >
+                  {translate("النشطة فقط", locale)}
+                </button>
+              </div>
+
               {/* Grid 3 metrics: الإجمالي – المدفوع – المتبقي */}
               <div className="grid grid-cols-3 gap-2 mt-3 pt-1">
                 <div className="bg-obsidian-700/40 rounded-lg p-2 text-center">
-                  <p className="text-obsidian-400 text-[11px] mb-1">{translate("المبلغ الإجمالي")}</p>
+                  <p className="text-obsidian-400 text-[11px] mb-1">{translate("المبلغ الإجمالي", locale)}</p>
                   <p className="font-num font-bold text-xs lg:text-sm text-obsidian-100">
-                    {formatEGP(activeCoursesFinancials.expectedEgp)}
+                    {formatEGP(scopedFinancials.expectedEgp)}
                   </p>
-                  {activeCoursesFinancials.expectedUsd > 0 && (
+                  {scopedFinancials.expectedUsd > 0 && (
                     <p className="font-num text-[11px] text-obsidian-300 mt-0.5">
-                      {formatCurrency(activeCoursesFinancials.expectedUsd, 'USD')}
+                      {formatCurrency(scopedFinancials.expectedUsd, 'USD')}
                     </p>
                   )}
                 </div>
                 <div className="bg-obsidian-700/40 rounded-lg p-2 text-center">
-                  <p className="text-emerald-400 text-[11px] mb-1">{translate("المدفوع")}</p>
+                  <p className="text-emerald-400 text-[11px] mb-1">{translate("المدفوع", locale)}</p>
                   <p className="font-num font-bold text-xs lg:text-sm text-emerald-light">
-                    {formatEGP(activeCoursesFinancials.paidEgp)}
+                    {formatEGP(scopedFinancials.paidEgp)}
                   </p>
-                  {activeCoursesFinancials.paidUsd > 0 && (
+                  {scopedFinancials.paidUsd > 0 && (
                     <p className="font-num text-[11px] text-emerald-light/80 mt-0.5">
-                      {formatCurrency(activeCoursesFinancials.paidUsd, 'USD')}
+                      {formatCurrency(scopedFinancials.paidUsd, 'USD')}
                     </p>
                   )}
                 </div>
                 <div className="bg-obsidian-700/40 rounded-lg p-2 text-center">
-                  <p className="text-amber-400 text-[11px] mb-1">{translate("المتبقي")}</p>
+                  <p className="text-amber-400 text-[11px] mb-1">{translate("المتبقي", locale)}</p>
                   <p className="font-num font-bold text-xs lg:text-sm text-amber-400">
-                    {formatEGP(activeCoursesFinancials.remainingEgp)}
+                    {formatEGP(scopedFinancials.remainingEgp)}
                   </p>
-                  {activeCoursesFinancials.remainingUsd > 0 && (
+                  {scopedFinancials.remainingUsd > 0 && (
                     <p className="font-num text-[11px] text-amber-400/80 mt-0.5">
-                      {formatCurrency(activeCoursesFinancials.remainingUsd, 'USD')}
+                      {formatCurrency(scopedFinancials.remainingUsd, 'USD')}
                     </p>
                   )}
                 </div>
@@ -451,12 +549,12 @@ export function DashboardPage() {
             </div>
 
             {/* Course-by-course progress breakdown */}
-            {courseStudentStats.length > 0 && (
-              <div className="mt-3 pt-2.5 border-t border-obsidian-500/25 space-y-1 text-[11px]">
-                {courseStudentStats.map((cs) => (
-                  <div key={cs.course_id} className="flex justify-between items-center text-obsidian-300">
+            {scopedCourseStats.length > 0 && (
+              <div className="mt-3 pt-2.5 border-t border-obsidian-500/25 space-y-1 text-[11px] max-h-24 overflow-y-auto">
+                {scopedCourseStats.map((cs) => (
+                  <div key={cs.course_id} className="flex justify-between items-center gap-2 text-obsidian-300">
                     <span className="truncate">{cs.course_name}:</span>
-                    <span className="font-num text-obsidian-200">
+                    <span className="font-num text-obsidian-200 shrink-0">
                       {formatEGP(cs.paidEgp)} / {formatEGP(cs.expectedEgp)}
                       {cs.expectedUsd > 0 && ` · ${formatCurrency(cs.paidUsd, 'USD')} / ${formatCurrency(cs.expectedUsd, 'USD')}`}
                     </span>

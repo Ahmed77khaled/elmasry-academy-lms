@@ -1,9 +1,9 @@
-import { translate } from '@/lib/translations';
-import { translateTemplate } from '@/lib/translations';
-import { useState } from 'react';
+import { translate, translateTemplate } from '@/lib/translations';
+import { useEffect, useState } from 'react';
 import { Search, Plus, CreditCard, FileSpreadsheet, MessageCircle } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
+import { fetchAllRpcPages } from '@/lib/rpcPagination';
 import { useRouter } from '@/context/useRouter';
 import { Badge } from '@/components/ui/Badge';
 import { paymentStatusBadge } from '@/components/ui/badgeStatus';
@@ -40,10 +40,10 @@ export function EnrollmentsPage() {
   // Phone lookup map for students to power 1-click WhatsApp reminders
   const { data: studentsPhoneMap } = useQuery<Record<string, string>>(async () => {
     if (!canReadStudentPhones) return { data: {}, error: null };
-    const { data, error } = await supabase.rpc('rbac_list_students', {
-      p_search: null, p_limit: 500, p_offset: 0,
-    });
-    if (error || !data) return { data: {}, error: error?.message ?? null };
+    const { data, error } = await fetchAllRpcPages((limit, offset) =>
+      supabase.rpc('rbac_list_students', { p_search: null, p_limit: limit, p_offset: offset }),
+    );
+    if (error || !data) return { data: {}, error };
     const map: Record<string, string> = {};
     (data as { student_id: string | null; phone: string | null }[]).forEach((s) => {
       if (s.student_id && s.phone) {
@@ -54,15 +54,21 @@ export function EnrollmentsPage() {
   }, [canReadStudentPhones]);
 
   const { data: enrollments, loading, refetch } = useQuery<EnrollmentBalance[]>(async () => {
-    const { data, error } = await supabase.rpc('rbac_list_enrollments_v2', {
-      p_search: search.trim() || null, p_limit: 500, p_offset: 0,
-    });
-    if (error) return { data: null, error: error.message };
-    const filtered = ((data ?? []) as EnrollmentBalance[]).filter((enrollment) =>
+    const { data, error } = await fetchAllRpcPages((limit, offset) =>
+      supabase.rpc('rbac_list_enrollments_v2', {
+        p_search: search.trim() || null, p_limit: limit, p_offset: offset,
+      }),
+    );
+    if (error || !data) return { data: null, error };
+    const filtered = (data as EnrollmentBalance[]).filter((enrollment) =>
       (!statusFilter || enrollment.enrollment_status === statusFilter)
       && (!canReadEnrollmentFinance || !payFilter || enrollment.payment_status === payFilter));
-    return { data: filtered as EnrollmentBalance[], error: null };
+    return { data: filtered, error: null };
   }, [search, statusFilter, payFilter, canReadEnrollmentFinance]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, payFilter]);
 
   const handleUpdateStatus = async (enrId: string, newStatus: string) => {
     if (!canUpdateEnrollmentStatus) return;
@@ -90,9 +96,10 @@ export function EnrollmentsPage() {
       translate("رقم الهاتف"),
       translate("الدورة التدريبية"),
       translate("تاريخ التسجيل"),
-      translate("المتفق عليه (ج.م)"),
-      translate("المدفوع (ج.م)"),
-      translate("المتبقي (ج.م)"),
+      translate("العملة"),
+      translate("المبلغ المتفق عليه"),
+      translate("المدفوع"),
+      translate("المتبقي"),
       translate("حالة السداد"),
       translate("حالة الاشتراك"),
     ];
@@ -104,6 +111,7 @@ export function EnrollmentsPage() {
         studentsPhoneMap?.[enr.student_id] ?? '',
         enr.course_name,
         enr.enrolled_at?.slice(0, 10) ?? '',
+        enr.agreed_currency ?? 'EGP',
         enr.agreed_cost,
         enr.total_paid,
         enr.remaining_balance,
@@ -212,7 +220,7 @@ export function EnrollmentsPage() {
                 <th className="text-right font-medium px-4 py-3">{translate("الطالب")}</th>
                 <th className="text-right font-medium px-4 py-3">{translate("الدورة التدريبية")}</th>
                 <th className="text-right font-medium px-4 py-3">{translate("تاريخ التسجيل")}</th>
-                {canReadEnrollmentFinance && <><th className="text-right font-medium px-4 py-3">{translate("المتفق عليه (ج.م)")}</th><th className="text-right font-medium px-4 py-3">{translate("المدفوع (ج.م)")}</th><th className="text-right font-medium px-4 py-3">{translate("المتبقي (ج.م)")}</th><th className="text-right font-medium px-4 py-3">{translate("حالة السداد")}</th></>}
+                {canReadEnrollmentFinance && <><th className="text-right font-medium px-4 py-3">{translate("المبلغ المتفق عليه")}</th><th className="text-right font-medium px-4 py-3">{translate("المدفوع")}</th><th className="text-right font-medium px-4 py-3">{translate("المتبقي")}</th><th className="text-right font-medium px-4 py-3">{translate("حالة السداد")}</th></>}
                 <th className="text-right font-medium px-4 py-3">{translate("حالة التسجيل")}</th>
                 {(canRecordPayments || canReadEnrollmentFinance) && <th className="text-right font-medium px-4 py-3">{translate("إجراءات")}</th>}
               </tr></thead>

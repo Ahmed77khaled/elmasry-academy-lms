@@ -1,8 +1,9 @@
 import { translate, translateTemplate, formatCountPhrase } from '@/lib/translations';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Search, Plus, Pencil, Eye, MessageCircle, ListTodo, HardDrive, BookMarked, MoreVertical, Lock, Copy } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
+import { fetchAllRpcPages } from '@/lib/rpcPagination';
 import { useRouter } from '@/context/useRouter';
 import { Badge } from '@/components/ui/Badge';
 import { courseStatusBadge } from '@/components/ui/badgeStatus';
@@ -42,24 +43,28 @@ export function CoursesPage() {
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [copyFailedLink, setCopyFailedLink] = useState<string | null>(null);
 
-  const { data: courses, loading, refetch } = useQuery<Course[]>(async () => {
-    const { data, error } = await supabase.rpc('rbac_list_courses_v2', { p_limit: 500, p_offset: 0 });
-    if (error) return { data: null, error: error.message };
+  const { data: allCourses, loading, refetch } = useQuery<Course[]>(async () => {
+    const { data, error } = await fetchAllRpcPages<Course>((limit, offset) =>
+      supabase.rpc('rbac_list_courses_v2', { p_limit: limit, p_offset: offset }),
+    );
+    return { data, error };
+  }, []);
+
+  const courses = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase();
-    const filtered = ((data ?? []) as Course[]).filter((course) =>
+    return (allCourses ?? []).filter((course) =>
       (!normalizedSearch || course.course_name.toLocaleLowerCase().includes(normalizedSearch))
       && (!statusFilter || course.availability_status === statusFilter));
-    return { data: filtered as Course[], error: null };
-  }, [search, statusFilter]);
+  }, [allCourses, search, statusFilter]);
 
   const { data: enrollmentCounts } = useQuery<{ course_id: string; count: number }[]>(async () => {
     if (!canReadEnrollments) return { data: [], error: null };
-    const { data, error } = await supabase.rpc('rbac_list_enrollments_v2', {
-      p_search: null, p_limit: 500, p_offset: 0,
-    });
-    if (error) return { data: null, error: error.message };
+    const { data, error } = await fetchAllRpcPages<EnrollmentBalance>((limit, offset) =>
+      supabase.rpc('rbac_list_enrollments_v2', { p_search: null, p_limit: limit, p_offset: offset }),
+    );
+    if (error || !data) return { data: null, error };
     const counts: Record<string, number> = {};
-    for (const row of (data ?? []) as EnrollmentBalance[]) {
+    for (const row of data) {
       if (row.enrollment_status === 'Active') counts[row.course_id] = (counts[row.course_id] ?? 0) + 1;
     }
     return { data: Object.entries(counts).map(([course_id, count]) => ({ course_id, count })), error: null };

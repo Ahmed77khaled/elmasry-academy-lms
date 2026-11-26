@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Plus, Search, Printer, Ban, FileSpreadsheet, MessageCircle, Calendar } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
+import { fetchAllRpcPages } from '@/lib/rpcPagination';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { PaymentForm } from '@/components/forms/PaymentForm';
@@ -85,16 +86,17 @@ export function PaymentsPage() {
   } | null>(null);
 
   const { data: payments, loading, refetch } = useQuery<RawPaymentRow[]>(async () => {
-    const { data, error } = await supabase.rpc('rbac_list_payments_v2', { p_limit: 500, p_offset: 0 });
-    if (error) return { data: null, error: error.message };
-    const rows = ((data ?? []) as unknown as (RawPaymentRow & { student_name: string; student_phone: string | null; course_name: string; cash_box_name: string })[]).map((payment) => ({
+    const { data, error } = await fetchAllRpcPages((limit, offset) =>
+      supabase.rpc('rbac_list_payments_v2', { p_limit: limit, p_offset: offset }),
+    );
+    if (error || !data) return { data: null, error };
+    const rows = (data as unknown as (RawPaymentRow & { student_name: string; student_phone: string | null; course_name: string; cash_box_name: string })[]).map((payment) => ({
       ...payment,
       enrollments: { students: { name: payment.student_name, phone: payment.student_phone }, courses: { course_name: payment.course_name } },
       cash_boxes: { name: payment.cash_box_name },
     })) as unknown as RawPaymentRow[];
-    const filtered = methodFilter ? rows.filter((payment) => payment.method === methodFilter) : rows;
-    return { data: filtered, error: null };
-  }, [methodFilter]);
+    return { data: rows, error: null };
+  }, []);
 
   const handledRoutePaymentRef = useRef<string | null>(null);
   useEffect(() => {
@@ -171,8 +173,11 @@ export function PaymentsPage() {
     });
   };
 
-  // Filter payments by search and date range
+  // Filter payments by method, search, and date range
   const filteredPayments = (payments ?? []).filter((p) => {
+    if (methodFilter && p.method !== methodFilter) {
+      return false;
+    }
     // 1. Date Range
     if (!isDateInRange(p.payment_date, datePreset, customStart, customEnd)) {
       return false;

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Ban, Search, FileSpreadsheet, Calendar } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
+import { fetchAllRpcPages } from '@/lib/rpcPagination';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { ExpenseForm } from '@/components/forms/ExpenseForm';
@@ -64,9 +65,11 @@ export function ExpensesPage() {
   const [pageSize, setPageSize] = useState(10);
 
   const { data: expenses, loading, refetch } = useQuery<ExpenseTableRow[]>(async () => {
-    const { data, error } = await supabase.rpc('rbac_list_expenses', { p_limit: 500, p_offset: 0 });
-    if (error) return { data: null, error: error.message };
-    const rows = ((data ?? []) as unknown as (ExpenseTableRow & { cash_box_name: string; course_name: string | null })[]).map((expense) => ({
+    const { data, error } = await fetchAllRpcPages((limit, offset) =>
+      supabase.rpc('rbac_list_expenses', { p_limit: limit, p_offset: offset }),
+    );
+    if (error || !data) return { data: null, error };
+    const rows = (data as unknown as (ExpenseTableRow & { cash_box_name: string; course_name: string | null })[]).map((expense) => ({
       ...expense,
       cash_boxes: { name: expense.cash_box_name },
       courses: expense.course_name ? { course_name: expense.course_name } : null,
