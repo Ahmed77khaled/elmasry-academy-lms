@@ -2,11 +2,11 @@ export type BadgeVariant = 'emerald' | 'amber' | 'rose' | 'violet' | 'blue' | 'g
 
 const VARIANTS: Record<BadgeVariant, string> = {
   emerald: 'bg-emerald-brand/15 text-emerald-light border-emerald-brand/30',
-  amber: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  rose: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
-  violet: 'bg-violet-500/15 text-violet-400 border-violet-500/30',
-  blue: 'bg-azure-brand/15 text-azure-brand border-azure-brand/30',
-  gray: 'bg-obsidian-500/30 text-obsidian-200 border-obsidian-500/40',
+  amber: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+  rose: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+  violet: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
+  blue: 'bg-azure-brand/15 text-azure-light border-azure-brand/30',
+  gray: 'bg-obsidian-500/40 text-obsidian-200 border-obsidian-500/50',
 };
 
 export function Badge({

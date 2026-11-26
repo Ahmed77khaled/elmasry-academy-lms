@@ -1,4 +1,5 @@
-import { translate } from '@/lib/translations';
+import { translate, formatCountPhrase } from '@/lib/translations';
+import { useLocale } from '@/context/useLocale';
 import { useState, useMemo } from 'react';
 import {
   ArrowRight,
@@ -21,7 +22,7 @@ import { paymentStatusBadge } from '@/components/ui/badgeStatus';
 import { PageLoader, EmptyState } from '@/components/ui/Feedback';
 import { Alert } from '@/components/ui/Alert';
 import { PaginationControls } from '@/components/ui/PaginationControls';
-import { formatCurrency, formatDate, formatStudentCode } from '@/lib/format';
+import { formatCurrency, formatDate, formatReceiptCode, formatStudentCode } from '@/lib/format';
 import { formatEgyptPhoneForWhatsApp, generatePaymentReminderUrl } from '@/lib/whatsapp';
 import { QuickEnrollModal } from '@/components/forms/QuickEnrollModal';
 import { StudentForm } from '@/components/forms/StudentForm';
@@ -61,7 +62,13 @@ interface StudentPaymentRow {
   created_at: string;
 }
 
+const RECORDED_PAYMENT_COUNT_FORMS = {
+  ar: { zero: 'دفعات مسجلة', one: 'دفعة مسجلة', two: 'دفعتان مسجلتان', few: 'دفعات مسجلة', many: 'دفعة مسجلة' },
+  en: { one: 'recorded payment', other: 'recorded payments' },
+};
+
 export function StudentDetailsPage({ studentId }: { studentId: string }) {
+  const { locale } = useLocale();
   const { navigate } = useRouter();
   const { permissions } = useAuth();
   const canReadEnrollments = permissions.includes('enrollments.read');
@@ -202,7 +209,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
       <div className="card-surface p-5 lg:p-6 space-y-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-azure-brand to-azure-light flex items-center justify-center shrink-0 shadow-lg shadow-azure-brand/20">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-azure-brand to-azure-dark flex items-center justify-center shrink-0 shadow-lg shadow-azure-brand/20">
               <span className="text-white font-bold text-2xl font-arabic">{student.name.charAt(0)}</span>
             </div>
             <div>
@@ -254,7 +261,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
 
           {canReadStudentEmail && student.email ? (
             <div className="flex items-center gap-2.5 text-sm p-2.5 bg-obsidian-700/40 rounded-xl">
-              <Mail size={16} className="text-azure-brand shrink-0" />
+              <Mail size={16} className="text-azure-light shrink-0" />
               <div>
                 <p className="text-[11px] text-obsidian-300">{translate("البريد الإلكتروني")}</p>
                 <p className="text-obsidian-100 font-medium">{student.email}</p>
@@ -334,7 +341,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
               {enrollments.map((enr) => {
                 const ps = canReadEnrollmentFinance ? paymentStatusBadge(enr.payment_status ?? 'Unpaid') : null;
                 const reminderUrl = canReadEnrollmentFinance && student.phone && enr.remaining_balance != null && enr.remaining_balance > 0
-                  ? generatePaymentReminderUrl({ phone: student.phone, studentName: student.name, courseName: enr.course_name, remainingAmount: enr.remaining_balance })
+                  ? generatePaymentReminderUrl({ phone: student.phone, studentName: student.name, courseName: enr.course_name, remainingAmount: enr.remaining_balance, currency: enr.agreed_currency ?? 'EGP' })
                   : null;
                 return (
                   <div key={enr.enrollment_id} className="card-surface p-4 flex flex-col justify-between gap-4">
@@ -437,10 +444,10 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
                 {translate("سجل دفعات الطالب")}
               </h3>
               <p className="text-obsidian-300 text-xs mt-0.5">
-                {translate("تاريخ تسجيل الدفعات بالكامل (القيمة، التاريخ، الخزنة، والكورس)")}
+                {translate("تاريخ تسجيل الدفعات بالكامل (القيمة، التاريخ، الخزنة، والدورة التدريبية)")}
               </p>
             </div>
-            <span className="text-obsidian-300 text-xs font-num">{totalPayments} {translate("دفعة مسجلة")}</span>
+            <span className="text-obsidian-300 text-xs font-num">{formatCountPhrase(totalPayments, RECORDED_PAYMENT_COUNT_FORMS, locale)}</span>
           </div>
 
           <div className="card-surface overflow-hidden">
@@ -504,7 +511,7 @@ export function StudentDetailsPage({ studentId }: { studentId: string }) {
 
                           {/* 6. رقم الإيصال */}
                           <td className="px-4 py-3 hidden md:table-cell text-obsidian-300 font-num text-xs">
-                            {p.receipt_number || p.receipt_ref || '—'}
+                            {p.receipt_number != null ? formatReceiptCode(p.receipt_number, p.payment_id) : (p.receipt_ref || '—')}
                           </td>
 
                           {/* 7. إيصال */}

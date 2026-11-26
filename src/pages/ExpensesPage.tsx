@@ -1,20 +1,22 @@
-import { translate } from '@/lib/translations';
-import { translateTemplate } from '@/lib/translations';
-import { useState } from 'react';
+import { translate, translateTemplate } from '@/lib/translations';
+import { useEffect, useState } from 'react';
 import { Plus, Ban, Search, FileSpreadsheet, Calendar } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
+import { fetchAllRpcPages } from '@/lib/rpcPagination';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { ExpenseForm } from '@/components/forms/ExpenseForm';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Textarea } from '@/components/ui/Form';
 import { Alert } from '@/components/ui/Alert';
+import { PaginationControls } from '@/components/ui/PaginationControls';
 import { formatEGP, formatDate } from '@/lib/format';
 import { exportToCSV } from '@/lib/exportExcel';
 import { isDateInRange, DateRangePreset } from '@/lib/dateRange';
 import type { Expense } from '@/types/database';
 import { useAuth } from '@/context/useAuth';
+import { useLocale } from '@/context/useLocale';
 
 const CATEGORY_LABELS: Record<string, string> = {
   'Rent': 'إيجار',
@@ -42,6 +44,7 @@ interface ExpenseTableRow extends Expense {
 }
 
 export function ExpensesPage() {
+  const { locale } = useLocale();
   const { permissions } = useAuth();
   const canRecordExpenses = permissions.includes('finance.expenses.record');
   const canVoidExpenses = permissions.includes('finance.expenses.void');
@@ -52,26 +55,31 @@ export function ExpensesPage() {
   const [voidReason, setVoidReason] = useState('');
   const [voidError, setVoidError] = useState<string | null>(null);
 
-  // Filters state
+  // Filters & pagination state
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [datePreset, setDatePreset] = useState<DateRangePreset>('all');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const { data: expenses, loading, refetch } = useQuery<ExpenseTableRow[]>(async () => {
-    const { data, error } = await supabase.rpc('rbac_list_expenses', { p_limit: 500, p_offset: 0 });
-    if (error) return { data: null, error: error.message };
-    const rows = ((data ?? []) as unknown as (ExpenseTableRow & { cash_box_name: string; course_name: string | null })[]).map((expense) => ({
+    const { data, error } = await fetchAllRpcPages((limit, offset) =>
+      supabase.rpc('rbac_list_expenses', { p_limit: limit, p_offset: offset }),
+    );
+    if (error || !data) return { data: null, error };
+    const rows = (data as unknown as (ExpenseTableRow & { cash_box_name: string; course_name: string | null })[]).map((expense) => ({
       ...expense,
       cash_boxes: { name: expense.cash_box_name },
       courses: expense.course_name ? { course_name: expense.course_name } : null,
     })) as unknown as ExpenseTableRow[];
-    const normalizedSearch = search.trim().toLocaleLowerCase();
-    const filtered = categoryFilter ? rows.filter((expense) => expense.category === categoryFilter) : rows;
-    return { data: normalizedSearch ? filtered.filter((expense) =>
-      `${expense.description ?? ''} ${expense.cash_boxes?.name ?? ''} ${expense.courses?.course_name ?? ''}`.toLocaleLowerCase().includes(normalizedSearch)) : filtered, error: null };
-  }, [search, categoryFilter]);
+    return { data: rows, error: null };
+  }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, categoryFilter, datePreset, customStart, customEnd]);
 
   const handleVoid = async () => {
     if (!voidTarget || !canVoidExpenses) return;
@@ -110,14 +118,34 @@ export function ExpensesPage() {
 
     // 3. Search Query
     if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    const desc = exp.description?.toLowerCase() ?? '';
-    const notes = exp.notes?.toLowerCase() ?? '';
-    const cat = translate(CATEGORY_LABELS[exp.category] ?? exp.category).toLowerCase();
-    const box = exp.cash_boxes?.name?.toLowerCase() ?? '';
-    const course = exp.courses?.course_name?.toLowerCase() ?? '';
-    return desc.includes(q) || notes.includes(q) || cat.includes(q) || box.includes(q) || course.includes(q);
+    const q = search.trim().toLocaleLowerCase();
+    const desc = exp.description?.toLocaleLowerCase() ?? '';
+    const notes = exp.notes?.toLocaleLowerCase() ?? '';
+    const catAr = translate(CATEGORY_LABELS[exp.category] ?? exp.category, 'ar').toLocaleLowerCase();
+    const catEn = translate(CATEGORY_LABELS[exp.category] ?? exp.category, 'en').toLocaleLowerCase();
+    const catRaw = exp.category?.toLocaleLowerCase() ?? '';
+    const catCurrent = translate(CATEGORY_LABELS[exp.category] ?? exp.category, locale).toLocaleLowerCase();
+    const box = exp.cash_boxes?.name?.toLocaleLowerCase() ?? '';
+    const course = exp.courses?.course_name?.toLocaleLowerCase() ?? '';
+    return (
+      desc.includes(q) ||
+      notes.includes(q) ||
+      catAr.includes(q) ||
+      catEn.includes(q) ||
+      catCurrent.includes(q) ||
+      catRaw.includes(q) ||
+      box.includes(q) ||
+      course.includes(q)
+    );
   });
+
+  const paginatedExpenses = filteredExpenses.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    if (!loading && page > 1 && paginatedExpenses.length === 0) {
+      setPage(1);
+    }
+  }, [loading, page, paginatedExpenses.length]);
 
   // Calculate totals of filtered active expenses
   const activeFilteredTotal = filteredExpenses
@@ -266,6 +294,7 @@ export function ExpensesPage() {
             action={canRecordExpenses ? <button onClick={() => setFormOpen(true)} className="btn-primary"><Plus size={16} /> {translate("تسجيل مصروف")}</button> : undefined}
           />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -274,13 +303,13 @@ export function ExpensesPage() {
                   <th className="text-right font-medium px-4 py-3">{translate("التصنيف")}</th>
                   <th className="text-right font-medium px-4 py-3">{translate("الوصف")}</th>
                   <th className="text-right font-medium px-4 py-3 hidden md:table-cell">{translate("الخزينة")}</th>
-                  <th className="text-right font-medium px-4 py-3 hidden lg:table-cell">{translate("كورس مرتبط")}</th>
+                  <th className="text-right font-medium px-4 py-3 hidden lg:table-cell">{translate("الدورة التدريبية المرتبطة")}</th>
                   <th className="text-right font-medium px-4 py-3">{translate("المبلغ")}</th>
                   <th className="text-right font-medium px-4 py-3">{translate("إجراء")}</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredExpenses.map((exp) => {
+                {paginatedExpenses.map((exp) => {
                   const isVoided = Boolean(exp.voided_at);
                   return (
                     <tr
@@ -295,7 +324,10 @@ export function ExpensesPage() {
                           {translate(CATEGORY_LABELS[exp.category] ?? exp.category)}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-obsidian-100">{exp.description ?? '—'}</td>
+                      <td className="px-4 py-3 text-obsidian-100">
+                        <span>{exp.description ?? '—'}</span>
+                        {exp.notes && <p className="text-xs text-obsidian-300 mt-0.5 line-clamp-2">{exp.notes}</p>}
+                      </td>
                       <td className="px-4 py-3 text-obsidian-200 hidden md:table-cell">{exp.cash_boxes?.name ?? '—'}</td>
                       <td className="px-4 py-3 text-obsidian-200 hidden lg:table-cell">{exp.courses?.course_name ?? translate("عام للسنتر")}</td>
                       <td className={`px-4 py-3 font-num font-bold text-rose-400 ${isVoided ? 'line-through' : ''}`}>
@@ -323,6 +355,14 @@ export function ExpensesPage() {
               </tbody>
             </table>
           </div>
+          <PaginationControls
+            page={page}
+            pageSize={pageSize}
+            total={filteredExpenses.length}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => { setPageSize(newSize); setPage(1); }}
+          />
+          </>
         )}
       </div>
 

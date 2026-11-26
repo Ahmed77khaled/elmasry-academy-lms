@@ -1,9 +1,9 @@
-import { translate } from '@/lib/translations';
-import { translateTemplate } from '@/lib/translations';
-import { useState } from 'react';
+import { translate, translateTemplate, formatCountPhrase } from '@/lib/translations';
+import { useMemo, useState } from 'react';
 import { Search, Plus, Pencil, Eye, MessageCircle, ListTodo, HardDrive, BookMarked, MoreVertical, Lock, Copy } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
+import { fetchAllRpcPages } from '@/lib/rpcPagination';
 import { useRouter } from '@/context/useRouter';
 import { Badge } from '@/components/ui/Badge';
 import { courseStatusBadge } from '@/components/ui/badgeStatus';
@@ -13,12 +13,19 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { formatCurrency, formatDate } from '@/lib/format';
 import type { Course, EnrollmentBalance } from '@/types/database';
 import { useAuth } from '@/context/useAuth';
+import { useLocale } from '@/context/useLocale';
 
 const LEVEL_LABELS: Record<string, string> = {
   'Beginner': 'مبتدئ', 'Intermediate': 'متوسط', 'Advanced': 'متقدم',
 };
 
+const WEEK_COUNT_FORMS = {
+  ar: { zero: 'أسابيع', one: 'أسبوع', two: 'أسبوعان', few: 'أسابيع', many: 'أسبوعاً' },
+  en: { one: 'week', other: 'weeks' },
+};
+
 export function CoursesPage() {
+  const { locale } = useLocale();
   const { navigate } = useRouter();
   const { permissions } = useAuth();
   const canCreateCourse = permissions.includes('courses.create');
@@ -36,24 +43,28 @@ export function CoursesPage() {
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [copyFailedLink, setCopyFailedLink] = useState<string | null>(null);
 
-  const { data: courses, loading, refetch } = useQuery<Course[]>(async () => {
-    const { data, error } = await supabase.rpc('rbac_list_courses_v2', { p_limit: 500, p_offset: 0 });
-    if (error) return { data: null, error: error.message };
+  const { data: allCourses, loading, refetch } = useQuery<Course[]>(async () => {
+    const { data, error } = await fetchAllRpcPages<Course>((limit, offset) =>
+      supabase.rpc('rbac_list_courses_v2', { p_limit: limit, p_offset: offset }),
+    );
+    return { data, error };
+  }, []);
+
+  const courses = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase();
-    const filtered = ((data ?? []) as Course[]).filter((course) =>
+    return (allCourses ?? []).filter((course) =>
       (!normalizedSearch || course.course_name.toLocaleLowerCase().includes(normalizedSearch))
       && (!statusFilter || course.availability_status === statusFilter));
-    return { data: filtered as Course[], error: null };
-  }, [search, statusFilter]);
+  }, [allCourses, search, statusFilter]);
 
   const { data: enrollmentCounts } = useQuery<{ course_id: string; count: number }[]>(async () => {
     if (!canReadEnrollments) return { data: [], error: null };
-    const { data, error } = await supabase.rpc('rbac_list_enrollments_v2', {
-      p_search: null, p_limit: 500, p_offset: 0,
-    });
-    if (error) return { data: null, error: error.message };
+    const { data, error } = await fetchAllRpcPages<EnrollmentBalance>((limit, offset) =>
+      supabase.rpc('rbac_list_enrollments_v2', { p_search: null, p_limit: limit, p_offset: offset }),
+    );
+    if (error || !data) return { data: null, error };
     const counts: Record<string, number> = {};
-    for (const row of (data ?? []) as EnrollmentBalance[]) {
+    for (const row of data) {
       if (row.enrollment_status === 'Active') counts[row.course_id] = (counts[row.course_id] ?? 0) + 1;
     }
     return { data: Object.entries(counts).map(([course_id, count]) => ({ course_id, count })), error: null };
@@ -150,7 +161,7 @@ export function CoursesPage() {
                     <div className="flex items-center gap-2 mt-1.5">
                       <Badge variant={sb.variant}>{sb.label}</Badge>
                       <Badge variant="gray">{course.level ? translate(LEVEL_LABELS[course.level] ?? course.level) : '—'}</Badge>
-                      <span className="text-obsidian-300 text-xs">{course.duration_weeks ?? 0} {translate("أسبوع")}</span>
+                      <span className="text-obsidian-300 text-xs">{formatCountPhrase(course.duration_weeks ?? 0, WEEK_COUNT_FORMS, locale)}</span>
                     </div>
                     {(course.start_date || course.end_date) && (
                       <p className="text-obsidian-300 text-xs mt-2">
@@ -161,7 +172,7 @@ export function CoursesPage() {
                     )}
                   </div>
                   <div className="relative shrink-0">
-                    {(canUpdateCourse || canCloseCourse) && <button onClick={() => setMenuOpen(menuOpen === course.course_id ? null : course.course_id)} className="btn-ghost p-1.5">
+                    {(canUpdateCourse || canCloseCourse) && <button type="button" aria-label={translate("خيارات الدورة التدريبية")} onClick={() => setMenuOpen(menuOpen === course.course_id ? null : course.course_id)} className="btn-ghost p-1.5">
                       <MoreVertical size={18} />
                     </button>}
                     {menuOpen === course.course_id && (
@@ -220,12 +231,12 @@ export function CoursesPage() {
                         if (parsed.protocol === 'https:' || parsed.protocol === 'http:') safeHref = parsed.toString();
                       } catch { safeHref = null; }
                       return (
-                        <div key={i} className="inline-flex items-center rounded-lg border border-azure-brand/20 bg-azure-brand/10 text-azure-brand">
+                        <div key={i} className="inline-flex items-center rounded-lg border border-azure-brand/25 bg-azure-brand/10 text-azure-light">
                           {safeHref ? <a
                             href={safeHref}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs hover:text-azure-light hover:bg-azure-brand/20 px-2.5 py-1.5 rounded-r-lg transition-all"
+                            className="inline-flex items-center gap-1.5 text-xs hover:text-blue-200 hover:bg-azure-brand/20 px-2.5 py-1.5 rounded-r-lg transition-all"
                           ><Icon size={14} /> {link.label}</a> : <span className="px-2.5 py-1.5 text-xs text-obsidian-300">{link.label} · {translate("رابط غير صالح")}</span>}
                           <button
                             type="button"

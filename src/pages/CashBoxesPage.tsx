@@ -116,7 +116,9 @@ export function CashBoxesPage() {
                   <p className="text-obsidian-300 text-xs mb-1">{translate("الرصيد الفعلي المتوفر")}</p>
                   <div className="space-y-1">
                     <p className={`font-num font-bold text-2xl ${box.current_balance < 0 ? 'text-rose-400' : 'text-emerald-light'}`}>{formatBalance(box.current_balance)}</p>
-                    <p className={`font-num font-bold text-lg ${(box.current_balance_usd ?? 0) < 0 ? 'text-rose-400' : 'text-emerald-light'}`}>{formatBalance(box.current_balance_usd ?? 0, 'USD')}</p>
+                    {((box.current_balance_usd ?? 0) !== 0 || (box.total_payments_in_usd ?? 0) !== 0) && (
+                      <p className={`font-num font-bold text-lg ${(box.current_balance_usd ?? 0) < 0 ? 'text-rose-400' : 'text-emerald-light'}`}>{formatBalance(box.current_balance_usd ?? 0, 'USD')}</p>
+                    )}
                   </div>
                 </div>
 
@@ -129,17 +131,19 @@ export function CashBoxesPage() {
                     <p className="text-obsidian-300 mb-0.5">{translate("المقبوضات الواردة")}</p>
                     <p className="text-emerald-light font-num font-semibold">{formatEGP(box.total_payments_in)}</p>
                   </div>
-                  <div className="bg-obsidian-700/30 rounded-lg p-2.5">
-                    <p className="text-obsidian-300 mb-0.5">{translate('المقبوضات الواردة بالدولار')}</p>
-                    <p className="text-emerald-light font-num font-semibold">{formatCurrency(box.total_payments_in_usd ?? 0, 'USD')}</p>
-                  </div>
+                  {((box.total_payments_in_usd ?? 0) !== 0 || (box.current_balance_usd ?? 0) !== 0) && (
+                    <div className="bg-obsidian-700/30 rounded-lg p-2.5">
+                      <p className="text-obsidian-300 mb-0.5">{translate('المقبوضات الواردة بالدولار')}</p>
+                      <p className="text-emerald-light font-num font-semibold">{formatCurrency(box.total_payments_in_usd ?? 0, 'USD')}</p>
+                    </div>
+                  )}
                   <div className="bg-obsidian-700/30 rounded-lg p-2.5">
                     <p className="text-obsidian-300 mb-0.5">{translate("المصروفات الصادرة")}</p>
                     <p className="text-rose-400 font-num font-semibold">{formatEGP(Math.abs(box.total_expenses_out))}</p>
                   </div>
                   <div className="bg-obsidian-700/30 rounded-lg p-2.5">
                     <p className="text-obsidian-300 mb-0.5">{translate("صافي حركات التحويل")}</p>
-                    <p className="text-azure-brand font-num font-semibold">
+                    <p className="text-azure-light font-num font-semibold">
                       {box.total_transfers_in - box.total_transfers_out === 0
                         ? formatEGP(0)
                         : box.total_transfers_in >= box.total_transfers_out

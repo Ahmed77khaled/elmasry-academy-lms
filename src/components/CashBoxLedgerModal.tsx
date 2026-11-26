@@ -3,8 +3,10 @@ import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, LoadingSpinner } from '@/components/ui/Feedback';
 import { PaginationControls } from '@/components/ui/PaginationControls';
-import { formatCurrency, formatEGP, formatDate, formatBalance } from '@/lib/format';
+import { formatCurrency, formatEGP, formatDate, formatBalance, formatReceiptCode } from '@/lib/format';
+import { getExpenseCategoryLabel, getPaymentMethodLabel } from '@/lib/adminLabels';
 import { translate } from '@/lib/translations';
+import { useLocale } from '@/context/useLocale';
 import { supabase } from '@/lib/supabase';
 import type { CashBoxBalance, Currency } from '@/types/database';
 import { ArrowDownLeft, ArrowUpRight, Search, Filter } from 'lucide-react';
@@ -30,6 +32,7 @@ interface CashBoxLedgerModalProps {
 }
 
 export function CashBoxLedgerModal({ open, onClose, box }: CashBoxLedgerModalProps) {
+  const { locale } = useLocale();
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
   const [search, setSearch] = useState('');
@@ -69,12 +72,14 @@ export function CashBoxLedgerModal({ open, onClose, box }: CashBoxLedgerModalPro
                 date: p.payment_date,
                 createdAt: p.created_at,
                 type: 'payment_in',
-                typeLabel: translate('إيراد / دفعة طالب'),
+                typeLabel: translate('إيراد / دفعة طالب', locale),
                 amount: Number(p.amount) || 0,
                 currency: p.currency === 'USD' ? 'USD' : 'EGP',
-                party: p.student_name || p.name || translate('طالب بالأكاديمية'),
-                description: p.course_name ? `${p.course_name} (${p.receipt_number || translate('بدون إيصال')})` : (p.receipt_number || ''),
-                methodOrNotes: [p.method, p.receipt_ref, p.notes].filter(Boolean).join(' • '),
+                party: p.student_name || p.name || translate('طالب بالأكاديمية', locale),
+                description: p.course_name
+                  ? `${p.course_name} (${p.receipt_number != null ? formatReceiptCode(p.receipt_number, p.payment_id) : translate('بدون إيصال', locale)})`
+                  : (p.receipt_number != null ? formatReceiptCode(p.receipt_number, p.payment_id) : ''),
+                methodOrNotes: [p.method ? getPaymentMethodLabel(p.method, locale) : null, p.receipt_ref, p.notes].filter(Boolean).join(' • '),
                 isVoid: Boolean(p.voided_at),
               });
             }
@@ -90,10 +95,10 @@ export function CashBoxLedgerModal({ open, onClose, box }: CashBoxLedgerModalPro
                 date: e.expense_date,
                 createdAt: e.created_at,
                 type: 'expense_out',
-                typeLabel: translate('مصروف'),
+                typeLabel: translate('مصروف', locale),
                 amount: Number(e.amount) || 0,
                 currency: 'EGP',
-                party: e.category || translate('مصروفات'),
+                party: e.category ? getExpenseCategoryLabel(e.category, locale) : translate('مصروفات', locale),
                 description: e.description || e.course_name || '',
                 methodOrNotes: e.notes || '',
                 isVoid: Boolean(e.voided_at),
@@ -111,11 +116,11 @@ export function CashBoxLedgerModal({ open, onClose, box }: CashBoxLedgerModalPro
                 date: t.transfer_date,
                 createdAt: t.created_at,
                 type: 'transfer_out',
-                typeLabel: translate('تحويل صادر'),
+                typeLabel: translate('تحويل صادر', locale),
                 amount: Number(t.amount) || 0,
                 currency: 'EGP',
-                party: t.to_box_name || translate('خزنة أخرى'),
-                description: `${translate('تحويل إلى')} ${t.to_box_name || ''}`,
+                party: t.to_box_name || translate('خزنة أخرى', locale),
+                description: `${translate('تحويل إلى', locale)} ${t.to_box_name || ''}`,
                 methodOrNotes: t.notes || '',
                 isVoid: false,
               });
@@ -125,11 +130,11 @@ export function CashBoxLedgerModal({ open, onClose, box }: CashBoxLedgerModalPro
                 date: t.transfer_date,
                 createdAt: t.created_at,
                 type: 'transfer_in',
-                typeLabel: translate('تحويل وارد'),
+                typeLabel: translate('تحويل وارد', locale),
                 amount: Number(t.amount) || 0,
                 currency: 'EGP',
-                party: t.from_box_name || translate('خزنة أخرى'),
-                description: `${translate('تحويل من')} ${t.from_box_name || ''}`,
+                party: t.from_box_name || translate('خزنة أخرى', locale),
+                description: `${translate('تحويل من', locale)} ${t.from_box_name || ''}`,
                 methodOrNotes: t.notes || '',
                 isVoid: false,
               });
@@ -161,7 +166,7 @@ export function CashBoxLedgerModal({ open, onClose, box }: CashBoxLedgerModalPro
     return () => {
       isMounted = false;
     };
-  }, [open, box]);
+  }, [open, box, locale]);
 
   // Filter transactions
   const filtered = useMemo(() => {
@@ -226,7 +231,7 @@ export function CashBoxLedgerModal({ open, onClose, box }: CashBoxLedgerModalPro
           </div>
           <div className="bg-obsidian-700/30 border border-obsidian-500/20 rounded-xl p-3 text-center">
             <p className="text-obsidian-300 text-xs mb-1">{translate('صافي حركات التحويل')}</p>
-            <p className="text-azure-brand font-num font-bold text-base">
+            <p className="text-azure-light font-num font-bold text-base">
               {box.total_transfers_in - box.total_transfers_out === 0
                 ? formatEGP(0)
                 : box.total_transfers_in >= box.total_transfers_out

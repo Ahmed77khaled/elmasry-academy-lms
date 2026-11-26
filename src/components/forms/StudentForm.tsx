@@ -1,4 +1,4 @@
-import { translate } from '@/lib/translations';
+import { translate, translateTemplate } from '@/lib/translations';
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Modal } from '@/components/ui/Modal';
@@ -33,10 +33,12 @@ export function StudentForm({ open, onClose, onSaved, student }: StudentFormProp
   const [error, setError] = useState<string | null>(null);
   const [canManageEmail, setCanManageEmail] = useState(false);
   const [canManagePhone, setCanManagePhone] = useState(false);
+  const [duplicatePhoneMatch, setDuplicatePhoneMatch] = useState<{ student_id: string; name: string } | null>(null);
 
   useEffect(() => {
     if (open) {
       setError(null);
+      setDuplicatePhoneMatch(null);
       void supabase.rpc('get_my_authorization').then(({ data, error: authError }) => {
         const authorization = Array.isArray(data) ? data[0] : data;
         const permissions = Array.isArray(authorization?.permissions) ? authorization.permissions : [];
@@ -73,6 +75,41 @@ export function StudentForm({ open, onClose, onSaved, student }: StudentFormProp
   const availableGovernorates = useMemo(() => {
     return getGovernoratesForCountry(form.country || 'مصر');
   }, [form.country]);
+
+  useEffect(() => {
+    if (!open || !canManagePhone) {
+      setDuplicatePhoneMatch(null);
+      return;
+    }
+
+    const trimmedPhone = form.phone.trim();
+    const normalizedInput = trimmedPhone.replace(/\D/g, '');
+    if (normalizedInput.length < 8) {
+      setDuplicatePhoneMatch(null);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void supabase
+        .rpc('rbac_list_students_v2', { p_search: trimmedPhone, p_limit: 5, p_offset: 0 })
+        .then(({ data, error: lookupError }) => {
+          if (cancelled || lookupError || !Array.isArray(data)) return;
+          const match = (data as Student[]).find((row) => {
+            if (student && row.student_id === student.student_id) return false;
+            return (row.phone ?? '').replace(/\D/g, '') === normalizedInput;
+          });
+          setDuplicatePhoneMatch(match ? { student_id: match.student_id, name: match.name } : null);
+        }, () => {
+          if (!cancelled) setDuplicatePhoneMatch(null);
+        });
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [open, canManagePhone, form.phone, student]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,6 +164,13 @@ export function StudentForm({ open, onClose, onSaved, student }: StudentFormProp
           {canManagePhone && <Input label={translate("رقم الهاتف")} placeholder="01xxxxxxxxx" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />}
           {canManageEmail && <Input label={translate("البريد الإلكتروني")} type="email" placeholder="example@mail.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />}
         </div>
+        {duplicatePhoneMatch && (
+          <Alert variant="warning">
+            {translateTemplate('رقم الهاتف مستخدم بالفعل لطالب آخر ({name}). تأكد قبل الإضافة لتجنب التكرار.', {
+              name: duplicatePhoneMatch.name,
+            })}
+          </Alert>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <Select
             label={translate("الحالة الوظيفية")}

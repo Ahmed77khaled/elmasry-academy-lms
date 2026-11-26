@@ -19,7 +19,8 @@ import { useRouter } from '@/context/useRouter';
 import type { Page } from '@/context/RouterContext';
 import { getAdminDisplayName, getRoleDisplayName } from '@/lib/adminLabels';
 import { supabase } from '@/lib/supabase';
-import { formatEGP } from '@/lib/format';
+import { fetchAllRpcPages } from '@/lib/rpcPagination';
+import { formatEGP, formatReceiptCode } from '@/lib/format';
 import { PageLoader } from '@/components/ui/Feedback';
 import { AcademyLogo } from '@/components/AcademyLogo';
 import { AdminAvatar } from '@/components/AdminAvatar';
@@ -87,17 +88,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [searchResults, setSearchResults] = useState<SearchResults>({ students: [], courses: [], payments: [] });
   const [isSearching, setIsSearching] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const mobileSearchContainerRef = useRef<HTMLDivElement>(null);
+  const coursesCacheRef = useRef<{ items: SearchResults['courses']; fetchedAt: number } | null>(null);
 
   const handleNav = (page: Page) => {
     navigate(page);
     setSidebarOpen(false);
+    setMobileSearchOpen(false);
   };
 
   // Close search dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const inDesktop = searchContainerRef.current?.contains(target) ?? false;
+      const inMobile = mobileSearchContainerRef.current?.contains(target) ?? false;
+      if (!inDesktop && !inMobile) {
         setSearchOpen(false);
       }
     }
@@ -123,20 +131,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        const [studentsRes, coursesRes, paymentsRes] = await Promise.all([
+        const getCoursesForSearch = async () => {
+          if (!permissions.includes('courses.read')) return [] as SearchResults['courses'];
+          const cached = coursesCacheRef.current;
+          if (cached && Date.now() - cached.fetchedAt < 60_000) {
+            return cached.items;
+          }
+          const { data } = await fetchAllRpcPages<SearchResults['courses'][number]>((limit, offset) =>
+            supabase.rpc('rbac_list_courses_v2', { p_limit: limit, p_offset: offset }),
+          );
+          const items = data ?? [];
+          coursesCacheRef.current = { items, fetchedAt: Date.now() };
+          return items;
+        };
+
+        const [studentsRes, coursesList, paymentsRes] = await Promise.all([
           permissions.includes('students.read')
             ? supabase.rpc('rbac_list_students', { p_search: q, p_limit: 5, p_offset: 0 })
             : Promise.resolve({ data: [], error: null }),
-          permissions.includes('courses.read')
-            ? supabase.rpc('rbac_list_courses_v2', { p_limit: 500, p_offset: 0 })
-            : Promise.resolve({ data: [], error: null }),
+          getCoursesForSearch(),
           permissions.includes('finance.payments.read')
             ? supabase.rpc('rbac_search_payments', { p_query: q, p_limit: 5 })
             : Promise.resolve({ data: [], error: null }),
         ]);
 
         const normalizedQuery = q.toLocaleLowerCase();
-        const matchingCourses = ((coursesRes.data ?? []) as SearchResults['courses'])
+        const matchingCourses = coursesList
           .filter((course) => course.course_name.toLocaleLowerCase().includes(normalizedQuery))
           .slice(0, 5);
         setSearchResults({
@@ -159,6 +179,94 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     searchResults.students.length > 0 ||
     searchResults.courses.length > 0 ||
     searchResults.payments.length > 0;
+
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    setMobileSearchOpen(false);
+  };
+
+  const searchDropdown = searchOpen ? (
+    <div className="absolute top-full inset-x-0 mt-2 bg-obsidian-800 border border-obsidian-500/50 rounded-2xl shadow-2xl p-2 z-50 max-h-96 overflow-y-auto space-y-2 animate-fade-in">
+      {isSearching ? (
+        <p className="p-3 text-xs text-obsidian-300 text-center">{translate("جاري البحث...")}</p>
+      ) : !hasResults ? (
+        <p className="p-3 text-xs text-obsidian-300 text-center">{translateTemplate('لا توجد نتائج مطابقة لـ «{query}»', { query: searchQuery })}</p>
+      ) : (
+        <>
+          {/* Students */}
+          {searchResults.students.length > 0 && (
+            <div>
+              <p className="text-[11px] font-bold text-obsidian-400 px-2.5 py-1 flex items-center gap-1">
+                <GraduationCap size={13} className="text-emerald-light" /> {translate("الطلاب")}</p>
+              {searchResults.students.map((s) => (
+                <button
+                  key={s.student_id}
+                  onClick={() => {
+                    navigate('student-details', { id: s.student_id });
+                    closeSearch();
+                  }}
+                  className="w-full text-start p-2 rounded-lg hover:bg-obsidian-700 flex items-center justify-between gap-2 transition-colors"
+                >
+                  <span className="text-sm font-medium text-white truncate">{s.name}</span>
+                  <span className="text-xs text-obsidian-300 font-num shrink-0">{s.phone ?? ''}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Courses */}
+          {searchResults.courses.length > 0 && (
+            <div className="border-t border-obsidian-600/40 pt-1.5">
+              <p className="text-[11px] font-bold text-obsidian-400 px-2.5 py-1 flex items-center gap-1">
+                <BookOpen size={13} className="text-azure-light" /> {translate("الكورسات")}</p>
+              {searchResults.courses.map((c) => (
+                <button
+                  key={c.course_id}
+                  onClick={() => {
+                    navigate('course-details', { id: c.course_id });
+                    closeSearch();
+                  }}
+                  className="w-full text-start p-2 rounded-lg hover:bg-obsidian-700 flex items-center justify-between gap-2 transition-colors"
+                >
+                  <span className="text-sm font-medium text-white truncate">{c.course_name}</span>
+                  {c.default_cost != null && <span className="text-xs text-emerald-light font-num font-bold shrink-0">
+                    {formatEGP(c.default_cost)}
+                  </span>}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Payments */}
+          {searchResults.payments.length > 0 && (
+            <div className="border-t border-obsidian-600/40 pt-1.5">
+              <p className="text-[11px] font-bold text-obsidian-400 px-2.5 py-1 flex items-center gap-1">
+                <Receipt size={13} className="text-violet-400" /> {translate("إيصالات الدفع")}</p>
+              {searchResults.payments.map((p) => (
+                <button
+                  key={p.payment_id}
+                  onClick={() => {
+                    navigate('payments', {
+                      receipt: formatReceiptCode(p.receipt_number, p.payment_id),
+                      paymentId: p.payment_id,
+                    });
+                    closeSearch();
+                  }}
+                  className="w-full text-start p-2 rounded-lg hover:bg-obsidian-700 flex items-center justify-between gap-2 transition-colors"
+                >
+                  <span className="text-sm font-medium text-white truncate">{translateTemplate('إيصال: REC-{number}', { number: String(p.receipt_number).padStart(8, '0') })}</span>
+                  <span className="text-xs text-emerald-light font-num font-bold shrink-0">
+                    {formatEGP(p.amount)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  ) : null;
 
   return (
     <div className="min-h-screen bg-obsidian-900 flex flex-col" dir={locale === 'ar' ? 'rtl' : 'ltr'}>
@@ -249,19 +357,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Top Header */}
       <header className="sticky top-0 z-30 bg-obsidian-800/90 backdrop-blur-md border-b border-obsidian-500/40">
-        <div className="flex items-center gap-3 px-4 lg:px-6 h-16">
-          {/* 3-Lines Hamburger Menu Button — Always Available on Right (RTL) */}
+        <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 lg:px-6 h-16">
+          {/* 3-Lines Hamburger Menu Button — Always Available on Start Side */}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="flex items-center justify-center w-10 h-10 rounded-xl bg-obsidian-700 hover:bg-obsidian-600 border border-obsidian-500/40 text-emerald-light hover:text-white transition-all shadow-sm"
+            className="flex items-center justify-center w-10 h-10 rounded-xl bg-obsidian-700 hover:bg-obsidian-600 border border-obsidian-500/40 text-emerald-light hover:text-white transition-all shadow-sm shrink-0"
             title={translate("فتح القائمة الرئيسية")}
+            aria-label={translate("فتح القائمة الرئيسية")}
           >
             <Menu size={22} />
           </button>
           <LanguageToggle compact />
 
           {/* Logo & Platform Title */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 min-w-0 flex-1 sm:flex-initial">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-brand to-emerald-dark flex items-center justify-center shrink-0 shadow-md shadow-emerald-brand/20">
               <AcademyLogo imageClassName="w-full h-full object-contain p-1" fallbackClassName="text-white font-bold text-sm font-arabic" />
             </div>
@@ -274,8 +383,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* Global Header Search Bar with Dropdown Results */}
-          <div ref={searchContainerRef} className="relative mr-auto w-64 md:w-80 lg:w-96">
+          {/* Desktop/Tablet Global Search Bar */}
+          <div ref={searchContainerRef} className="hidden sm:block relative ms-auto sm:w-52 md:w-72 lg:w-96 min-w-0">
             <div className="flex items-center gap-2 bg-obsidian-700/80 rounded-xl px-3 py-2 border border-obsidian-500/40 focus-within:border-emerald-brand/50 focus-within:ring-1 focus-within:ring-emerald-brand/30 transition-all">
               <Search size={16} className="text-obsidian-300 shrink-0" />
               <input
@@ -294,93 +403,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </button>
               )}
             </div>
-
-            {/* Dropdown Results */}
-            {searchOpen && (
-              <div className="absolute top-full right-0 left-0 mt-2 bg-obsidian-800 border border-obsidian-500/50 rounded-2xl shadow-2xl p-2 z-50 max-h-96 overflow-y-auto space-y-2 animate-fade-in">
-                {isSearching ? (
-                  <p className="p-3 text-xs text-obsidian-300 text-center">{translate("جاري البحث...")}</p>
-                ) : !hasResults ? (
-                  <p className="p-3 text-xs text-obsidian-300 text-center">{translateTemplate('لا توجد نتائج مطابقة لـ «{query}»', { query: searchQuery })}</p>
-                ) : (
-                  <>
-                    {/* Students */}
-                    {searchResults.students.length > 0 && (
-                      <div>
-                        <p className="text-[11px] font-bold text-obsidian-400 px-2.5 py-1 flex items-center gap-1">
-                          <GraduationCap size={13} className="text-emerald-light" /> {translate("الطلاب")}</p>
-                        {searchResults.students.map((s) => (
-                          <button
-                            key={s.student_id}
-                            onClick={() => {
-                              navigate('student-details', { id: s.student_id });
-                              setSearchOpen(false);
-                              setSearchQuery('');
-                            }}
-                            className="w-full text-right p-2 rounded-lg hover:bg-obsidian-700 flex items-center justify-between transition-colors"
-                          >
-                            <span className="text-sm font-medium text-white">{s.name}</span>
-                            <span className="text-xs text-obsidian-300 font-num">{s.phone ?? ''}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Courses */}
-                    {searchResults.courses.length > 0 && (
-                      <div className="border-t border-obsidian-600/40 pt-1.5">
-                        <p className="text-[11px] font-bold text-obsidian-400 px-2.5 py-1 flex items-center gap-1">
-                          <BookOpen size={13} className="text-azure-brand" /> {translate("الكورسات")}</p>
-                        {searchResults.courses.map((c) => (
-                          <button
-                            key={c.course_id}
-                            onClick={() => {
-                              navigate('course-details', { id: c.course_id });
-                              setSearchOpen(false);
-                              setSearchQuery('');
-                            }}
-                            className="w-full text-right p-2 rounded-lg hover:bg-obsidian-700 flex items-center justify-between transition-colors"
-                          >
-                            <span className="text-sm font-medium text-white">{c.course_name}</span>
-                            {c.default_cost != null && <span className="text-xs text-emerald-light font-num font-bold">
-                              {formatEGP(c.default_cost)}
-                            </span>}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Payments */}
-                    {searchResults.payments.length > 0 && (
-                      <div className="border-t border-obsidian-600/40 pt-1.5">
-                        <p className="text-[11px] font-bold text-obsidian-400 px-2.5 py-1 flex items-center gap-1">
-                          <Receipt size={13} className="text-violet-400" /> {translate("إيصالات الدفع")}</p>
-                        {searchResults.payments.map((p) => (
-                          <button
-                            key={p.payment_id}
-                            onClick={() => {
-                              navigate('payments');
-                              setSearchOpen(false);
-                              setSearchQuery('');
-                            }}
-                            className="w-full text-right p-2 rounded-lg hover:bg-obsidian-700 flex items-center justify-between transition-colors"
-                          >
-                            <span className="text-sm font-medium text-white">{translateTemplate('إيصال: REC-{number}', { number: String(p.receipt_number).padStart(8, '0') })}</span>
-                            <span className="text-xs text-emerald-light font-num font-bold">
-                              {formatEGP(p.amount)}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
+            {searchDropdown}
           </div>
 
+          {/* Mobile Search Toggle */}
+          <button
+            type="button"
+            onClick={() => setMobileSearchOpen((prev) => !prev)}
+            className={`sm:hidden flex items-center justify-center w-9 h-9 rounded-xl border transition-all shrink-0 ${
+              mobileSearchOpen
+                ? 'bg-emerald-brand/20 border-emerald-brand/40 text-emerald-light'
+                : 'bg-obsidian-700 hover:bg-obsidian-600 border-obsidian-500/40 text-obsidian-200 hover:text-white'
+            }`}
+            aria-label={mobileSearchOpen ? translate("إغلاق البحث") : translate("بحث")}
+            title={mobileSearchOpen ? translate("إغلاق البحث") : translate("بحث")}
+          >
+            {mobileSearchOpen ? <X size={18} /> : <Search size={18} />}
+          </button>
+
           {/* Status Badge */}
-          <div className="hidden sm:flex items-center gap-1.5 bg-emerald-brand/10 border border-emerald-brand/30 rounded-full px-3 py-1.5 shrink-0">
+          <div className="hidden md:flex items-center gap-1.5 bg-emerald-brand/10 border border-emerald-brand/30 rounded-full px-3 py-1.5 shrink-0">
             <Shield size={14} className="text-emerald-light" />
             <span className="text-emerald-light text-xs font-semibold">
               {authorizationReady ? translate("تم التحقق من الصلاحيات") : translate("جارٍ التحقق من الصلاحيات")}
@@ -389,7 +431,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* User Profile */}
           <div className="flex items-center gap-2 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-azure-brand to-azure-light flex items-center justify-center shrink-0 shadow-sm">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-azure-brand to-azure-dark flex items-center justify-center shrink-0 shadow-sm">
               <AdminAvatar user={user} className="w-full h-full rounded-xl object-cover text-white font-bold text-sm font-arabic flex items-center justify-center" />
             </div>
             <div className="hidden lg:block">
@@ -398,6 +440,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </div>
+
+        {/* Mobile Expandable Search Row */}
+        {mobileSearchOpen && (
+          <div ref={mobileSearchContainerRef} className="sm:hidden px-3 pb-3 pt-2 border-t border-obsidian-500/30 relative">
+            <div className="flex items-center gap-2 bg-obsidian-700/80 rounded-xl px-3 py-2 border border-obsidian-500/40 focus-within:border-emerald-brand/50 focus-within:ring-1 focus-within:ring-emerald-brand/30 transition-all">
+              <Search size={16} className="text-obsidian-300 shrink-0" />
+              <input
+                type="text"
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => {
+                  if (searchQuery.trim() && hasResults) setSearchOpen(true);
+                }}
+                placeholder={translate("دوّر على طالب، كورس، أو رقم إيصال...")}
+                className="bg-transparent text-sm text-obsidian-100 placeholder:text-obsidian-300 outline-none w-full"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="text-obsidian-300 hover:text-white">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            {searchDropdown}
+          </div>
+        )}
       </header>
 
       {/* Main Content Area (Now gets 100% full width when sidebar is closed) */}

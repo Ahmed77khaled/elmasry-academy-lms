@@ -140,7 +140,7 @@ export function ExpenseForm({ open, onClose, onSaved }: ExpenseFormProps) {
         </div>
 
         <Select
-          label={translate("كورس مرتبط (اختياري)")}
+          label={translate("الدورة التدريبية المرتبطة (اختياري)")}
           value={courseId}
           onChange={(e) => setCourseId(e.target.value)}
           options={[

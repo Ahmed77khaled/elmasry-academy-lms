@@ -1,9 +1,9 @@
-import { translate } from '@/lib/translations';
-import { translateTemplate } from '@/lib/translations';
-import { useState } from 'react';
+import { translate, translateTemplate } from '@/lib/translations';
+import { useEffect, useRef, useState } from 'react';
 import { Plus, Search, Printer, Ban, FileSpreadsheet, MessageCircle, Calendar } from 'lucide-react';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
+import { fetchAllRpcPages } from '@/lib/rpcPagination';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState, PageLoader } from '@/components/ui/Feedback';
 import { PaymentForm } from '@/components/forms/PaymentForm';
@@ -12,11 +12,12 @@ import { ReceiptModal } from '@/components/modals/ReceiptModal';
 import { Textarea } from '@/components/ui/Form';
 import { Alert } from '@/components/ui/Alert';
 import { PaginationControls } from '@/components/ui/PaginationControls';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { formatCurrency, formatDate, formatReceiptCode } from '@/lib/format';
 import { exportToCSV } from '@/lib/exportExcel';
 import { isDateInRange, DateRangePreset } from '@/lib/dateRange';
 import { formatEgyptPhoneForWhatsApp } from '@/lib/whatsapp';
 import { useAuth } from '@/context/useAuth';
+import { useRouter } from '@/context/useRouter';
 
 const METHOD_LABELS: Record<string, string> = {
   Cash: 'كاش',
@@ -48,6 +49,7 @@ interface RawPaymentRow {
 }
 
 export function PaymentsPage() {
+  const { route } = useRouter();
   const { permissions } = useAuth();
   const canRecordPayments = permissions.includes('finance.payments.record');
   const canVoidPayments = permissions.includes('finance.payments.void');
@@ -84,16 +86,52 @@ export function PaymentsPage() {
   } | null>(null);
 
   const { data: payments, loading, refetch } = useQuery<RawPaymentRow[]>(async () => {
-    const { data, error } = await supabase.rpc('rbac_list_payments_v2', { p_limit: 500, p_offset: 0 });
-    if (error) return { data: null, error: error.message };
-    const rows = ((data ?? []) as unknown as (RawPaymentRow & { student_name: string; student_phone: string | null; course_name: string; cash_box_name: string })[]).map((payment) => ({
+    const { data, error } = await fetchAllRpcPages((limit, offset) =>
+      supabase.rpc('rbac_list_payments_v2', { p_limit: limit, p_offset: offset }),
+    );
+    if (error || !data) return { data: null, error };
+    const rows = (data as unknown as (RawPaymentRow & { student_name: string; student_phone: string | null; course_name: string; cash_box_name: string })[]).map((payment) => ({
       ...payment,
       enrollments: { students: { name: payment.student_name, phone: payment.student_phone }, courses: { course_name: payment.course_name } },
       cash_boxes: { name: payment.cash_box_name },
     })) as unknown as RawPaymentRow[];
-    const filtered = methodFilter ? rows.filter((payment) => payment.method === methodFilter) : rows;
-    return { data: filtered, error: null };
-  }, [methodFilter]);
+    return { data: rows, error: null };
+  }, []);
+
+  const handledRoutePaymentRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (route.params.receipt) {
+      setSearch(route.params.receipt);
+      setPage(1);
+    }
+  }, [route.params.receipt]);
+
+  useEffect(() => {
+    const targetId = route.params.paymentId;
+    if (!targetId || !payments || handledRoutePaymentRef.current === targetId) return;
+    const match = payments.find((item) => item.payment_id === targetId);
+    if (match) {
+      handledRoutePaymentRef.current = targetId;
+      setReceiptTarget({
+        payment_id: match.payment_id,
+        receipt_number: match.receipt_number,
+        student_name: match.enrollments?.students?.name ?? translate("طالب بالأكاديمية"),
+        student_phone: match.enrollments?.students?.phone,
+        course_name: match.enrollments?.courses?.course_name ?? translate("كورس تدريبي"),
+        amount: match.amount,
+        currency: match.currency,
+        payment_date: match.payment_date,
+        method: match.method,
+        receipt_ref: match.receipt_ref,
+        cash_box_name: match.cash_boxes?.name,
+        notes: match.notes,
+      });
+    }
+  }, [route.params.paymentId, payments]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, methodFilter, datePreset, customStart, customEnd]);
 
   const handleVoid = async () => {
     if (!voidTarget || !canVoidPayments) return;
@@ -135,8 +173,11 @@ export function PaymentsPage() {
     });
   };
 
-  // Filter payments by search and date range
+  // Filter payments by method, search, and date range
   const filteredPayments = (payments ?? []).filter((p) => {
+    if (methodFilter && p.method !== methodFilter) {
+      return false;
+    }
     // 1. Date Range
     if (!isDateInRange(p.payment_date, datePreset, customStart, customEnd)) {
       return false;
@@ -148,7 +189,7 @@ export function PaymentsPage() {
     const sName = p.enrollments?.students?.name?.toLowerCase() ?? '';
     const cName = p.enrollments?.courses?.course_name?.toLowerCase() ?? '';
     const ref = p.receipt_ref?.toLowerCase() ?? '';
-    const receiptLabel = `REC-${String(p.receipt_number).padStart(8, '0')}`.toLowerCase();
+    const receiptLabel = formatReceiptCode(p.receipt_number, p.payment_id).toLowerCase();
     const receiptNum = String(p.receipt_number);
     return sName.includes(q) || cName.includes(q) || ref.includes(q) || receiptLabel.includes(q) || receiptNum.includes(q);
   });
@@ -176,7 +217,7 @@ export function PaymentsPage() {
     ];
 
     const rows = filteredPayments.map((p) => [
-      `REC-${String(p.receipt_number).padStart(8, '0')}`,
+      formatReceiptCode(p.receipt_number, p.payment_id),
       p.payment_date,
       p.enrollments?.students?.name ?? '—',
       p.enrollments?.courses?.course_name ?? '—',
@@ -290,7 +331,7 @@ export function PaymentsPage() {
             {translate("عدد السندات المعروضة:")}{' '}<span className="font-num text-white font-semibold">{filteredPayments.length}</span>
           </div>
           <div>
-            {translate("إجمالي المقبوضات المعتمدة:")}{' '}<span className="font-num text-emerald-light font-bold text-sm">{formatCurrency(activeFilteredEGP)} · {formatCurrency(activeFilteredUSD, 'USD')}</span>
+            {translate("إجمالي المقبوضات المعتمدة:")}{' '}<span className="font-num text-emerald-light font-bold text-sm">{formatCurrency(activeFilteredEGP)}{activeFilteredUSD !== 0 ? ` · ${formatCurrency(activeFilteredUSD, 'USD')}` : ''}</span>
           </div>
         </div>
       </div>
@@ -324,7 +365,7 @@ export function PaymentsPage() {
                   const isVoided = !!p.voided_at;
                   const studentPhone = p.enrollments?.students?.phone;
                   const formattedWa = formatEgyptPhoneForWhatsApp(studentPhone);
-                  const receiptLabel = `REC-${String(p.receipt_number).padStart(8, '0')}`;
+                  const receiptLabel = formatReceiptCode(p.receipt_number, p.payment_id);
 
                   return (
                     <tr key={p.payment_id} className={`border-b border-obsidian-500/20 hover:bg-obsidian-700/30 transition-colors ${isVoided ? 'opacity-40' : ''}`}>

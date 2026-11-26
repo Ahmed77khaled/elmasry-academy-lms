@@ -71,3 +71,13 @@ export function formatStudentCode(studentId?: string | null, customCode?: string
   const cleanId = studentId.replace(/-/g, '').slice(0, 6).toUpperCase();
   return `STD-${cleanId}`;
 }
+
+export function formatReceiptCode(receiptNumber?: number | null, fallbackId?: string | null): string {
+  if (receiptNumber != null && Number.isFinite(Number(receiptNumber))) {
+    return `REC-${String(receiptNumber).padStart(8, '0')}`;
+  }
+  if (fallbackId && fallbackId.trim()) {
+    return `REC-${fallbackId.slice(0, 8).toUpperCase()}`;
+  }
+  return '—';
+}

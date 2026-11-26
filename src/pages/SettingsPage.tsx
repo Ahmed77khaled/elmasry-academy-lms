@@ -54,8 +54,8 @@ export function SettingsPage() {
       setPasswordError(translate("كلمتا المرور غير متطابقتين"));
       return;
     }
-    if (newPassword.length < 6) {
-      setPasswordError(translate("كلمة المرور يجب أن تكون 6 أحرف على الأقل"));
+    if (newPassword.length < 8) {
+      setPasswordError(translate("كلمة المرور يجب أن تكون 8 أحرف على الأقل"));
       return;
     }
 
@@ -103,7 +103,7 @@ export function SettingsPage() {
       <div className="card-surface p-5">
         <h3 className="text-white font-bold text-base mb-4">{translate("بيانات الحساب")}</h3>
         <div className="flex items-start gap-4 mb-5">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-azure-brand to-azure-light flex items-center justify-center shrink-0">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-azure-brand to-azure-dark flex items-center justify-center shrink-0">
             <AdminAvatar user={user} className="w-full h-full rounded-2xl object-cover text-white font-bold text-xl font-arabic flex items-center justify-center" />
           </div>
           <div className="flex-1">
@@ -171,6 +171,8 @@ export function SettingsPage() {
             label={translate("كلمة المرور الجديدة")}
             type="password"
             placeholder="••••••••"
+            minLength={8}
+            autoComplete="new-password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
           />
@@ -178,6 +180,8 @@ export function SettingsPage() {
             label={translate("تأكيد كلمة المرور")}
             type="password"
             placeholder="••••••••"
+            minLength={8}
+            autoComplete="new-password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
           />
@@ -194,7 +198,7 @@ export function SettingsPage() {
         <h3 className="text-white font-bold text-base mb-4">{translate("البنية التحتية وصحة النظام")}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="flex items-center gap-3 bg-obsidian-700/40 rounded-lg p-3">
-            <Database size={18} className="text-azure-brand" />
+            <Database size={18} className="text-azure-light" />
             <div>
               <p className="text-obsidian-300 text-xs">{translate("قاعدة البيانات")}</p>
               <p className="text-white text-sm">{translate("قاعدة بيانات سحابية (Supabase)")}</p>
@@ -251,7 +255,8 @@ export function SettingsPage() {
                   </td>
                   <td className="px-4 py-3 text-obsidian-200">{box.owner}</td>
                   <td className={`px-4 py-3 font-num font-bold ${box.current_balance < 0 ? 'text-rose-400' : 'text-emerald-light'}`}>
-                    {formatBalance(box.current_balance)} · {formatBalance(box.current_balance_usd ?? 0, 'USD')}
+                    {formatBalance(box.current_balance)}
+                    {(box.current_balance_usd ?? 0) !== 0 && ` · ${formatBalance(box.current_balance_usd ?? 0, 'USD')}`}
                   </td>
                 </tr>
               ))}

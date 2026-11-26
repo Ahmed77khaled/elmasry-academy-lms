@@ -11,7 +11,7 @@
   }
 
   body {
-    background-color: #0B0F17;
+    background-color: #070B14;
     color: #E2E8F0;
   }
 
@@ -22,11 +22,11 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: #0F172A;
+    background: #0E1525;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #334155;
+    background: #2D3C56;
     border-radius: 4px;
   }
 
@@ -44,27 +44,27 @@
 
 @layer components {
   .card-surface {
-    @apply bg-obsidian-600 border border-obsidian-500/50 rounded-xl;
+    @apply bg-obsidian-600/95 border border-obsidian-500/60 rounded-xl shadow-lg shadow-black/20;
   }
 
   .input-base {
-    @apply w-full bg-obsidian-700 border border-obsidian-500/60 rounded-lg px-4 py-2.5 text-sm text-obsidian-100 placeholder:text-obsidian-300 focus:outline-none focus:ring-2 focus:ring-emerald-brand/50 focus:border-emerald-brand/50 transition-all;
+    @apply w-full bg-obsidian-700 border border-obsidian-500/70 rounded-lg px-4 py-2.5 text-sm text-obsidian-100 placeholder:text-obsidian-400 focus:outline-none focus:ring-2 focus:ring-emerald-brand/40 focus:border-emerald-brand transition-all;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 bg-emerald-brand hover:bg-emerald-dark text-white font-semibold px-4 py-2.5 rounded-lg text-sm transition-all active:scale-95;
+    @apply inline-flex items-center justify-center gap-2 bg-emerald-dark hover:bg-[#047857] text-white font-semibold px-4 py-2.5 rounded-lg text-sm border border-emerald-brand/30 shadow-sm shadow-emerald-950/40 transition-all active:scale-95 disabled:opacity-45 disabled:cursor-not-allowed disabled:pointer-events-none;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 bg-obsidian-600 hover:bg-obsidian-500 text-obsidian-100 font-medium px-4 py-2.5 rounded-lg text-sm border border-obsidian-500/60 transition-all active:scale-95;
+    @apply inline-flex items-center justify-center gap-2 bg-obsidian-600 hover:bg-obsidian-500/80 text-obsidian-100 font-medium px-4 py-2.5 rounded-lg text-sm border border-obsidian-500/70 transition-all active:scale-95 disabled:opacity-45 disabled:cursor-not-allowed disabled:pointer-events-none;
   }
 
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-medium px-4 py-2.5 rounded-lg text-sm border border-rose-500/30 transition-all active:scale-95;
+    @apply inline-flex items-center justify-center gap-2 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 font-medium px-4 py-2.5 rounded-lg text-sm border border-rose-500/35 transition-all active:scale-95 disabled:opacity-45 disabled:cursor-not-allowed disabled:pointer-events-none;
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 hover:bg-obsidian-500/40 text-obsidian-200 font-medium px-3 py-2 rounded-lg text-sm transition-all;
+    @apply inline-flex items-center justify-center gap-2 hover:bg-obsidian-500/40 text-obsidian-200 font-medium px-3 py-2 rounded-lg text-sm transition-all disabled:opacity-45 disabled:pointer-events-none;
   }
 }
 

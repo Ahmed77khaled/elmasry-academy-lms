@@ -1,5 +1,5 @@
-import { translate } from '@/lib/translations';
-import { translateTemplate } from '@/lib/translations';
+import { translate, translateTemplate, formatCountPhrase } from '@/lib/translations';
+import { useLocale } from '@/context/useLocale';
 import { useState } from 'react';
 import {
   ArrowRight,
@@ -27,6 +27,7 @@ import {
 import { PaginationControls } from '@/components/ui/PaginationControls';
 import { useQuery } from '@/lib/useQuery';
 import { supabase } from '@/lib/supabase';
+import { fetchAllRpcPages } from '@/lib/rpcPagination';
 import { useRouter } from '@/context/useRouter';
 import { Badge } from '@/components/ui/Badge';
 import { paymentStatusBadge, courseStatusBadge } from '@/components/ui/badgeStatus';
@@ -48,7 +49,17 @@ const LEVEL_LABELS: Record<string, string> = {
   Advanced: 'متقدم',
 };
 
+const WEEK_COUNT_FORMS = {
+  ar: { zero: 'أسابيع', one: 'أسبوع', two: 'أسبوعان', few: 'أسابيع', many: 'أسبوعاً' },
+  en: { one: 'week', other: 'weeks' },
+};
+const SEAT_COUNT_FORMS = {
+  ar: { zero: 'مقاعد متاحة', one: 'مقعد متاح', two: 'مقعدان متاحان', few: 'مقاعد متاحة', many: 'مقعداً متاحاً' },
+  en: { one: 'seat available', other: 'seats available' },
+};
+
 export function CourseDetailsPage({ courseId }: { courseId: string }) {
+  const { locale } = useLocale();
   const { navigate } = useRouter();
   const { permissions } = useAuth();
   const canReadEnrollments = permissions.includes('enrollments.read');
@@ -81,10 +92,10 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
   // Phone lookup map for enrolled students (for WhatsApp reminders & exports)
   const { data: studentsPhoneMap } = useQuery<Record<string, string>>(async () => {
     if (!canReadStudentPhones) return { data: {}, error: null };
-    const { data, error } = await supabase.rpc('rbac_list_students', {
-      p_search: null, p_limit: 500, p_offset: 0,
-    });
-    if (error || !data) return { data: {}, error: error?.message ?? null };
+    const { data, error } = await fetchAllRpcPages((limit, offset) =>
+      supabase.rpc('rbac_list_students', { p_search: null, p_limit: limit, p_offset: offset }),
+    );
+    if (error || !data) return { data: {}, error };
     const map: Record<string, string> = {};
     (data as Student[]).forEach((s) => {
       if (s.student_id && s.phone) {
@@ -111,10 +122,12 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
   // 3. Fetch Enrolled students
   const { data: enrollments, loading: enrollLoading, refetch: refetchEnrollments } = useQuery<EnrollmentBalance[]>(async () => {
     if (!courseId || !canReadEnrollments) return { data: [], error: null };
-    const { data, error } = await supabase.rpc('rbac_list_enrollments_v2', {
-      p_search: null, p_limit: 500, p_offset: 0, p_course_id: courseId,
-    });
-    return { data: data as EnrollmentBalance[] | null, error: error?.message ?? null };
+    const { data, error } = await fetchAllRpcPages((limit, offset) =>
+      supabase.rpc('rbac_list_enrollments_v2', {
+        p_search: null, p_limit: limit, p_offset: offset, p_course_id: courseId,
+      }),
+    );
+    return { data: (data as EnrollmentBalance[] | null) ?? null, error };
   }, [courseId, canReadEnrollments]);
 
   const refetchAll = () => {
@@ -167,9 +180,10 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
       translate("اسم المتدرب"),
       translate("رقم الهاتف"),
       translate("تاريخ التسجيل"),
-      translate("المتفق عليه (ج.م)"),
-      translate("المدفوع (ج.م)"),
-      translate("المتبقي (ج.م)"),
+      translate("العملة"),
+      translate("المبلغ المتفق عليه"),
+      translate("المدفوع"),
+      translate("المتبقي"),
       translate("حالة السداد"),
       translate("حالة الاشتراك"),
     ];
@@ -180,6 +194,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
         enr.student_name,
         studentsPhoneMap?.[enr.student_id] ?? '',
         enr.enrolled_at?.slice(0, 10) ?? '',
+        enr.agreed_currency ?? 'EGP',
         enr.agreed_cost,
         enr.total_paid,
         enr.remaining_balance,
@@ -217,7 +232,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
 
   const links = [
     { url: course.link_whatsapp, icon: MessageCircle, label: translate("جروب واتساب"), color: 'hover:text-emerald-400 hover:border-emerald-500/40' },
-    { url: course.link_tasks, icon: ListTodo, label: translate("منصة المهام"), color: 'hover:text-azure-brand hover:border-azure-brand/40' },
+    { url: course.link_tasks, icon: ListTodo, label: translate("منصة المهام"), color: 'hover:text-azure-light hover:border-azure-brand/40' },
     { url: course.link_drive, icon: HardDrive, label: translate("جوجل درايف"), color: 'hover:text-amber-400 hover:border-amber-500/40' },
     { url: course.link_sources, icon: BookMarked, label: translate("المصادر والمذكرات"), color: 'hover:text-violet-400 hover:border-violet-500/40' },
   ].filter((l) => l.url);
@@ -263,7 +278,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
             )}
             {(course.start_date || course.end_date) && (
               <p className="flex flex-wrap items-center gap-x-2 text-obsidian-200 text-sm mt-3">
-                <CalendarDays size={15} className="text-azure-brand" />
+                <CalendarDays size={15} className="text-azure-light" />
                 {course.start_date && `${translate('\u0627\u0644\u0628\u062f\u0627\u064a\u0629')}: ${formatDate(course.start_date)}`}
                 {course.start_date && course.end_date && ' \u00b7 '}
                 {course.end_date && `${translate('\u0627\u0644\u0646\u0647\u0627\u064a\u0629')}: ${formatDate(course.end_date)}`}
@@ -279,10 +294,10 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
         {/* Specifications & Capacity Gauge */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-obsidian-500/30">
           <div className="flex items-center gap-3 p-3 bg-obsidian-700/40 rounded-xl">
-            <Clock size={20} className="text-azure-brand shrink-0" />
+            <Clock size={20} className="text-azure-light shrink-0" />
             <div>
               <p className="text-xs text-obsidian-300">{translate("المدة الزمنية")}</p>
-              <p className="text-sm font-semibold text-white font-num">{course.duration_weeks ?? 4} {translate("أسابيع")}</p>
+              <p className="text-sm font-semibold text-white font-num">{formatCountPhrase(course.duration_weeks ?? 4, WEEK_COUNT_FORMS, locale)}</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 bg-obsidian-700/40 rounded-xl">
@@ -311,7 +326,9 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
             <div>
               <p className="text-xs text-obsidian-300">{translate("المقاعد المتاحة")}</p>
               <p className="text-sm font-semibold text-white font-num">
-                {(summary?.vacant_places ?? (capacity != null ? Math.max(capacity - enrolled, 0) : null)) !== null ? `${summary?.vacant_places ?? Math.max(capacity! - enrolled, 0)} seats available` : "Open enrollment"}
+                {(summary?.vacant_places ?? (capacity != null ? Math.max(capacity - enrolled, 0) : null)) !== null
+                  ? formatCountPhrase(summary?.vacant_places ?? Math.max(capacity! - enrolled, 0), SEAT_COUNT_FORMS, locale)
+                  : translate("تسجيل مفتوح")}
               </p>
             </div>
           </div>}
@@ -394,19 +411,27 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
       {summary && canReadFinancialReports && <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="card-surface p-4 bg-gradient-to-b from-azure-brand/10 to-transparent">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp size={16} className="text-azure-brand" />
+            <TrendingUp size={16} className="text-azure-light" />
             <span className="text-obsidian-300 text-xs">{translate("الإيراد المتوقع")}</span>
           </div>
-          <p className="font-num font-bold text-lg text-azure-brand">{formatEGP(summary.expected_revenue)}</p>
-          <p className="font-num text-sm text-azure-brand">{formatCurrency(summary.expected_revenue_usd ?? 0, 'USD')}</p>
+          {(summary.expected_revenue !== 0 || (summary.expected_revenue_usd ?? 0) === 0) && (
+            <p className="font-num font-bold text-lg text-azure-light">{formatEGP(summary.expected_revenue)}</p>
+          )}
+          {(summary.expected_revenue_usd ?? 0) !== 0 && (
+            <p className="font-num font-bold text-lg text-azure-light">{formatCurrency(summary.expected_revenue_usd ?? 0, 'USD')}</p>
+          )}
         </div>
         <div className="card-surface p-4 bg-gradient-to-b from-emerald-brand/10 to-transparent">
           <div className="flex items-center gap-2 mb-2">
             <Wallet size={16} className="text-emerald-light" />
             <span className="text-obsidian-300 text-xs">{translate("الإيراد المحصل")}</span>
           </div>
-          <p className="font-num font-bold text-lg text-emerald-light">{formatEGP(summary.collected_payments)}</p>
-          <p className="font-num text-sm text-emerald-light">{formatCurrency(summary.collected_payments_usd ?? 0, 'USD')}</p>
+          {(summary.collected_payments !== 0 || (summary.collected_payments_usd ?? 0) === 0) && (
+            <p className="font-num font-bold text-lg text-emerald-light">{formatEGP(summary.collected_payments)}</p>
+          )}
+          {(summary.collected_payments_usd ?? 0) !== 0 && (
+            <p className="font-num font-bold text-lg text-emerald-light">{formatCurrency(summary.collected_payments_usd ?? 0, 'USD')}</p>
+          )}
         </div>
         <div className="card-surface p-4 bg-gradient-to-b from-rose-500/10 to-transparent">
           <div className="flex items-center gap-2 mb-2">
@@ -444,7 +469,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
                   <thead><tr className="text-obsidian-300 text-xs border-b border-obsidian-500/30">
                     <th className="text-right font-medium px-4 py-3">{translate("الطالب")}</th>
                     <th className="text-right font-medium px-4 py-3">{translate("تاريخ التسجيل")}</th>
-                    {canReadEnrollmentFinance && <><th className="text-right font-medium px-4 py-3">{translate("المتفق عليه (ج.م)")}</th><th className="text-right font-medium px-4 py-3">{translate("المدفوع (ج.م)")}</th><th className="text-right font-medium px-4 py-3">{translate("المتبقي (ج.م)")}</th><th className="text-right font-medium px-4 py-3">{translate("حالة السداد")}</th></>}
+                    {canReadEnrollmentFinance && <><th className="text-right font-medium px-4 py-3">{translate("المبلغ المتفق عليه")}</th><th className="text-right font-medium px-4 py-3">{translate("المدفوع")}</th><th className="text-right font-medium px-4 py-3">{translate("المتبقي")}</th><th className="text-right font-medium px-4 py-3">{translate("حالة السداد")}</th></>}
                     <th className="text-right font-medium px-4 py-3">{translate("حالة التسجيل")}</th>
                     {(canRecordPayments || canReadEnrollmentFinance || canUpdateEnrollmentStatus) && <th className="text-right font-medium px-4 py-3">{translate("إجراءات")}</th>}
                   </tr></thead>
@@ -452,7 +477,7 @@ export function CourseDetailsPage({ courseId }: { courseId: string }) {
                     const ps = canReadEnrollmentFinance ? paymentStatusBadge(enr.payment_status ?? 'Unpaid') : null;
                     const studentPhone = studentsPhoneMap?.[enr.student_id];
                     const reminderUrl = canReadEnrollmentFinance && enr.remaining_balance != null && enr.remaining_balance > 0 && studentPhone
-                      ? generatePaymentReminderUrl({ phone: studentPhone, studentName: enr.student_name, courseName: course.course_name, remainingAmount: enr.remaining_balance })
+                      ? generatePaymentReminderUrl({ phone: studentPhone, studentName: enr.student_name, courseName: course.course_name, remainingAmount: enr.remaining_balance, currency: enr.agreed_currency ?? 'EGP' })
                       : null;
                     return <tr key={enr.enrollment_id} className="border-b border-obsidian-500/20">
                       <td className="px-4 py-3 text-white"><button onClick={() => navigate('student-details', { id: enr.student_id })} className="text-right">{enr.student_name}</button></td>
